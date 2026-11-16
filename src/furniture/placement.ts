@@ -9,6 +9,13 @@ export const GRID_MM = 10;
 export const WARN_MIN_MM = 1;
 /** 끄는 동안 변이 벽·다른 가구의 변에 이 거리 이내로 다가오면 딱 붙인다(맞닿음). SNAP_MM은 붙고 SNAP_MM + 1은 안 붙는다. */
 export const SNAP_MM = 20;
+/** 끄는 동안 자석이 붙는 화면 거리(px). 장면이 mmPerPx를 넘기면 SNAP_PX × mmPerPx(mm)가 자석 거리다. */
+export const SNAP_PX = 12;
+
+/** 끄는 동안의 자석 거리(mm). mmPerPx가 없거나 올바르지 않으면 SNAP_MM. */
+export function snapDistanceMm(mmPerPx?: number): number {
+  return mmPerPx !== undefined && Number.isFinite(mmPerPx) && mmPerPx > 0 ? SNAP_PX * mmPerPx : SNAP_MM;
+}
 /** 회전 버튼 한 번에 도는 각도(반시계) */
 export const ROTATE_STEP_DEG = 90;
 
@@ -83,10 +90,15 @@ export function snapCenter(item: Pick<FurnitureItem, 'w' | 'd' | 'rotationDeg'>,
 }
 
 /** 한 축의 자석 후보 하나를 고른다. 가장 가까운 것, 같은 거리면 먼저 넣은 것(벽). 없으면 null(이동량이 아니라 붙은 위치 차이). */
-function nearestShift(lo: number, hi: number, targets: { lo: number | null; hi: number | null }[]): number | null {
+function nearestShift(
+  lo: number,
+  hi: number,
+  targets: { lo: number | null; hi: number | null }[],
+  snapMm: number,
+): number | null {
   let best: number | null = null;
   const consider = (delta: number) => {
-    if (Math.abs(delta) <= SNAP_MM && (best === null || Math.abs(delta) < Math.abs(best))) best = delta;
+    if (Math.abs(delta) <= snapMm && (best === null || Math.abs(delta) < Math.abs(best))) best = delta;
   };
   for (const t of targets) {
     if (t.lo !== null) consider(t.lo - lo);
@@ -108,9 +120,9 @@ export interface EdgeSnap {
 }
 
 /**
- * 자석 맞춤. at에 중심을 둔 발자국의 변이 벽 또는 다른 가구의 반대쪽 변과 SNAP_MM 이내면 그 값에 붙인다.
+ * 자석 맞춤. at에 중심을 둔 발자국의 변이 벽 또는 다른 가구의 반대쪽 변과 snapMm(기본 SNAP_MM) 이내면 그 값에 붙인다.
  * 왼쪽 변은 왼쪽 벽·다른 가구의 오른쪽 변에, 오른쪽 변은 오른쪽 벽·다른 가구의 왼쪽 변에(z도 같다).
- * 다른 가구는 다른 축에서 겹치거나 SNAP_MM 이내일 때만 후보다. 벽이 가구와 같은 거리면 벽이 이긴다.
+ * 다른 가구는 다른 축에서 겹치거나 snapMm 이내일 때만 후보다. 벽이 가구와 같은 거리면 벽이 이긴다.
  * 방 밖에 있어도 벽 가까이면 안쪽 변이 벽에 붙는다. others에 끄는 가구 자신을 넣지 않는다.
  */
 export function snapToEdges(
@@ -118,18 +130,19 @@ export function snapToEdges(
   at: PointMm,
   room: RoomBounds,
   others: Footprint[],
+  snapMm: number = SNAP_MM,
 ): EdgeSnap {
   const f = footprint({ ...item, x: at.x, z: at.z });
-  const nearZ = others.filter((o) => gap(f.minZ, f.maxZ, o.minZ, o.maxZ) <= SNAP_MM);
-  const nearX = others.filter((o) => gap(f.minX, f.maxX, o.minX, o.maxX) <= SNAP_MM);
+  const nearZ = others.filter((o) => gap(f.minZ, f.maxZ, o.minZ, o.maxZ) <= snapMm);
+  const nearX = others.filter((o) => gap(f.minX, f.maxX, o.minX, o.maxX) <= snapMm);
   const dx = nearestShift(f.minX, f.maxX, [
     { lo: room.minX, hi: room.maxX },
     ...nearZ.map((o) => ({ lo: o.maxX, hi: o.minX })),
-  ]);
+  ], snapMm);
   const dz = nearestShift(f.minZ, f.maxZ, [
     { lo: room.minZ, hi: room.maxZ },
     ...nearX.map((o) => ({ lo: o.maxZ, hi: o.minZ })),
-  ]);
+  ], snapMm);
   return { x: at.x + (dx ?? 0), z: at.z + (dz ?? 0), snappedX: dx !== null, snappedZ: dz !== null };
 }
 
@@ -141,8 +154,9 @@ export function settleCenter(
   at: PointMm,
   room: RoomBounds,
   others: Footprint[],
+  snapMm: number = SNAP_MM,
 ): PointMm {
-  const s = snapToEdges(item, at, room, others);
+  const s = snapToEdges(item, at, room, others, snapMm);
   const grid = snapCenter(item, at);
   return { x: Math.round(s.snappedX ? s.x : grid.x) + 0, z: Math.round(s.snappedZ ? s.z : grid.z) + 0 };
 }

@@ -90,6 +90,11 @@ export interface PlacementHandlers {
   onItemPointerDown(itemId: string, floor: PointMm): void;
   /** 가구가 없는 곳을 짧게 누름(끌지 않고 뗌). 선택 해제에 쓴다. */
   onBackgroundTap(): void;
-  onFloorPointerMove(floor: PointMm): void;
+  /**
+   * 끄는 중 포인터가 가리키는 바닥 위치.
+   * mmPerPx: 그 위치에서 화면 1 px이 바닥에서 몇 mm인지(자석 맞춤 거리를 화면 기준으로 정하는 데 쓴다).
+   * 장면이 계산하지 못하면 생략한다.
+   */
+  onFloorPointerMove(floor: PointMm, mmPerPx?: number): void;
   onPointerUp(): void;
 }

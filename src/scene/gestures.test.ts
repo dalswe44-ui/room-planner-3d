@@ -118,3 +118,22 @@ describe('빈 곳', () => {
     expect(handlers.onFloorPointerMove).not.toHaveBeenCalled();
   });
 });
+
+describe('mmPerPx 전달', () => {
+  it('끄는 지점의 mmPerPx를 두 번째 인자로 넘기고, 못 구하면 undefined다', () => {
+    const handlers: PlacementHandlers = {
+      onItemPointerDown: vi.fn(),
+      onBackgroundTap: vi.fn(),
+      onFloorPointerMove: vi.fn(),
+      onPointerUp: vi.fn(),
+    };
+    const mmPerPxAt = vi.fn((x: number) => (x > 50 ? undefined : 5.1));
+    const router = new PlacementRouter({ handlers, toFloor: () => floor, setCameraEnabled: vi.fn(), mmPerPxAt });
+    router.pointerDown(1, 10, 10, true, hit);
+    router.pointerMove(1, 40, 40);
+    router.pointerMove(1, 80, 40);
+    expect(handlers.onFloorPointerMove).toHaveBeenNthCalledWith(1, floor, 5.1);
+    expect(handlers.onFloorPointerMove).toHaveBeenNthCalledWith(2, floor, undefined);
+    expect(mmPerPxAt).toHaveBeenCalledWith(40, 40);
+  });
+});

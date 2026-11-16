@@ -178,3 +178,41 @@ describe('usePlacement', () => {
     expect(result.current).toBe(first);
   });
 });
+
+describe('화면 기준 자석 거리(T-022)', () => {
+  it('mmPerPx 5면 60 mm 이내에서 붙고, 미리보기 위치와 놓은 위치가 같다', () => {
+    const h = createPlacementHandlers(store);
+    const a = addA();
+    h.onItemPointerDown(a, { x: 1800, z: 1500 });
+    h.onFloorPointerMove({ x: 500 + 60, z: 1500 }, 5);
+    expect(store().dragPreview).toEqual({ itemId: a, x: 500, z: 1500 });
+    h.onPointerUp();
+    expect(itemOf(a)).toMatchObject({ x: 500, z: 1500 });
+  });
+
+  it('mmPerPx 5에서 61 mm는 안 붙고, mmPerPx를 안 주면 20 mm 기준', () => {
+    const h = createPlacementHandlers(store);
+    const a = addA();
+    h.onItemPointerDown(a, { x: 1800, z: 1500 });
+    h.onFloorPointerMove({ x: 561, z: 1500 }, 5);
+    expect(store().dragPreview).toEqual({ itemId: a, x: 561, z: 1500 });
+    h.onFloorPointerMove({ x: 540, z: 1500 });
+    expect(store().dragPreview).toEqual({ itemId: a, x: 540, z: 1500 });
+    h.onFloorPointerMove({ x: 520, z: 1500 });
+    expect(store().dragPreview).toEqual({ itemId: a, x: 500, z: 1500 });
+    h.onPointerUp();
+    expect(itemOf(a)).toMatchObject({ x: 500 });
+  });
+
+  it('확대(mmPerPx 2.5)는 30 mm 경계, 놓을 때도 마지막 거리를 쓴다', () => {
+    const h = createPlacementHandlers(store);
+    const a = addA();
+    h.onItemPointerDown(a, { x: 1800, z: 1500 });
+    h.onFloorPointerMove({ x: 530, z: 1500 }, 2.5);
+    expect(store().dragPreview).toEqual({ itemId: a, x: 500, z: 1500 });
+    h.onFloorPointerMove({ x: 531, z: 1500 }, 2.5);
+    expect(store().dragPreview).toEqual({ itemId: a, x: 531, z: 1500 });
+    h.onPointerUp();
+    expect(itemOf(a)).toMatchObject({ x: 530 }); // 안 붙음: 격자 530
+  });
+});

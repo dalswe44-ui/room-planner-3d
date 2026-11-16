@@ -4,7 +4,7 @@ import type { PointMm } from '../contracts/types';
 import { mmToWorld } from '../contracts/coords';
 import { orthoView, orthoZoomToFit, perspectiveView, type RoomExtent } from './camera';
 import { furnitureTransform } from './geometry';
-import { clientToFloor, floorToClient, pickFurniture, type ScreenRect } from './pointer';
+import { mmPerPxAt, clientToFloor, floorToClient, pickFurniture, type ScreenRect } from './pointer';
 
 const room: RoomExtent = { width: 3600, depth: 3000, ceilingHeight: 2400 };
 const rect: ScreenRect = { left: 40, top: 60, width: 1280, height: 800 };
@@ -157,5 +157,35 @@ describe('pickFurniture', () => {
     const cam = orthoFor(rect);
     const c = floorToClient(cam, rect, { x: 1800, z: 1500 });
     expect(pickFurniture(scene, cam, rect, c.x, c.y, 'a')).toBeNull();
+  });
+});
+
+describe('mmPerPxAt', () => {
+  it('평면 뷰에서는 어디서나 같고, 확대 2배면 절반이다', () => {
+    const cam = orthoFor(rect);
+    const a = mmPerPxAt(cam, rect, 300, 200);
+    const b = mmPerPxAt(cam, rect, 1000, 700);
+    expect(a).toBeGreaterThan(0);
+    expect(b).toBeCloseTo(a!, 6);
+    cam.zoom *= 2;
+    cam.updateProjectionMatrix();
+    expect(mmPerPxAt(cam, rect, 300, 200)).toBeCloseTo(a! / 2, 6);
+  });
+
+  it('원근 뷰에서는 먼 곳(화면 위쪽)이 가까운 곳보다 크다', () => {
+    const cam = perspFor(rect);
+    const far = mmPerPxAt(cam, rect, 680, 330);
+    const near = mmPerPxAt(cam, rect, 680, 780);
+    expect(far).toBeDefined();
+    expect(near).toBeDefined();
+    expect(far!).toBeGreaterThan(near!);
+  });
+
+  it('바닥과 만나지 않으면 undefined다', () => {
+    const cam = perspFor(rect);
+    cam.position.set(1, 1, 1);
+    cam.lookAt(5, 1, 1); // 수평으로 본다: 광선이 바닥과 평행
+    cam.updateMatrixWorld();
+    expect(mmPerPxAt(cam, rect, 680, 400)).toBeUndefined();
   });
 });

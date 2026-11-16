@@ -40,23 +40,34 @@ for (const vp of VIEWPORTS) {
     });
 
     // ---------- 자석 맞춤 ----------
-    test('M-1 벽 15 mm 앞에서 놓으면 벽에 붙는다', async ({ page }) => {
+    // 자석 거리는 화면 12 px에 해당하는 바닥 거리(2026-11-17 사용자 결정). 뷰포트마다 배율이 달라 화면에서 직접 잰다.
+    async function snapMm(page: Page): Promise<number> {
+      const p0 = await floorToClient(page, { x: 0, z: 1500 });
+      const p1 = await floorToClient(page, { x: 1000, z: 1500 });
+      const mmPerPx = 1000 / Math.hypot(p1.x - p0.x, p1.y - p0.y);
+      return 12 * mmPerPx;
+    }
+
+    test('M-1 벽에서 자석 거리의 절반 앞에 놓으면 벽에 붙는다(옛 기준 20 mm보다 먼 거리)', async ({ page }) => {
       const a = await addA(page);
-      // 왼쪽 변 15 mm → 중심 x = 15 + 500
-      await dragItemTo(page, a, { x: 515, z: 1500 });
+      const off = Math.round((await snapMm(page)) / 2);
+      expect(off, '화면 기준이라 20 mm보다 넓다').toBeGreaterThan(20);
+      // 왼쪽 변 off → 중심 x = off + 500
+      await dragItemTo(page, a, { x: 500 + off, z: 1500 });
       const it = await itemById(page, a);
       expect(it.center.x).toBe(500);
       await expectNear(page, it.center, { x: 500, z: 1500 });
       expect(it.warning).toBe(false);
     });
 
-    test('M-2 다른 가구 15 mm 옆에서 놓으면 맞닿고 둘 다 경고 없음', async ({ page }) => {
+    test('M-2 다른 가구 옆 자석 거리의 절반에서 놓으면 맞닿고 둘 다 경고 없음', async ({ page }) => {
       const a = await addA(page);
-      await dragItemTo(page, a, { x: 515, z: 1500 });
+      const off = Math.round((await snapMm(page)) / 2);
+      await dragItemTo(page, a, { x: 500 + off, z: 1500 });
       expect((await itemById(page, a)).center.x).toBe(500);
       const c = await addItem(page, 'C', '1000', '600', '700');
-      // A의 오른쪽 변 1000 + 15
-      await dragItemTo(page, c, { x: 1515, z: (await itemById(page, a)).center.z });
+      // A의 오른쪽 변 1000 + off
+      await dragItemTo(page, c, { x: 1500 + off, z: (await itemById(page, a)).center.z });
       const ia = await itemById(page, a);
       const ic = await itemById(page, c);
       expect(ic.center.x - ic.size.w / 2, 'C의 왼쪽 변이 A의 오른쪽 변').toBe(ia.center.x + ia.size.w / 2);
@@ -64,16 +75,18 @@ for (const vp of VIEWPORTS) {
       expect(ic.warning).toBe(false);
     });
 
-    test('M-3 30 mm 간격이면 붙지 않는다', async ({ page }) => {
+    test('M-3 자석 거리의 두 배 간격이면 붙지 않는다', async ({ page }) => {
       const a = await addA(page);
-      await dragItemTo(page, a, { x: 515, z: 1500 });
+      const snap = await snapMm(page);
+      await dragItemTo(page, a, { x: 500 + Math.round(snap / 2), z: 1500 });
       const c = await addItem(page, 'C', '1000', '600', '700');
-      await dragItemTo(page, c, { x: 1530, z: (await itemById(page, a)).center.z });
+      const want = Math.round((snap * 2) / 10) * 10;
+      await dragItemTo(page, c, { x: 1500 + want, z: (await itemById(page, a)).center.z });
       const ia = await itemById(page, a);
       const ic = await itemById(page, c);
       const gap = ic.center.x - ic.size.w / 2 - (ia.center.x + ia.size.w / 2);
-      expect(gap, `간격 ${gap}`).toBeGreaterThanOrEqual(20 + 1);
-      await expectNear(page, { x: gap, z: 0 }, { x: 30, z: 0 });
+      expect(gap, `간격 ${gap}, 자석 ${snap.toFixed(1)} mm`).toBeGreaterThan(snap);
+      await expectNear(page, { x: gap, z: 0 }, { x: want, z: 0 });
       expect(ia.warning || ic.warning).toBe(false);
     });
 

@@ -7,6 +7,8 @@ export interface PlacementRouterDeps {
   handlers: PlacementHandlers;
   /** 화면 좌표 → 바닥 위 방 좌표(mm). 바닥과 만나지 않으면 null. */
   toFloor(clientX: number, clientY: number): PointMm | null;
+  /** 그 화면 위치에서 1 px이 바닥 몇 mm인지. 계산할 수 없으면 undefined. */
+  mmPerPxAt?(clientX: number, clientY: number): number | undefined;
   /** 카메라 조작(OrbitControls)을 켜거나 끈다. */
   setCameraEnabled(enabled: boolean): void;
   /** 짧은 누름으로 볼 최대 이동 거리(px) */
@@ -56,7 +58,7 @@ export class PlacementRouter {
     tracked.y = clientY;
     if (this.furnitureDrag === pointerId) {
       const floor = this.deps.toFloor(clientX, clientY);
-      if (floor) this.deps.handlers.onFloorPointerMove(floor);
+      if (floor) this.deps.handlers.onFloorPointerMove(floor, this.deps.mmPerPxAt?.(clientX, clientY));
       return;
     }
     const tap = this.tapCandidate;

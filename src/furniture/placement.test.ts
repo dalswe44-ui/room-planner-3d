@@ -14,8 +14,10 @@ import {
   nextRotation,
   settleCenter,
   snapCenter,
+  snapDistanceMm,
   snapToEdges,
   SNAP_MM,
+  SNAP_PX,
   wallDistances,
 } from './placement';
 
@@ -390,5 +392,52 @@ describe('findFreeSpot (새 가구의 빈 자리)', () => {
       ],
     });
     expect(findFreeSpot({ w: 500, d: 500 }, r, [])).toEqual({ x: 2000, z: 1500 });
+  });
+});
+
+// ---------- 화면 기준 자석 거리(T-022) ----------
+describe('화면 기준 자석 거리', () => {
+  const box = { w: 1000, d: 600, rotationDeg: 0 };
+  const left = (dist: number | undefined, off: number) =>
+    snapToEdges(box, { x: 500 + off, z: 1500 }, ROOM, [], snapDistanceMm(dist));
+
+  it('SNAP_PX는 12, mmPerPx가 없거나 올바르지 않으면 SNAP_MM', () => {
+    expect(SNAP_PX).toBe(12);
+    expect(snapDistanceMm(undefined)).toBe(SNAP_MM);
+    expect(snapDistanceMm(0)).toBe(SNAP_MM);
+    expect(snapDistanceMm(Number.NaN)).toBe(SNAP_MM);
+    expect(snapDistanceMm(5)).toBe(60);
+  });
+
+  it('mmPerPx 5(축소): 60 mm 이내는 붙고 61은 안 붙는다', () => {
+    expect(left(5, 60)).toMatchObject({ x: 500, snappedX: true });
+    expect(left(5, 61)).toMatchObject({ x: 561, snappedX: false });
+  });
+
+  it('mmPerPx 2.5(확대): 30 mm 경계', () => {
+    expect(left(2.5, 30).snappedX).toBe(true);
+    expect(left(2.5, 31).snappedX).toBe(false);
+  });
+
+  it('mmPerPx 없음: 20 mm 경계', () => {
+    expect(left(undefined, 20).snappedX).toBe(true);
+    expect(left(undefined, 21).snappedX).toBe(false);
+  });
+
+  it('다른 가구의 "다른 축에서 거리 이내" 조건도 같은 거리를 쓴다', () => {
+    const other = footprint(item('O', 400, 400, 1800, 1000)); // z 800..1200, x 1600..2000
+    // 가구 z 범위 1300..1900과 other(z 800..1200)의 z 간격은 100. 60 mm 거리로는 후보가 아니고 150 mm면 후보.
+    const far = snapToEdges(box, { x: 2000 + 500 + 40, z: 1600 }, ROOM, [other], 60); // minX 2040, other.maxX 2000: 40 이내
+    const near = snapToEdges(box, { x: 2000 + 500 + 40, z: 1600 }, ROOM, [other], 150);
+    expect(far).toMatchObject({ snappedX: false });
+    expect(near).toMatchObject({ x: 2500, snappedX: true });
+  });
+
+  it('settleCenter도 같은 거리를 받아 미리보기와 같은 결과를 낸다', () => {
+    const at = { x: 500 + 55, z: 1500 };
+    const d = snapDistanceMm(5);
+    expect(settleCenter(box, at, ROOM, [], d).x).toBe(snapToEdges(box, at, ROOM, [], d).x);
+    expect(settleCenter(box, at, ROOM, [], d).x).toBe(500);
+    expect(settleCenter(box, at, ROOM, []).x).toBe(560); // 거리 인자 없음(20 mm): 안 붙고 격자
   });
 });

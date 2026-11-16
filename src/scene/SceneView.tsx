@@ -10,7 +10,7 @@ import { FurnitureBox } from './Furniture';
 import { Room } from './Room';
 import { SCENE_BACKGROUND } from './geometry';
 import { PlacementRouter } from './gestures';
-import { pickFurniture, clientToFloor, screenRectOf } from './pointer';
+import { pickFurniture, clientToFloor, mmPerPxAt, screenRectOf } from './pointer';
 import { createSceneProbe, type ControlsHandle, type SceneRuntime } from './sceneProbe';
 import './scene.css';
 
@@ -40,12 +40,16 @@ export function SceneView({ handlers, statuses }: SceneViewProps) {
         handlers: {
           onItemPointerDown: (itemId, floor) => handlersRef.current.onItemPointerDown(itemId, floor),
           onBackgroundTap: () => handlersRef.current.onBackgroundTap(),
-          onFloorPointerMove: (floor) => handlersRef.current.onFloorPointerMove(floor),
+          onFloorPointerMove: (floor, mmPerPx) => handlersRef.current.onFloorPointerMove(floor, mmPerPx),
           onPointerUp: () => handlersRef.current.onPointerUp(),
         },
         toFloor: (clientX, clientY) => {
           const s = runtime.get?.();
           return s ? clientToFloor(s.camera, screenRectOf(s.gl.domElement), clientX, clientY) : null;
+        },
+        mmPerPxAt: (clientX, clientY) => {
+          const s = runtime.get?.();
+          return s ? mmPerPxAt(s.camera, screenRectOf(s.gl.domElement), clientX, clientY) : undefined;
         },
         setCameraEnabled: (enabled) => {
           const controls = runtime.controlsRef.current;

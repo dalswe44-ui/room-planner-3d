@@ -48,6 +48,27 @@ export function clientToFloor(
   return p;
 }
 
+function floorWorld(camera: Camera, rect: ScreenRect, clientX: number, clientY: number): Vector3 | null {
+  const raycaster = new Raycaster();
+  raycaster.setFromCamera(ndcOf(clientX, clientY, rect), camera);
+  const hit = new Vector3();
+  return raycaster.ray.intersectPlane(FLOOR, hit) ? hit : null;
+}
+
+/**
+ * 화면의 한 점에서 화면 1 px 이동이 바닥 위 몇 mm인지(오른쪽 1 px, 아래쪽 1 px 두 거리의 평균).
+ * 바닥과 만나지 않거나 값이 유한하지 않으면 undefined. 반올림하지 않은 실수 mm다.
+ */
+export function mmPerPxAt(camera: Camera, rect: ScreenRect, clientX: number, clientY: number): number | undefined {
+  camera.updateMatrixWorld();
+  const o = floorWorld(camera, rect, clientX, clientY);
+  const dx = floorWorld(camera, rect, clientX + 1, clientY);
+  const dy = floorWorld(camera, rect, clientX, clientY + 1);
+  if (!o || !dx || !dy) return undefined;
+  const mm = (o.distanceTo(dx) + o.distanceTo(dy)) / 2 / mmToWorld(1);
+  return Number.isFinite(mm) && mm > 0 ? mm : undefined;
+}
+
 /** 방 바닥의 한 점이 화면의 어디에 그려지는지(뷰포트 기준 CSS px) */
 export function floorToClient(camera: Camera, rect: ScreenRect, point: PointMm): { x: number; y: number } {
   camera.updateMatrixWorld();
