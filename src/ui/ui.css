@@ -1,12 +1,23 @@
 /* 공용 입력 부품(LengthInput, UnitToggle). 색은 src/app/app.css의 변수만 쓴다. */
 
 /* 길이 입력 칸: 왼쪽에 이름, 오른쪽에 숫자 칸과 단위, 아래에 오류 문구 */
+/* 둘째 줄은 높이를 고정해 둔다(auto가 아니다). 오류 문구가 없을 때도, 한 줄이든 두 줄이든 문구가 있을 때도 이 줄의 높이는 같다.
+   문구는 포커스 이탈(mousedown) 때 나타나거나 사라지는데, 그때 아래 요소가 움직이면 누른 곳과 뗀 곳의 요소가 달라져
+   버튼의 click이 생기지 않는다. 320px 폭에서는 문구가 두 줄이 되므로 두 줄 높이를 예약한다. */
 .length-input {
+  --length-input-error-line: 18px;
+  --length-input-error-space: calc(var(--length-input-error-line) * 2);
   display: grid;
   grid-template-columns: 5em minmax(0, 1fr);
+  grid-template-rows: auto var(--length-input-error-space);
   align-items: center;
   column-gap: 8px;
   row-gap: 4px;
+}
+
+.length-input__error-line {
+  grid-column: 1 / -1;
+  align-self: start;
 }
 
 .length-input__label {
@@ -59,12 +70,11 @@
 }
 
 .length-input__error {
-  grid-column: 1 / -1;
   margin: 0;
   padding-left: 8px;
   border-left: 3px solid var(--warn);
   font-size: 13px;
-  line-height: 1.4;
+  line-height: var(--length-input-error-line);
   color: var(--ink);
 }
 

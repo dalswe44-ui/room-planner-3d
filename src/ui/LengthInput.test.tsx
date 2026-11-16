@@ -249,3 +249,269 @@ describe('LengthInput', () => {
     expect(input.getAttribute('aria-describedby')).toBe(alert.id);
   });
 });
+
+describe('LengthInput onValidityChange', () => {
+  interface ValidityHarnessProps {
+    onValidityChange: (valid: boolean) => void;
+    onCommit?: (mm: Mm) => void;
+  }
+
+  /** 부모가 콜백을 렌더마다 새 함수로 내려 주는, 실제 쓰임과 같은 형태 */
+  function ValidityHarness({ onValidityChange, onCommit }: ValidityHarnessProps) {
+    const [value, setValue] = useState<Mm>(3600);
+    return (
+      <>
+        <LengthInput
+          label="폭"
+          valueMm={value}
+          unit="mm"
+          min={500}
+          max={20000}
+          testId="len"
+          onCommit={(mm) => {
+            onCommit?.(mm);
+            setValue(mm);
+          }}
+          onValidityChange={(valid) => onValidityChange(valid)}
+        />
+        <button type="button">다른 곳</button>
+      </>
+    );
+  }
+
+  it('처음 그릴 때, 다시 그릴 때, 글자를 넣는 동안에는 부르지 않는다', async () => {
+    const user = userEvent.setup();
+    const onValidityChange = vi.fn();
+    const view = render(<ValidityHarness onValidityChange={onValidityChange} />);
+    view.rerender(<ValidityHarness onValidityChange={onValidityChange} />);
+    await user.clear(field());
+    await user.type(field(), 'abc');
+    expect(onValidityChange).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['빈 값', ''],
+    ['글자', 'abc'],
+    ['범위 아래', '499'],
+    ['범위 위', '20001'],
+    ['m로 생각한 값', '3.5'],
+  ])('%s("%s")을 넣고 포커스를 옮기면 false를 한 번 부른다', async (_name, text) => {
+    const user = userEvent.setup();
+    const onValidityChange = vi.fn();
+    const view = render(<ValidityHarness onValidityChange={onValidityChange} />);
+    await user.clear(field());
+    if (text !== '') await user.type(field(), text);
+    await user.tab();
+    expect(errorText()).not.toBeNull();
+    expect(onValidityChange.mock.calls).toEqual([[false]]);
+    view.rerender(<ValidityHarness onValidityChange={onValidityChange} />);
+    expect(onValidityChange.mock.calls).toEqual([[false]]);
+  });
+
+  it('거부 상태에서 다시 거부돼도(오류 종류가 바뀌어도) 한 번 더 부르지 않는다', async () => {
+    const onValidityChange = vi.fn();
+    render(<ValidityHarness onValidityChange={onValidityChange} />);
+    await enter('abc');
+    await enter('abc');
+    await enter('499');
+    await enter('');
+    expect(errorText()).not.toBeNull();
+    expect(onValidityChange.mock.calls).toEqual([[false]]);
+  });
+
+  it('거부된 뒤 올바른 값을 확정하면 true를 부른다', async () => {
+    const onValidityChange = vi.fn();
+    const onCommit = vi.fn();
+    render(<ValidityHarness onValidityChange={onValidityChange} onCommit={onCommit} />);
+    await enter('abc');
+    await enter('4000');
+    expect(errorText()).toBeNull();
+    expect(onValidityChange.mock.calls).toEqual([[false], [true]]);
+    expect(onCommit.mock.calls).toEqual([[4000]]);
+    await enter('4100');
+    expect(onValidityChange.mock.calls).toEqual([[false], [true]]);
+  });
+
+  it('거부된 뒤 원래 값과 같은 값을 확정해도(onCommit 없음) true를 부른다', async () => {
+    const onValidityChange = vi.fn();
+    const onCommit = vi.fn();
+    render(<ValidityHarness onValidityChange={onValidityChange} onCommit={onCommit} />);
+    await enter('abc');
+    await enter('3600');
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onValidityChange.mock.calls).toEqual([[false], [true]]);
+  });
+
+  it('오류가 없던 칸에 올바른 값을 확정하면 부르지 않는다', async () => {
+    const user = userEvent.setup();
+    const onValidityChange = vi.fn();
+    render(<ValidityHarness onValidityChange={onValidityChange} />);
+    await enter('4000');
+    await user.clear(field());
+    await user.type(field(), '4200');
+    await user.tab();
+    expect(onValidityChange).not.toHaveBeenCalled();
+  });
+
+  it('거부 → 올바른 값 → 거부를 되풀이하면 바뀔 때마다 한 번씩 부른다', async () => {
+    const onValidityChange = vi.fn();
+    render(<ValidityHarness onValidityChange={onValidityChange} />);
+    await enter('abc');
+    await enter('4000');
+    await enter('0');
+    await enter('5000');
+    expect(onValidityChange.mock.calls).toEqual([[false], [true], [false], [true]]);
+  });
+
+  it('거부 상태에서 valueMm이 밖에서 바뀌어 오류가 사라지면 true를 부른다', async () => {
+    const onValidityChange = vi.fn();
+    const props = { label: '폭', unit: 'mm' as const, onCommit: () => {}, testId: 'len', onValidityChange };
+    const view = render(<LengthInput {...props} valueMm={3600} />);
+    await enter('abc');
+    expect(onValidityChange.mock.calls).toEqual([[false]]);
+    view.rerender(<LengthInput {...props} valueMm={4200} />);
+    expect(errorText()).toBeNull();
+    expect(onValidityChange.mock.calls).toEqual([[false], [true]]);
+    view.rerender(<LengthInput {...props} valueMm={4200} />);
+    expect(onValidityChange.mock.calls).toEqual([[false], [true]]);
+  });
+
+  it('거부 상태에서 unit이 밖에서 바뀌어 오류가 사라지면 true를 부른다', async () => {
+    const onValidityChange = vi.fn();
+    const props = { label: '폭', valueMm: 3600, onCommit: () => {}, testId: 'len', onValidityChange };
+    const view = render(<LengthInput {...props} unit="mm" />);
+    await enter('abc');
+    view.rerender(<LengthInput {...props} unit="cm" />);
+    expect(field().value).toBe('360.0');
+    expect(errorText()).toBeNull();
+    expect(onValidityChange.mock.calls).toEqual([[false], [true]]);
+  });
+
+  it('오류가 없을 때 valueMm·unit이 밖에서 바뀌면 부르지 않는다', () => {
+    const onValidityChange = vi.fn();
+    const props = { label: '폭', onCommit: () => {}, testId: 'len', onValidityChange };
+    const view = render(<LengthInput {...props} valueMm={3600} unit="mm" />);
+    view.rerender(<LengthInput {...props} valueMm={4200} unit="mm" />);
+    view.rerender(<LengthInput {...props} valueMm={4200} unit="m" />);
+    expect(onValidityChange).not.toHaveBeenCalled();
+  });
+
+  /** 가구 추가 폼과 같은 형태: 부모가 칸의 상태를 들고 있고, 버튼의 click 핸들러가 그 상태를 본다 */
+  function AddForm({ onAdd }: { onAdd: (seen: { state: boolean; latest: boolean }) => void }) {
+    const [value, setValue] = useState<Mm>(1000);
+    const [valid, setValid] = useState(true);
+    const [latest] = useState({ valid: true });
+    return (
+      <>
+        <LengthInput
+          label="폭"
+          valueMm={value}
+          unit="mm"
+          min={10}
+          max={10000}
+          testId="len"
+          onCommit={setValue}
+          onValidityChange={(v) => {
+            latest.valid = v;
+            setValid(v);
+          }}
+        />
+        <button type="button" data-testid="add" onClick={() => onAdd({ state: valid, latest: latest.valid })}>
+          추가
+        </button>
+      </>
+    );
+  }
+
+  it.each([
+    ['빈 값', ''],
+    ['글자', 'abc'],
+    ['범위 밖', '10001'],
+  ])(
+    '%s을 넣은 칸에서 곧바로 다른 버튼을 누르면, 그 버튼의 click 핸들러가 실행될 때 이미 false가 전달돼 있다',
+    async (_name, text) => {
+      const user = userEvent.setup();
+      const onAdd = vi.fn();
+      render(<AddForm onAdd={onAdd} />);
+      await user.clear(field());
+      if (text !== '') await user.type(field(), text);
+      expect(document.activeElement).toBe(field());
+      await user.click(screen.getByTestId('add'));
+      expect(onAdd).toHaveBeenCalledTimes(1);
+      expect(onAdd).toHaveBeenCalledWith({ state: false, latest: false });
+    },
+  );
+
+  it('거부된 칸을 올바른 값으로 고치고 곧바로 버튼을 누르면, click 핸들러가 실행될 때 이미 true가 전달돼 있다', async () => {
+    const user = userEvent.setup();
+    const onAdd = vi.fn();
+    render(<AddForm onAdd={onAdd} />);
+    await enter('abc');
+    await user.clear(field());
+    await user.type(field(), '1200');
+    await user.click(screen.getByTestId('add'));
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAdd).toHaveBeenCalledWith({ state: true, latest: true });
+  });
+
+  it('Enter로 확정하면 그 keydown 안에서 false나 true가 전달된다', async () => {
+    const user = userEvent.setup();
+    const seen: boolean[] = [];
+    let latest = true;
+    render(
+      // 폼 안에서 Enter를 누르는 경우처럼, 칸의 keydown 뒤에 이어지는 처리에서 상태를 본다
+      <div onKeyDown={(e) => e.key === 'Enter' && seen.push(latest)}>
+        <LengthInput
+          label="폭"
+          valueMm={1000}
+          unit="mm"
+          onCommit={() => {}}
+          testId="len"
+          onValidityChange={(v) => {
+            latest = v;
+          }}
+        />
+      </div>,
+    );
+    await user.clear(field());
+    await user.keyboard('{Enter}');
+    expect(seen).toEqual([false]);
+    await user.type(field(), '1200{Enter}');
+    expect(seen).toEqual([false, true]);
+  });
+});
+
+describe('LengthInput 오류 줄 자리', () => {
+  // 높이는 CSS(ui.css의 격자 줄 높이)로 정해지고 jsdom은 CSS 높이를 계산하지 않는다.
+  // 여기서는 높이를 차지할 요소가 항상 DOM에 있고, 문구는 그 안에만 들어간다는 구조를 확인한다.
+  const errorLine = () => field().closest('.length-input')?.querySelector<HTMLElement>('.length-input__error-line') ?? null;
+
+  it('오류가 없을 때도 칸마다 오류 줄 요소가 하나 있고 비어 있다', () => {
+    render(<Harness min={500} max={20000} />);
+    const line = errorLine();
+    expect(line).not.toBeNull();
+    expect(line?.childElementCount).toBe(0);
+    expect(line?.textContent).toBe('');
+    expect(errorText()).toBeNull();
+  });
+
+  it('문구가 나타나고 사라져도 오류 줄 요소는 같은 노드로 남고, 문구는 그 안에만 들어간다', async () => {
+    render(<Harness min={500} max={20000} />);
+    const before = errorLine();
+    await enter('abc');
+    expect(errorLine()).toBe(before);
+    expect(before?.querySelector('[data-testid="len-error"]')).not.toBeNull();
+    await enter('4000');
+    expect(errorLine()).toBe(before);
+    expect(before?.childElementCount).toBe(0);
+    expect(errorText()).toBeNull();
+  });
+
+  it('오류 줄 요소는 칸 하나에 하나뿐이고, data-testid 요소는 칸과 오류 문구 둘뿐이다', async () => {
+    render(<Harness min={500} max={20000} />);
+    expect(field().closest('.length-input')?.querySelectorAll('.length-input__error-line')).toHaveLength(1);
+    await enter('abc');
+    expect(field().closest('.length-input')?.querySelectorAll('.length-input__error-line')).toHaveLength(1);
+    expect(screen.getAllByTestId(/^len/)).toHaveLength(2);
+  });
+});

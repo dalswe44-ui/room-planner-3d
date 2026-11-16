@@ -11,13 +11,14 @@
   color: var(--ink-soft);
 }
 
+/* 칸마다 아래에 오류 문구 한 줄 자리가 비워져 있어(ui.css) 칸 사이 간격은 작게 둔다 */
 .room-panel__fields {
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .room-panel__warning {
-  margin: 12px 0 0;
+  margin: 4px 0 0;
   padding: 10px 12px;
   border: 1px solid var(--warn);
   border-left-width: 4px;

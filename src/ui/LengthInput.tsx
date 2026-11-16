@@ -1,5 +1,5 @@
 // 공용 길이 입력 칸. 입력 중인 글자는 이 컴포넌트의 상태로만 들고 있다가 Enter나 포커스 이탈 때 mm로 확정한다.
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { DisplayUnit, Mm } from '../contracts/types';
 import { formatLength, parseLength, UNIT_LABEL } from '../contracts/units';
 import './ui.css';
@@ -12,11 +12,22 @@ export interface LengthInputProps {
   min?: Mm;
   max?: Mm;
   testId?: string;
+  /** 칸이 거부 상태(오류 문구가 보이는 상태)가 되면 false, 거기서 벗어나면 true. 상태가 바뀔 때만 부른다. */
+  onValidityChange?(valid: boolean): void;
 }
 
 type InputError = 'unreadable' | 'range';
 
-export function LengthInput({ label, valueMm, unit, onCommit, min = 1, max, testId }: LengthInputProps) {
+export function LengthInput({
+  label,
+  valueMm,
+  unit,
+  onCommit,
+  min = 1,
+  max,
+  testId,
+  onValidityChange,
+}: LengthInputProps) {
   const id = useId();
   const errorId = `${id}-error`;
   const shown = formatLength(valueMm, unit);
@@ -31,18 +42,35 @@ export function LengthInput({ label, valueMm, unit, onCommit, min = 1, max, test
     setError(null);
   }
 
+  // 부모에게 마지막으로 알린 상태. 처음에는 오류가 없으므로 true이고, 이 값과 달라질 때만 알린다.
+  const reportedValid = useRef(true);
+  function reportValidity(valid: boolean) {
+    if (reportedValid.current === valid) return;
+    reportedValid.current = valid;
+    onValidityChange?.(valid);
+  }
+
+  // 확정이 아니라 밖에서 바뀐 valueMm·unit 때문에 오류가 사라진 경우를 알린다.
+  // 확정으로 생기거나 사라진 오류는 commit()이 그 이벤트 안에서 바로 알린다.
+  useEffect(() => {
+    if (error === null) reportValidity(true);
+  });
+
   function commit() {
     const mm = parseLength(text, unit);
     if (mm === null) {
       setError('unreadable');
+      reportValidity(false);
       return;
     }
     if (mm < min || (max !== undefined && mm > max)) {
       setError('range');
+      reportValidity(false);
       return;
     }
     setError(null);
     setText(formatLength(mm, unit));
+    reportValidity(true);
     if (mm !== valueMm) onCommit(mm);
   }
 
@@ -81,16 +109,19 @@ export function LengthInput({ label, valueMm, unit, onCommit, min = 1, max, test
         />
         <span className="length-input__unit">{unitLabel}</span>
       </div>
-      {error && (
-        <p
-          id={errorId}
-          className="length-input__error"
-          role="alert"
-          data-testid={testId ? `${testId}-error` : undefined}
-        >
-          {message}
-        </p>
-      )}
+      {/* 오류 줄은 문구가 없어도 항상 있다. 문구가 나타나거나 사라져도 이 줄의 DOM 노드와 높이는 그대로다. */}
+      <div className="length-input__error-line">
+        {error && (
+          <p
+            id={errorId}
+            className="length-input__error"
+            role="alert"
+            data-testid={testId ? `${testId}-error` : undefined}
+          >
+            {message}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
