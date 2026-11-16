@@ -1,6 +1,6 @@
 // 검증용 조회 계약. 화면 대신 숫자로 확인할 수 있게, 지금 실제로 그려진 방과 가구를 mm로 돌려준다.
 // scene-engine이 window.__sceneProbe 로 제공하고 qa-verifier가 e2e 테스트에서 읽는다.
-import type { Mm, ViewMode } from './types';
+import type { FurnitureKind, Mm, ViewMode } from './types';
 
 export interface SceneProbeItem {
   id: string;
@@ -15,6 +15,8 @@ export interface SceneProbeItem {
   /** 경고 색으로 표시되고 있는지 */
   warning: boolean;
   selected: boolean;
+  /** 그려진 모양의 종류(가구에 kind가 없으면 'box') */
+  kind: FurnitureKind;
 }
 
 export interface SceneProbeSnapshot {

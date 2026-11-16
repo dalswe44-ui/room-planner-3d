@@ -35,9 +35,14 @@ export interface Room {
   photos: PhotoRef[];
 }
 
+/** 기본 가구 종류. 장면은 종류마다 단순 도형으로 모양을 그린다. 없거나 'box'면 상자. */
+export type FurnitureKind = 'box' | 'desk' | 'chair' | 'bed' | 'sofa' | 'wardrobe' | 'table' | 'shelf';
+
 export interface FurnitureItem {
   id: string;
   name: string;
+  /** 기본 가구 종류. 겹침·스냅·거리 계산은 종류와 상관없이 w×d 발자국으로 한다. */
+  kind?: FurnitureKind;
   /** 회전 0일 때 x방향 폭 */
   w: Mm;
   /** 회전 0일 때 z방향 깊이 */

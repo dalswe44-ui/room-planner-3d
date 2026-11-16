@@ -17,7 +17,7 @@ export interface RoomSizeInput {
 }
 
 export type NewFurnitureInput = Pick<FurnitureItem, 'name' | 'w' | 'd' | 'h'> &
-  Partial<Pick<FurnitureItem, 'x' | 'z' | 'rotationDeg' | 'elevation' | 'color'>>;
+  Partial<Pick<FurnitureItem, 'x' | 'z' | 'rotationDeg' | 'elevation' | 'color' | 'kind'>>;
 
 export type FurniturePatch = Partial<Omit<FurnitureItem, 'id'>>;
 
@@ -123,6 +123,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       rotationDeg: input.rotationDeg ?? 0,
       elevation: input.elevation ?? 0,
       color: input.color ?? DEFAULT_COLORS[project.items.length % DEFAULT_COLORS.length],
+      ...(input.kind && input.kind !== 'box' ? { kind: input.kind } : {}),
     });
     set((s) => ({ project: { ...s.project, items: [...s.project.items, item] }, selectedItemId: id }));
     return id;

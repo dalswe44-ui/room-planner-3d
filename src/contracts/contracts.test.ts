@@ -4,6 +4,7 @@ import { formatLength, formatLengthWithUnit, lengthToMm, parseLength } from './u
 import { mmToWorld, roomToWorld, worldToMm, worldToRoom } from './coords';
 import { rectCorners, roomBounds } from './room';
 import type { DisplayUnit } from './types';
+import { FURNITURE_PRESETS, guessKindFromName } from './furniturePresets';
 
 describe('parseLength', () => {
   it('단위가 없으면 fallback 단위로 읽는다', () => {
@@ -129,5 +130,21 @@ describe('lengthToMm', () => {
   it('유한한 수가 아니면 null', () => {
     expect(lengthToMm(Number.NaN, 'mm')).toBeNull();
     expect(lengthToMm(Number.POSITIVE_INFINITY, 'cm')).toBeNull();
+  });
+});
+
+describe('기본 가구', () => {
+  it('종류마다 하나씩 있고 치수는 양의 정수 mm', () => {
+    const kinds = FURNITURE_PRESETS.map((p) => p.kind);
+    expect(new Set(kinds).size).toBe(kinds.length);
+    for (const p of FURNITURE_PRESETS) {
+      for (const v of [p.w, p.d, p.h]) expect(Number.isInteger(v) && v > 0).toBe(true);
+    }
+  });
+  it('이름으로 종류를 짐작한다', () => {
+    expect(guessKindFromName('침대')).toBe('bed');
+    expect(guessKindFromName('컴퓨터 책상')).toBe('desk');
+    expect(guessKindFromName('수납장 (거실)')).toBe('shelf');
+    expect(guessKindFromName('화분')).toBe('box');
   });
 });
