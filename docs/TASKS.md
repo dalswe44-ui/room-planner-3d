@@ -8,7 +8,7 @@
 | T-002b | room-input | 완료 | T-002 | LengthInput이 거부 상태를 부모에게 알림(onValidityChange) | docs/reports/T-002b.md |
 | T-002c | room-input | 완료 | T-002b | 오류 문구 자리를 비워 두어 버튼 클릭이 사라지지 않게 함 | docs/reports/T-002c.md |
 | T-003 | scene-engine | 완료 | T-002 | 2D 평면 뷰와 3D 뷰, 포인터 → 방 좌표, 검증용 조회 | docs/reports/T-003.md |
-| T-004 | furniture-placement | 대기 | T-003 | 가구 추가·목록, 끌기, 90도 회전, 겹침·방 이탈 경고, 벽까지 거리 | docs/reports/T-004.md |
+| T-004 | furniture-placement | 완료 | T-003 | 가구 추가·목록, 끌기, 90도 회전, 겹침·방 이탈 경고, 벽까지 거리 | docs/reports/T-004.md |
 | T-005 | qa-verifier | 대기 | T-004 | SPEC 체크리스트 대조, 전체 명령 실행, 수치·화면 검증 | docs/reports/qa/T-005.md |
 
 ## 사용자가 직접 해야 하는 일
