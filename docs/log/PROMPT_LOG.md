@@ -82,7 +82,7 @@
     [하지 않을 것] 코드 작성, README.md, video-script.md, checklist.md(다음 작업), 구현 방법 지정, 수치 지어내기.
     [보고] docs/reports/T-001.md, CLAUDE.md의 보고 양식
 
-- 결과 (2026-11-16 23:10 수신): 일부만 완료. docs/SPEC.md(체크리스트 34개 + 다음 작업 5개)와 docs/submission/before-after.md는 썼다. docs/submission/report.md와 docs/reports/T-001.md는 이 작업 환경의 쓰기 도구가 하위 에이전트의 보고서 파일 쓰기를 거부해 쓰지 못했고, 내용을 최종 응답으로 돌려줬다. 변경 요청 5건, 미해결 질문 9건.
+- 결과 (2026-11-16 23:04 무렵 수신): 일부만 완료. docs/SPEC.md(체크리스트 34개 + 다음 작업 5개)와 docs/submission/before-after.md는 썼다. docs/submission/report.md와 docs/reports/T-001.md는 이 작업 환경의 쓰기 도구가 하위 에이전트의 보고서 파일 쓰기를 거부해 쓰지 못했고, 내용을 최종 응답으로 돌려줬다. 변경 요청 5건, 미해결 질문 9건.
 - 보고서 경로: docs/reports/T-001.md (헤드가 응답 내용을 옮겨 저장)
 - 통과 여부: 통과. 쓰지 못한 두 파일은 환경 제약이고 내용은 완료 기준을 충족했다.
 - 헤드의 처리:
@@ -92,3 +92,79 @@
   - 이후 위임의 머리말에 "보고서는 파일로 쓰지 말고 최종 응답으로 돌려주면 헤드가 저장한다"를 넣는다.
 - 실행 모델: 하위 에이전트가 환경에서 확인한 모델 ID는 `claude-fable-5-2`다. 헤드도 같은 모델이다. 프롬프트 파일 머리의 `model: sonnet`은 이 실행 방식에서는 적용되지 않는다.
 - 사용자가 개입해 고친 내용: 없음(사용자 부재).
+
+### 머리말 변경 (T-002부터)
+
+T-001에서 하위 에이전트의 보고서 파일 쓰기가 막혔으므로 머리말의 마지막 줄 앞에 아래 한 줄을 넣는다.
+
+    작업 보고서는 파일로 쓰지 않는다. CLAUDE.md의 보고 양식 5개 항목을 최종 응답에 그대로 적어 돌려주면 헤드가 docs/reports/에 저장한다.
+
+### T-002 · room-input · 2026-11-16 23:08 발송
+
+    [task-id] T-002
+    [목표] 사용자가 방의 폭·깊이·천장 높이를 mm·cm·m 어느 단위로든 입력하고 언제든 고칠 수 있다. 표시 단위를 바꿔도 값은 변하지 않는다. 가구 입력에서도 쓸 공용 길이 입력 부품을 만든다.
+    [범위] src/ui/LengthInput.tsx, src/ui/UnitToggle.tsx, src/room/RoomPanel.tsx, 각 파일의 단위 테스트, 이 부품들의 CSS(src/ui/, src/room/ 안에 두고 컴포넌트에서 import)
+    [읽을 것] docs/SPEC.md 2절의 "방", "단위 확인 경고", "단위"와 4절의 R-1 ~ R-5, U-1 ~ U-4. docs/CONTRACT.md 2절, 4절, 5절(room-input), 8절. src/contracts/units.ts, src/contracts/types.ts, src/contracts/room.ts, src/store/projectStore.ts, src/app/app.css(색 변수)
+    [쓸 수 있는 인터페이스] parseLength, formatLength, UNIT_LABEL, DISPLAY_UNITS (src/contracts/units.ts). roomBounds (src/contracts/room.ts). useProjectStore의 project.displayUnit, project.room, setDisplayUnit, setRoomSize. CSS 변수 --ink, --ink-soft, --line, --accent, --warn, --panel.
+    [완료 기준]
+      1. LengthInput의 props가 CONTRACT 5절과 정확히 같다. testId는 input 요소의 data-testid가 되고, 오류 문구 요소는 "<testId>-error"다.
+      2. Enter와 포커스 이탈 때 확정한다. 읽을 수 없는 값(빈 값, 글자, 음수, 단위 혼용)과 min ~ max 밖의 값은 onCommit을 부르지 않고 오류 문구를 보여 주며, 문구에 허용 범위가 현재 표시 단위의 숫자로 들어간다(예: mm에서 500과 20000, m에서 0.500과 20.000). 올바른 값을 확정하면 오류가 사라진다.
+      3. 입력 도중의 글자("1." 등)를 덮어쓰지 않는다. valueMm이나 unit이 밖에서 바뀌면 칸의 글자가 formatLength(valueMm, unit)으로 바뀐다. 값을 고치지 않고 Enter를 눌러도 오류가 나지 않고 값이 그대로다.
+      4. UnitToggle은 unit-mm, unit-cm, unit-m 버튼 3개이고 선택된 것만 aria-pressed="true"다. 누르면 store의 displayUnit만 바뀐다.
+      5. RoomPanel은 room-width(500 ~ 20000), room-depth(500 ~ 20000), room-height(1800 ~ 5000) 칸을 가진다. 확정하면 setRoomSize로 반영한다. 반영된 폭이나 깊이가 1000 미만이거나 15000 초과이면 "단위를 확인하세요"가 들어간 room-unit-warning을 보여 주고, 아니면 그 요소가 없다. 천장 높이는 경고 대상이 아니다.
+      6. SPEC의 R-2, R-3, R-4, R-5, U-1, U-2(방 부분), U-3, U-4가 컴포넌트 단위 테스트로 들어 있다(probe 대신 store의 값을 확인한다).
+      7. 숫자 칸은 inputMode="decimal"이고, 누르는 요소의 높이는 44px 이상이다. 각 칸에 label이 연결돼 있다.
+    [실행할 검증] npm run typecheck, npm run lint, npm run test
+    [하지 않을 것] 사진 첨부, 저장·불러오기, 예시 방(다음 작업). src/app/ 수정(화면 조립은 헤드가 한다). three.js. 의존성 추가. src/contracts/와 src/store/ 수정.
+    [보고] 최종 응답에 CLAUDE.md의 보고 양식 5개 항목
+
+- 결과 (2026-11-16 23:15 무렵 수신): 완료 기준 7개 충족. 새 파일 8개(src/ui/, src/room/), 테스트 49개 추가. 변형 확인(구현을 일부러 망가뜨려 테스트가 잡는지)과 실제 Chrome 크기 측정까지 스스로 했다. 변경 요청 3건, 미해결 질문 6건.
+- 보고서 경로: docs/reports/T-002.md (헤드가 응답 내용을 옮겨 저장)
+- 통과 여부: 통과. 헤드가 git status로 변경이 src/ui/와 src/room/에만 있음을 확인했고 typecheck, lint, test(5개 파일 72개)를 직접 돌려 통과를 확인했다.
+- 헤드의 처리:
+  - src/app/App.tsx에 UnitToggle(머리글)과 RoomPanel(패널)을 조립했다.
+  - 변경 요청 1: `onValidityChange?(valid: boolean)` 선택 prop을 추가하기로 하고 CONTRACT 5절을 먼저 고친 뒤 T-002b로 room-input에게 다시 맡긴다. 요청 2는 CONTRACT에 반영했다.
+  - 미해결 질문 1, 2(휴대폰 키패드)는 사용자의 실기기 확인 항목으로 넘긴다. 3 ~ 5는 지금 동작대로 둔다.
+- 사용자가 개입해 고친 내용: 없음(사용자 부재).
+
+### T-002b · room-input · 2026-11-16 23:18 발송 (T-003과 동시에 실행)
+
+    [task-id] T-002b
+    [목표] 가구 추가 폼이 "칸에 잘못된 값이 들어 있는 동안에는 추가하지 않는다"를 구현할 수 있도록, LengthInput이 자기 칸의 거부 상태를 부모에게 알린다.
+    [범위] src/ui/LengthInput.tsx, src/ui/LengthInput.test.tsx
+    [읽을 것] docs/CONTRACT.md 5절의 LengthInput 줄(onValidityChange 설명이 추가됐다), docs/reports/T-002.md 4절 1번, docs/SPEC.md 4절 F-2·F-3
+    [쓸 수 있는 인터페이스] 기존과 같다.
+    [완료 기준]
+      1. 선택 prop onValidityChange?(valid: boolean): void 가 추가됐다. 주지 않으면 기존 동작과 완전히 같다.
+      2. 확정 시도가 거부되어 오류 문구가 보이게 되면 onValidityChange(false)를 부른다. 그 뒤 올바른 값이 확정되거나 valueMm·unit이 밖에서 바뀌어 오류가 사라지면 onValidityChange(true)를 부른다. 상태가 바뀔 때만 부르고 렌더마다 부르지 않는다.
+      3. 테스트: 빈 값·글자·범위 밖 값을 넣고 포커스를 옮기면 false가 한 번 불린다. 올바른 값을 확정하면 true가 불린다. 포커스 이탈 뒤 곧바로 다른 버튼을 누르는 순서(가구 추가 버튼을 누르는 상황)에서 버튼의 click 핸들러가 실행되는 시점에 이미 false가 전달돼 있다.
+      4. 기존 테스트가 모두 그대로 통과한다.
+    [실행할 검증] npm run typecheck, npm run lint, npm run test (다른 에이전트가 src/scene/에서 동시에 작업 중이다. src/scene/ 때문에 생기는 typecheck·lint 오류는 당신의 것이 아니니 고치지 말고 보고서에 적는다)
+    [하지 않을 것] 다른 파일 수정, 기존 props와 문구 변경.
+    [보고] 최종 응답에 CLAUDE.md의 보고 양식 5개 항목
+
+- 결과: (T-002b 결과를 받으면 채운다)
+
+### T-003 · scene-engine · 2026-11-16 23:18 발송 (T-002b와 동시에 실행)
+
+    [task-id] T-003
+    [목표] 사용자가 입력한 방과 가구 상자를 평면 뷰와 3D 뷰로 볼 수 있고, 가구를 누르고 끄는 포인터가 방 좌표(mm)로 바뀌어 배치 담당 모듈에 전달된다. 검증 담당이 화면 대신 숫자로 확인할 수 있는 조회 함수를 제공한다.
+    [범위] src/scene/ 전체: SceneView.tsx, ViewToggle.tsx, 내부 컴포넌트와 순수 함수, 단위 테스트, CSS
+    [읽을 것] docs/SPEC.md 2절의 "끌기", "경고 표시", "뷰와 배포"와 4절의 F-1, P-1, P-3, P-4, V-1 ~ V-4. docs/CONTRACT.md 1절, 3절, 4절, 5절(scene-engine), 6절, 7절, 8절. src/contracts/ 전체, src/store/projectStore.ts, src/app/App.tsx와 app.css(SceneView가 들어갈 .app-scene 영역)
+    [쓸 수 있는 인터페이스] mmToWorld, worldToMm, roomToWorld, worldToRoom (src/contracts/coords.ts). roomBounds (src/contracts/room.ts). 타입 PlacementHandlers, ItemStatus, DragPreview, SceneProbe, SceneProbeSnapshot. useProjectStore의 project, viewMode, selectedItemId, dragPreview, setViewMode. 설치된 패키지: three 0.187.0, @react-three/fiber 9.8.2, @react-three/drei 10.7.9.
+    [완료 기준]
+      1. SceneView의 props가 CONTRACT 5절과 같다: { handlers: PlacementHandlers; statuses: Record<string, ItemStatus> }. 부모 요소를 가득 채우고, 캔버스를 감싼 요소에 data-testid="scene-canvas"가 있다.
+      2. 평면 뷰: 위에서 내려다보는 직교 카메라. 화면 방향이 CLAUDE.md의 좌표계와 같다(원점이 왼쪽 위, +x가 오른쪽, +z가 아래). 이동과 확대만 되고 회전은 안 된다. 처음에, 그리고 방 치수가 바뀔 때 방 전체가 여백을 두고 화면 안에 들어온다.
+      3. 3D 뷰: 원근 카메라, 회전·확대 가능. 처음에 방 전체가 보인다. 카메라 쪽 벽이 방 안을 가리지 않는다.
+      4. 그리는 것: 바닥, 벽(두께는 그릴 때만 바깥쪽으로), 가구 상자. 가구는 store의 값 그대로 그리되 dragPreview.itemId가 그 가구이면 dragPreview의 x, z에 그린다. 선택된 가구는 테두리 등으로 구분된다. statuses에서 overlap이나 outside가 true인 가구는 경고 색(app.css의 --warn 계열)으로 그린다. 평면 뷰에서는 가구 이름을 상자 위에 글자로 보여 준다(drei의 Html처럼 DOM으로 그린다. 외부 폰트를 내려받는 drei Text는 쓰지 않는다).
+      5. 포인터(두 뷰 공통, 완료 기준 검증은 평면 뷰): 가구 위에서 누르면 handlers.onItemPointerDown(id, 바닥 좌표 mm). 누른 채 움직이면 handlers.onFloorPointerMove(바닥 좌표 mm), 떼면 handlers.onPointerUp(). 그 동안 카메라 조작은 멈춘다. 포인터가 캔버스 밖으로 나가도 끌기가 끊기지 않게 포인터를 붙잡는다(pointer capture). 가구가 없는 곳을 거의 움직이지 않고(5px 이내) 눌렀다 떼면 handlers.onBackgroundTap(). 빈 곳에서 시작한 끌기와 두 손가락 제스처는 카메라 조작이다. 가구를 어디에 놓을지는 정하지 않는다(store를 쓰지 않는다. viewMode만 ViewToggle이 쓴다).
+      6. window.__sceneProbe (src/contracts/probe.ts): snapshot()은 store가 아니라 실제로 그려진 three.js 객체(mesh의 위치, 크기, 회전, 재질)에서 값을 읽어 mm로 바꿔 돌려준다. center.y는 바닥에서 상자 중심까지의 높이다(높이 720 상자면 360). color는 가구의 원래 색, warning은 경고 색으로 그려지고 있는지. floorToClient(x, z)는 실제 카메라로 투영한 화면 좌표(뷰포트 기준 CSS px)다. 컴포넌트가 사라지면 window.__sceneProbe도 지운다.
+      7. ViewToggle은 view-2d, view-3d 버튼 2개이고 선택된 것만 aria-pressed="true"다. 버튼 높이 44px 이상.
+      8. 조작이 없을 때는 다시 그리지 않는다(frameloop="demand"). 픽셀 비율 상한 2. 바닥과 가구 밑면이 깜빡이지 않는다. WebGL 컨텍스트가 끊겼다 돌아오면 다시 그린다. 만들고 버리는 geometry와 material은 해제한다.
+      9. 단위 테스트(순수 함수): 알려진 mm 값의 가구가 기대한 장면 위치·크기·회전으로 바뀐다(예: w 1200, d 600, h 720, x 1800, z 1500 → 위치 [1.8, 0.36, 1.5], 크기 [1.2, 0.72, 0.6]). 화면 좌표 → 바닥 좌표 변환이 기대한 mm로 돌아온다. 방을 화면에 맞추는 계산.
+      10. 실제 Chrome에서 직접 확인한다(시스템 Chrome은 /usr/bin/google-chrome, Playwright는 channel: 'chrome'로 쓸 수 있고 WebGL은 playwright.config.ts의 launchOptions 인자로 켠다). 임시 페이지나 스크립트로 SceneView를 띄우고 store에 가구를 넣어(useProjectStore.getState().addItem) 아래를 확인하고 결과를 보고서에 적는다: probe.snapshot()의 방·가구 값이 store와 일치, 평면 뷰에서 floorToClient(3600, 0)이 (0, 0)의 오른쪽 같은 높이이고 (0, 3000)이 아래 같은 가로 위치, 두 뷰 모두 방 네 모서리가 scene-canvas 안, 가구 중심을 눌러 끌면 onItemPointerDown·onFloorPointerMove·onPointerUp이 기대한 mm 좌표로 불림, 평면 뷰와 3D 뷰의 스크린샷. 임시 파일은 끝나면 지우고 스크린샷은 저장소 밖(/tmp)에 둔다.
+    [실행할 검증] npm run typecheck, npm run lint, npm run test, npm run build (다른 에이전트가 src/ui/LengthInput에서 동시에 작업 중이다. src/ui/ 때문에 생기는 오류는 당신의 것이 아니니 고치지 말고 보고서에 적는다)
+    [하지 않을 것] 스냅·겹침 판정·가구 위치 확정(furniture-placement의 일). 입력 폼, 저장. src/app/, src/contracts/, src/store/ 수정(필요하면 변경 요청). 의존성 추가. WebGPU 렌더러, 외부 3D 모델·텍스처·폰트. 그림자와 후처리.
+    [보고] 최종 응답에 CLAUDE.md의 보고 양식 5개 항목. 실기기에서만 확인할 수 있는 것은 확인하지 못했다고 적는다.
+
+- 결과: (T-003 결과를 받으면 채운다)

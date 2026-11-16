@@ -52,9 +52,9 @@
 
 | 파일 | 내보내는 것 |
 |---|---|
-| `src/ui/LengthInput.tsx` | `LengthInput(props: { label: string; valueMm: Mm; unit: DisplayUnit; onCommit(mm: Mm): void; min?: Mm; max?: Mm; testId?: string })`. Enter나 포커스 이탈 때 확정한다. 읽을 수 없거나 범위를 벗어난 값은 `onCommit`을 부르지 않고 오류를 보여 준다. 오류 문구에는 허용 범위가 현재 표시 단위로 들어간다. `min`의 기본값은 1이다. `valueMm`이나 `unit`이 바뀌면 칸의 글자도 새 값으로 바뀐다 |
+| `src/ui/LengthInput.tsx` | `LengthInput(props: { label: string; valueMm: Mm; unit: DisplayUnit; onCommit(mm: Mm): void; min?: Mm; max?: Mm; testId?: string; onValidityChange?(valid: boolean): void })`. `onValidityChange`는 칸이 거부 상태(오류 문구가 보이는 상태)가 되면 `false`, 거기서 벗어나면 `true`로 부른다(T-002b에서 추가). 값이 그대로이면 `onCommit`을 부르지 않는다. Enter나 포커스 이탈 때 확정한다. 읽을 수 없거나 범위를 벗어난 값은 `onCommit`을 부르지 않고 오류를 보여 준다. 오류 문구에는 허용 범위가 현재 표시 단위로 들어간다. `min`의 기본값은 1이다. `valueMm`이나 `unit`이 바뀌면 칸의 글자도 새 값으로 바뀐다 |
 | `src/ui/UnitToggle.tsx` | `UnitToggle()`. store의 `displayUnit`을 읽고 바꾼다 |
-| `src/room/RoomPanel.tsx` | `RoomPanel()`. 방의 폭·깊이·천장 높이 입력. store를 직접 읽고 쓴다 |
+| `src/room/RoomPanel.tsx` | `RoomPanel()`. 방의 폭·깊이·천장 높이 입력. store를 직접 읽고 쓴다. `UnitToggle`은 포함하지 않는다(App이 따로 놓는다) |
 
 ### scene-engine
 

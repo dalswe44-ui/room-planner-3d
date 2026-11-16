@@ -53,6 +53,24 @@ body,
   color: var(--ink-soft);
 }
 
+.app-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.app-section + .app-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.app-section h2 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
 .app-panel {
   grid-area: panel;
   overflow-y: auto;
