@@ -30,3 +30,4 @@
 |---|---|---|
 | 2026-11-16 | docs/SPEC.md (spec-report 소유) | 2절 끌기 규칙과 P-2를 변 기준 스냅으로 고침. T-001의 미해결 질문 1에 대한 결정 |
 | 2026-11-16 | docs/submission/report.md, docs/reports/T-001.md | spec-report가 응답으로 돌려준 내용을 그대로 저장 |
+| 2026-11-17 | src/furniture/usePlacement.ts (furniture-placement 소유) | 3D 뷰에서도 끌기 허용(사용자 피드백). 테스트 1개를 새 동작으로 바꿈 |

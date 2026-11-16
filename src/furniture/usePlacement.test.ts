@@ -74,17 +74,18 @@ describe('createPlacementHandlers', () => {
     expect(itemOf(a)).toMatchObject({ x: 1000, z: 1000, rotationDeg: 90 });
   });
 
-  it('3D 뷰에서는 선택만 하고 끌지 않는다', () => {
+  it('3D 뷰에서도 끌 수 있다(2026-11-17 사용자 요청으로 바꿈)', () => {
     const h = createPlacementHandlers(store);
     const a = addA();
     store().selectItem(null);
     store().setViewMode('3d');
     h.onItemPointerDown(a, { x: 1800, z: 1500 });
     expect(store().selectedItemId).toBe(a);
-    h.onFloorPointerMove({ x: 500, z: 500 });
-    expect(store().dragPreview).toBeNull();
+    h.onFloorPointerMove({ x: 1000, z: 800 });
+    expect(store().dragPreview).toMatchObject({ itemId: a, x: 1000, z: 800 });
     h.onPointerUp();
-    expect(itemOf(a)).toMatchObject({ x: 1800, z: 1500 });
+    expect(store().dragPreview).toBeNull();
+    expect(itemOf(a)).toMatchObject({ x: 1000, z: 800 });
   });
 
   it('빈 곳을 누르면 선택을 푼다(F-6)', () => {

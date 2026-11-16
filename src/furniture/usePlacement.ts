@@ -18,7 +18,6 @@ export function createPlacementHandlers(getState: () => ProjectState): Placement
       const s = getState();
       s.selectItem(itemId);
       drag = null;
-      if (s.viewMode !== '2d') return;
       const item = s.project.items.find((it) => it.id === itemId);
       if (!item) return;
       drag = { itemId, offset: grabOffset({ x: item.x, z: item.z }, floor) };
