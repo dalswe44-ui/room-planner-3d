@@ -45,6 +45,7 @@ body,
 .app-header h1 {
   margin: 0;
   font-size: 18px;
+  white-space: nowrap;
 }
 
 .app-sub {
@@ -104,6 +105,17 @@ body,
 
   .app-sub {
     display: none;
+  }
+
+  /* 좁은 화면에서는 되돌리기 버튼을 기호만 보인다(이름은 aria-label과 title) */
+  .app-history-text {
+    display: none;
+  }
+
+  .app-history-btn {
+    min-width: 44px;
+    padding: 0 8px;
+    font-size: 18px;
   }
 
   .app-panel {
@@ -167,6 +179,10 @@ body,
 }
 
 .app-history-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
   appearance: none;
   min-height: 44px;
   padding: 0 12px;
