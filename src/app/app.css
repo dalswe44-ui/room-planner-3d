@@ -112,10 +112,14 @@ body,
   }
 }
 
-/* 뷰 전환 버튼은 캔버스 위 왼쪽 위 모서리에 띄운다 */
+/* 뷰 전환 버튼은 캔버스 위쪽의 자기 줄에 둔다. 캔버스 위에 띄우면 방 바닥을 가려 그 자리의 가구를 잡을 수 없었다(D-T005-02). */
 .app-scene > .view-toggle {
   position: absolute;
-  top: 12px;
+  top: 8px;
   left: 12px;
   z-index: 1;
+}
+
+.app-scene > .scene-root {
+  top: 60px;
 }
