@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDefaultProject, useProjectStore } from '../store/projectStore';
 import { roomBounds } from '../contracts/room';
-import { computeItemStatuses } from './placement';
+import { computeItemStatuses, SNAP_MM } from './placement';
 import { createPlacementHandlers, usePlacement } from './usePlacement';
 
 const store = () => useProjectStore.getState();
@@ -94,27 +94,27 @@ describe('createPlacementHandlers', () => {
     const h = createPlacementHandlers(store);
     const a = addA(); // 1000 x 600
     h.onItemPointerDown(a, { x: 1800, z: 1500 });
-    h.onFloorPointerMove({ x: 560 + 0, z: 1500 }); // 왼쪽 변 60
+    h.onFloorPointerMove({ x: 500 + SNAP_MM - 5, z: 1500 }); // 왼쪽 변 SNAP_MM - 5
     expect(store().dragPreview).toEqual({ itemId: a, x: 500, z: 1500 });
     h.onPointerUp();
     expect(itemOf(a)).toMatchObject({ x: 500, z: 1500 });
   });
 
-  it('다른 가구 80 mm 옆까지 끌면 맞닿고 경고가 없다, 150 mm면 붙지 않는다', () => {
+  it('다른 가구 SNAP_MM - 5 옆까지 끌면 맞닿고 경고가 없다, SNAP_MM + 10 이면 붙지 않는다', () => {
     const h = createPlacementHandlers(store);
     const a = addA();
     store().updateItem(a, { x: 1000, z: 1500 }); // x 500 ~ 1500
     const b = store().addItem({ name: 'B', w: 1000, d: 600, h: 500 });
     h.onItemPointerDown(b, { x: 1800, z: 1500 });
     h.onFloorPointerMove({ x: 2580, z: 1500 }); // 왼쪽 변 2080 이므로 오른쪽 변 1500에서 580: 멀다
-    h.onFloorPointerMove({ x: 2080, z: 1500 }); // 왼쪽 변 1580, 간격 80
+    h.onFloorPointerMove({ x: 2000 + SNAP_MM - 5, z: 1500 }); // 간격 SNAP_MM - 5
     expect(store().dragPreview).toEqual({ itemId: b, x: 2000, z: 1500 });
     h.onPointerUp();
     expect(itemOf(b)).toMatchObject({ x: 2000, z: 1500 });
     h.onItemPointerDown(b, { x: 2000, z: 1500 });
-    h.onFloorPointerMove({ x: 2150, z: 1500 }); // 간격 150
+    h.onFloorPointerMove({ x: 2000 + SNAP_MM + 10, z: 1500 }); // 간격 SNAP_MM + 10
     h.onPointerUp();
-    expect(itemOf(b)).toMatchObject({ x: 2150, z: 1500 });
+    expect(itemOf(b)).toMatchObject({ x: 2000 + SNAP_MM + 10, z: 1500 });
   });
 
   it('끄는 가구 자신은 후보가 아니고, 맞닿은 뒤 겹침 경고가 없다', () => {
@@ -123,7 +123,7 @@ describe('createPlacementHandlers', () => {
     const b = store().addItem({ name: 'B', w: 1000, d: 600, h: 500 });
     store().updateItem(a, { x: 600, z: 1500 });
     h.onItemPointerDown(b, { x: 1800, z: 1500 });
-    h.onFloorPointerMove({ x: 1680, z: 1500 }); // 내 왼쪽 1180, a 오른쪽 1100과 80
+    h.onFloorPointerMove({ x: 1600 + SNAP_MM - 5, z: 1500 }); // a 오른쪽 1100과 간격 SNAP_MM - 5
     h.onPointerUp();
     expect(itemOf(b)).toMatchObject({ x: 1600, z: 1500 });
     const st = computeItemStatuses(store().project.items, roomBounds(store().project.room), null);

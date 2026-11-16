@@ -10,8 +10,8 @@ export const ITEM_SIZE_MIN = 10;
 export const ITEM_SIZE_MAX = 10000;
 /** 겹침·이탈로 보는 최소 길이. 변이 정확히 맞닿은 것(0)은 겹침·이탈이 아니다. */
 export const WARN_MIN_MM = 1;
-/** 끄는 동안 변이 벽·다른 가구의 변에 이 거리 이내로 다가오면 딱 붙인다(맞닿음). 100은 붙고 101은 안 붙는다. */
-export const SNAP_MM = 100;
+/** 끄는 동안 변이 벽·다른 가구의 변에 이 거리 이내로 다가오면 딱 붙인다(맞닿음). SNAP_MM은 붙고 SNAP_MM + 1은 안 붙는다. */
+export const SNAP_MM = 20;
 /** 이름을 비우고 추가하면 쓰는 이름 */
 export const DEFAULT_ITEM_NAME = '가구';
 /** 회전 버튼 한 번에 도는 각도(반시계) */
