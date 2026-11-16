@@ -113,6 +113,7 @@ export function SceneView({ handlers, statuses }: SceneViewProps) {
             preview={dragPreview?.itemId === item.id ? dragPreview : null}
             warning={isWarning(item.id)}
             selected={selectedItemId === item.id}
+            showLabel={viewMode === '2d'}
           />
         ))}
         <CameraRig
