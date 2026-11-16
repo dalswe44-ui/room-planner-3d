@@ -1,0 +1,46 @@
+/* 장면 영역은 부모(.app-scene)를 가득 채운다. 높이는 부모가 정하므로 모바일 주소창 변화에도 잘리지 않는다. */
+.scene-root {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.scene-root canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.view-toggle-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  min-height: 44px;
+  padding: 6px 14px;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.view-toggle-btn[aria-pressed='true'] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.view-toggle-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}

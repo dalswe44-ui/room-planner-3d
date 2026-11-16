@@ -112,3 +112,9 @@ describe('방 다각형', () => {
     expect(bounds).toEqual({ minX: 0, maxX: 3600, minZ: 0, maxZ: 3000, width: 3600, depth: 3000 });
   });
 });
+
+describe('worldToMm -0 정규화', () => {
+  it('작은 음수는 -0이 아니라 0이 된다', () => {
+    expect(Object.is(worldToMm(-0.0001), 0)).toBe(true);
+  });
+});

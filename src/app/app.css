@@ -111,3 +111,11 @@ body,
     border-top: 1px solid var(--line);
   }
 }
+
+/* 뷰 전환 버튼은 캔버스 위 왼쪽 위 모서리에 띄운다 */
+.app-scene > .view-toggle {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1;
+}

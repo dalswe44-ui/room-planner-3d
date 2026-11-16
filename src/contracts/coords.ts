@@ -10,7 +10,8 @@ export function mmToWorld(mm: Mm): number {
 
 /** 장면 좌표(m) → 정수 mm. 저장하기 전에 반드시 이 함수를 거친다. */
 export function worldToMm(m: number): Mm {
-  return Math.round(m * MM_PER_METER);
+  // + 0 은 Math.round가 만든 -0을 0으로 바꾼다(NaN은 그대로 둔다).
+  return Math.round(m * MM_PER_METER) + 0;
 }
 
 /**
