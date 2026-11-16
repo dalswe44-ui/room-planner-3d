@@ -2,7 +2,7 @@
 // three.js 객체는 만들지 않으므로 React 없이 테스트할 수 있다.
 import { MathUtils, Object3D, Shape, Vector2 } from 'three';
 import { mmToWorld } from '../contracts/coords';
-import type { FurnitureItem, Mm, PointMm } from '../contracts/types';
+import type { FurnitureItem, FurnitureKind, Mm, PointMm } from '../contracts/types';
 
 export const WALL_THICKNESS_MM = 100;
 export const WARNING_COLOR = '#e5484d';
@@ -15,6 +15,8 @@ export const SCENE_BACKGROUND = '#eceae4';
 export interface SceneUserData {
   kind?: 'floor' | 'wall' | 'furniture';
   furnitureId?: string;
+  /** 가구: 그려진 모양의 종류. 없으면 'box' */
+  shape?: FurnitureKind;
   /** 경고 색으로 덮이기 전의 가구 색 */
   baseColor?: string;
   warning?: boolean;

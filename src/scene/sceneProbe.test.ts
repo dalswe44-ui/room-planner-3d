@@ -66,6 +66,14 @@ describe('readSnapshot: 실제 장면 객체에서 읽는다', () => {
     expect(item.color).toBe('#7aa2d6');
   });
 
+  it('모양 종류는 표식(shape)에서 읽고 없으면 box다', () => {
+    const scene = buildScene(3600, 3000, 2400);
+    addFurniture(scene, 'A', { x: 1000, z: 1000, w: 1000, d: 600, h: 500, rotationDeg: 0 });
+    addFurniture(scene, 'B', { x: 2000, z: 1000, w: 1000, d: 600, h: 500, rotationDeg: 0 });
+    (scene.children.filter((o) => o.userData.kind === 'furniture')[1] as Mesh).userData.shape = 'bed';
+    expect(readSnapshot(scene, new PerspectiveCamera()).items.map((i) => i.kind)).toEqual(['box', 'bed']);
+  });
+
   it('회전 270도와 경고 상태를 읽는다', () => {
     const scene = buildScene(3600, 3000, 2400);
     addFurniture(scene, 'B', { x: 1000, z: 1000, w: 1000, d: 1000, h: 500, rotationDeg: 270 }, { warning: true });

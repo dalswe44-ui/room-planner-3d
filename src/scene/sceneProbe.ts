@@ -38,6 +38,7 @@ function readItem(mesh: Mesh, geometry: BoxGeometry): SceneProbeItem {
     color: data.baseColor ?? '',
     warning: data.warning === true,
     selected: data.selected === true,
+    kind: data.shape ?? 'box',
   };
 }
 
