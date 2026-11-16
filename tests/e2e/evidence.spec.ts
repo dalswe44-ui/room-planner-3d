@@ -1,9 +1,10 @@
 // 주요 화면 스크린샷을 docs/evidence/에 남긴다. 파일 이름에 task-id, 체크리스트 ID, 뷰포트가 들어간다.
 // 판정은 checklist.spec.ts의 수치 비교가 하고, 여기서는 사람이 볼 증빙만 만든다(V-4, F-5 색은 화면 확인 항목).
 import { expect, test, type Page } from '@playwright/test';
-import { addA, addB, addItem, enter, openApp, snapshot, VIEWPORTS } from './helpers';
+import { addA, addItem, addOverlappingB, enter, openApp, snapshot, VIEWPORTS } from './helpers';
 
-const DIR = 'docs/evidence';
+// 실행마다 추적 파일을 덮어쓰지 않도록, EVIDENCE_DIR을 줄 때만 그 폴더에 저장한다(예: EVIDENCE_DIR=docs/evidence/2026-11-17-T-017).
+const DIR = process.env.EVIDENCE_DIR;
 
 async function settle(page: Page) {
   // frameloop="demand"라 한 프레임 그려질 시간을 준다
@@ -11,6 +12,7 @@ async function settle(page: Page) {
 }
 
 async function shot(page: Page, name: string) {
+  if (!DIR) throw new Error('EVIDENCE_DIR 없이 shot을 부를 수 없다');
   await settle(page);
   await page.screenshot({ path: `${DIR}/${name}.png` });
 }
@@ -18,6 +20,7 @@ async function shot(page: Page, name: string) {
 for (const vp of VIEWPORTS) {
   test.describe(`[${vp.name}] 증빙`, () => {
     test.use({ viewport: vp.size });
+    test.skip(!DIR, 'EVIDENCE_DIR이 없으면 스크린샷 증빙을 만들지 않는다');
     test.beforeEach(async ({ page }) => {
       await openApp(page);
     });
@@ -38,15 +41,13 @@ for (const vp of VIEWPORTS) {
     });
 
     test('W-1 겹침 경고 평면 뷰', async ({ page }) => {
-      await addB(page);
-      await addB(page);
+      await addOverlappingB(page);
       await expect(page.getByTestId('item-status')).toContainText('겹침');
       await shot(page, `T-005_W-1_overlap_plan_${vp.name}`);
     });
 
     test('V-4 겹침 상태의 3D 뷰', async ({ page }) => {
-      await addB(page);
-      await addB(page);
+      await addOverlappingB(page);
       await page.getByTestId('view-3d').click();
       await expect.poll(async () => (await snapshot(page)).view).toBe('3d');
       await shot(page, `T-005_V-4_overlap_3d_${vp.name}`);

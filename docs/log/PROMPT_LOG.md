@@ -246,3 +246,4 @@ T-001에서 하위 에이전트의 보고서 파일 쓰기가 막혔으므로 �
 - 헤드: playwright 설정 격리(점검 1의 높음). 실행마다 .e2e-dist-<포트> 빌드 폴더, 포트는 E2E_PORT(기본 4173), reuseExistingServer false, trace retain-on-failure. .gitignore와 eslint ignores에 .e2e-dist-*.
 - 헤드: SPEC 4-2절(B-1, B-2, L-1, L-2, H-1, H-2, S-1, T-1, C-1) 추가.
 - T-017 위임 (qa-verifier): 새 동작으로 깨진 e2e 8개 의도 유지해 수정, 새 기능 e2e(M, K, B, L, H, S-1, 터치 T-1, 픽셀 색 C-1), evidence 덮어쓰기 방지(EVIDENCE_DIR), 격리 포트로 두 번 연속 실행.
+- T-017 결과: e2e 97 passed + 12 skipped(증빙 스크린샷, EVIDENCE_DIR 없을 때) 두 번 연속 같음. 결함 없음. 보고서 docs/reports/qa/T-017.md.

@@ -124,3 +124,17 @@ export async function distances(page: Page): Promise<string[]> {
   for (let i = 0; i < 4; i++) out.push(((await page.getByTestId(`item-dist-${i}`).textContent()) ?? '').trim());
   return out;
 }
+
+/**
+ * B를 두 번 추가하고 둘째를 첫째 위로 끌어 겹치게 만든다(새 가구는 빈 자리에 놓이므로 추가만으로는 겹치지 않는다).
+ * 첫째·둘째 id를 돌려준다. 둘째가 선택된 상태로 끝난다.
+ */
+export async function addOverlappingB(page: Page): Promise<{ first: string; second: string }> {
+  const first = await addB(page);
+  const second = await addB(page);
+  const f = await itemById(page, first);
+  expect((await itemById(page, second)).warning, '둘째는 빈 자리에 놓여 겹침이 없어야 한다').toBe(false);
+  await dragItemTo(page, second, { x: f.center.x, z: f.center.z });
+  await expectNear(page, (await itemById(page, second)).center, { x: f.center.x, z: f.center.z });
+  return { first, second };
+}

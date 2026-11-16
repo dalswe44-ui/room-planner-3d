@@ -5,6 +5,7 @@ import {
   addA,
   addB,
   addItem,
+  addOverlappingB,
   distances,
   dragFloor,
   dragItemTo,
@@ -322,24 +323,20 @@ for (const vp of VIEWPORTS) {
 
     // ---------- 경고 ----------
     test('W-1 겹침 경고', async ({ page }) => {
-      await addB(page);
-      await addB(page);
+      await addOverlappingB(page);
       await expect.poll(async () => (await snapshot(page)).items.map((it) => it.warning)).toEqual([true, true]);
       await expect(page.getByTestId('item-status')).toContainText('겹침');
     });
 
     test('W-2 떼어 놓으면 해제, 다시 겹쳐도 막지 않음', async ({ page }) => {
-      await addB(page);
-      await addB(page);
-      // 목표 (650, 650): 1000×1000 상자의 변이 벽과 다른 상자에서 150 mm라 자석 맞춤(20 mm)에 걸리지 않고 겹치지도 않는다(T-008). 같은 자리의 두 상자 중 어느 쪽이 잡힐지는 SPEC이 정하지 않았으므로("하나를") 끌려 간 쪽을 probe로 찾는다
-      await dragFloor(page, { x: 1800, z: 1500 }, { x: 650, z: 650 });
-      const moved = (await snapshot(page)).items.find((it) => it.center.x !== 1800 || it.center.z !== 1500);
-      if (!moved) throw new Error('끌린 가구가 없다');
-      await expectNear(page, moved.center, { x: 650, z: 650 });
+      const { second } = await addOverlappingB(page);
+      // 목표 (650, 650): 1000×1000 상자의 변이 벽과 다른 상자에서 150 mm라 자석 맞춤(20 mm)에 걸리지 않고 겹치지도 않는다(T-008)
+      await dragItemTo(page, second, { x: 650, z: 650 });
+      await expectNear(page, (await itemById(page, second)).center, { x: 650, z: 650 });
       await expect.poll(async () => (await snapshot(page)).items.map((it) => it.warning)).toEqual([false, false]);
       await expect(page.getByTestId('item-status')).toHaveCount(0);
-      await dragItemTo(page, moved.id, { x: 1800, z: 1500 });
-      await expectNear(page, (await itemById(page, moved.id)).center, { x: 1800, z: 1500 });
+      await dragItemTo(page, second, { x: 1800, z: 1500 });
+      await expectNear(page, (await itemById(page, second)).center, { x: 1800, z: 1500 });
       await expect.poll(async () => (await snapshot(page)).items.map((it) => it.warning)).toEqual([true, true]);
     });
 
@@ -386,8 +383,7 @@ for (const vp of VIEWPORTS) {
     });
 
     test('W-7 겹침과 방 밖 동시 표시', async ({ page }) => {
-      await addB(page);
-      await addB(page);
+      await addOverlappingB(page);
       await enter(page, 'room-width', '2000');
       await expect(page.getByTestId('item-status')).toContainText('겹침');
       await expect(page.getByTestId('item-status')).toContainText('방 밖');
