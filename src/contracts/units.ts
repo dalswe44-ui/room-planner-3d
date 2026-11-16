@@ -42,3 +42,9 @@ export function formatLength(mm: Mm, unit: DisplayUnit): string {
 export function formatLengthWithUnit(mm: Mm, unit: DisplayUnit): string {
   return `${formatLength(mm, unit)} ${UNIT_LABEL[unit]}`;
 }
+
+/** 숫자 값과 단위 → 정수 mm. 유한한 수가 아니면 null. (배치도 가져오기 등 숫자로 받은 길이에 쓴다) */
+export function lengthToMm(value: number, unit: DisplayUnit): Mm | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return Math.round(value * MM_PER_UNIT[unit]) + 0;
+}

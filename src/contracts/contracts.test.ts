@@ -1,6 +1,6 @@
 // 계약 테스트. 단위와 좌표 규약을 고정한다. 이 파일은 헤드만 고친다.
 import { describe, expect, it } from 'vitest';
-import { formatLength, formatLengthWithUnit, parseLength } from './units';
+import { formatLength, formatLengthWithUnit, lengthToMm, parseLength } from './units';
 import { mmToWorld, roomToWorld, worldToMm, worldToRoom } from './coords';
 import { rectCorners, roomBounds } from './room';
 import type { DisplayUnit } from './types';
@@ -116,5 +116,18 @@ describe('방 다각형', () => {
 describe('worldToMm -0 정규화', () => {
   it('작은 음수는 -0이 아니라 0이 된다', () => {
     expect(Object.is(worldToMm(-0.0001), 0)).toBe(true);
+  });
+});
+
+describe('lengthToMm', () => {
+  it('단위에 맞춰 정수 mm로 바꾼다', () => {
+    expect(lengthToMm(360, 'cm')).toBe(3600);
+    expect(lengthToMm(3.6, 'm')).toBe(3600);
+    expect(lengthToMm(1234.4, 'mm')).toBe(1234);
+    expect(lengthToMm(0.05, 'cm')).toBe(1);
+  });
+  it('유한한 수가 아니면 null', () => {
+    expect(lengthToMm(Number.NaN, 'mm')).toBeNull();
+    expect(lengthToMm(Number.POSITIVE_INFINITY, 'cm')).toBeNull();
   });
 });
