@@ -243,3 +243,4 @@ T-001에서 하위 에이전트의 보고서 파일 쓰기가 막혔으므로 �
 - 동시 위임(사용자 부재): T-014 furniture-placement(기본 가구 버튼 즉시 추가, 빈 자리 배치 findFreeSpot, 목록 중복 표기, limits 사용, 모바일 편집 칸 스크롤), T-015 room-input(자동 저장 S-1·사진 저장 S-4 가능하면, 배치도 축별 위치·종류별 기본 높이·JSON 단위 미리보기·확인 버튼 스크롤·파일 읽기 오류·상태 union, limits 사용), T-016 scene-engine(겹친 자리에서 선택한 가구 우선, 3D 조작 안내, 3D 시점 기억, || 0 제거). 고치지 않고 사용자에게 물을 것: 자석 거리 기준(2 cm vs 화면 기준), 끌 때 방 안으로 제한.
 - pstack 점검 1(테스트·검증) 결과 저장. 헤드 판단: 가장 중요한 지적은 e2e가 공유 dist/·고정 포트·서버 재사용으로 동시 작업과 섞인다는 것. 지금 돌고 있는 T-014~016이 끝난 뒤 playwright 설정을 고치고(재사용 끔, trace, 포트 변수), 커밋 고정 worktree에서 최종 e2e를 돌린다. 새 기능 e2e는 T-017(qa-verifier)로.
 - T-014·T-015·T-016 결과 저장. 헤드가 App.tsx에 usePersistence 조립(맨 앞). 합친 상태 test 332개 통과. e2e는 새 동작(빈 자리 배치) 때문에 8개 실패 예상 → T-017에서 qa가 고침.
+- 헤드: playwright 설정 격리(점검 1의 높음). 실행마다 .e2e-dist-<포트> 빌드 폴더, 포트는 E2E_PORT(기본 4173), reuseExistingServer false, trace retain-on-failure. .gitignore와 eslint ignores에 .e2e-dist-*.
