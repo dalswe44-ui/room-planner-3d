@@ -1,0 +1,31 @@
+/* 사진·배치도 패널. 색은 src/app/app.css의 변수만 쓴다. */
+.photo-panel { display: grid; gap: 16px; }
+.photo-section { display: grid; gap: 8px; }
+.photo-title { margin: 0; font-size: 16px; }
+.photo-hint { margin: 0; font-size: 13px; line-height: 1.4; color: var(--ink-soft); }
+.photo-steps { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.5; }
+.photo-label { margin: 4px 0 0; font-size: 14px; font-weight: 600; }
+.photo-file { font-size: 14px; min-height: 44px; max-width: 100%; }
+.photo-frame { display: grid; gap: 8px; }
+.photo-img { display: block; max-width: 100%; height: auto; border-radius: 8px; }
+.photo-textarea {
+  width: 100%; box-sizing: border-box; font: 13px/1.4 monospace; padding: 8px;
+  border: 1px solid var(--ink-soft); border-radius: 8px; background: var(--panel); color: var(--ink);
+}
+.photo-button {
+  min-height: 44px; padding: 0 16px; font-size: 15px; border-radius: 8px;
+  border: 1px solid var(--ink-soft); background: var(--panel); color: var(--ink); cursor: pointer;
+}
+.photo-button--primary { border-color: var(--ink); font-weight: 600; }
+.photo-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.photo-error, .photo-warn, .photo-preview, .photo-confirm {
+  padding: 10px 12px; border: 1px solid var(--ink-soft); border-radius: 8px;
+  font-size: 14px; line-height: 1.45; background: var(--panel); color: var(--ink);
+}
+.photo-error { border-color: var(--warn); border-left-width: 4px; }
+.photo-warn { border-color: var(--warn); }
+.photo-preview p, .photo-error p, .photo-confirm p { margin: 0 0 4px; }
+.photo-preview ul, .photo-error ul { margin: 0; padding-left: 20px; }
+.photo-preview__room { font-weight: 600; }
+.photo-confirm__actions { display: flex; gap: 8px; }
+.photo-ok { margin: 0; font-size: 14px; }

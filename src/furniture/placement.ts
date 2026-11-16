@@ -10,6 +10,8 @@ export const ITEM_SIZE_MIN = 10;
 export const ITEM_SIZE_MAX = 10000;
 /** 겹침·이탈로 보는 최소 길이. 변이 정확히 맞닿은 것(0)은 겹침·이탈이 아니다. */
 export const WARN_MIN_MM = 1;
+/** 끄는 동안 변이 벽·다른 가구의 변에 이 거리 이내로 다가오면 딱 붙인다(맞닿음). 100은 붙고 101은 안 붙는다. */
+export const SNAP_MM = 100;
 /** 이름을 비우고 추가하면 쓰는 이름 */
 export const DEFAULT_ITEM_NAME = '가구';
 /** 회전 버튼 한 번에 도는 각도(반시계) */
@@ -83,6 +85,71 @@ export function snapCenter(item: Pick<FurnitureItem, 'w' | 'd' | 'rotationDeg'>,
   const left = Math.round((at.x - sx / 2) / GRID_MM) * GRID_MM;
   const top = Math.round((at.z - sz / 2) / GRID_MM) * GRID_MM;
   return { x: Math.round(left + sx / 2) + 0, z: Math.round(top + sz / 2) + 0 };
+}
+
+/** 한 축의 자석 후보 하나를 고른다. 가장 가까운 것, 같은 거리면 먼저 넣은 것(벽). 없으면 null(이동량이 아니라 붙은 위치 차이). */
+function nearestShift(lo: number, hi: number, targets: { lo: number | null; hi: number | null }[]): number | null {
+  let best: number | null = null;
+  const consider = (delta: number) => {
+    if (Math.abs(delta) <= SNAP_MM && (best === null || Math.abs(delta) < Math.abs(best))) best = delta;
+  };
+  for (const t of targets) {
+    if (t.lo !== null) consider(t.lo - lo);
+    if (t.hi !== null) consider(t.hi - hi);
+  }
+  return best;
+}
+
+/** 두 구간의 간격. 겹치면 0 이하. */
+const gap = (aMin: number, aMax: number, bMin: number, bMax: number) => Math.max(aMin, bMin) - Math.min(aMax, bMax);
+
+export interface EdgeSnap {
+  /** 자석 맞춤을 반영한 중심(정수 아닐 수 있다) */
+  x: number;
+  z: number;
+  /** 그 축이 벽·가구에 붙었는지. 붙은 축은 격자를 적용하지 않는다. */
+  snappedX: boolean;
+  snappedZ: boolean;
+}
+
+/**
+ * 자석 맞춤. at에 중심을 둔 발자국의 변이 벽 또는 다른 가구의 반대쪽 변과 SNAP_MM 이내면 그 값에 붙인다.
+ * 왼쪽 변은 왼쪽 벽·다른 가구의 오른쪽 변에, 오른쪽 변은 오른쪽 벽·다른 가구의 왼쪽 변에(z도 같다).
+ * 다른 가구는 다른 축에서 겹치거나 SNAP_MM 이내일 때만 후보다. 벽이 가구와 같은 거리면 벽이 이긴다.
+ * 방 밖에 있어도 벽 가까이면 안쪽 변이 벽에 붙는다. others에 끄는 가구 자신을 넣지 않는다.
+ */
+export function snapToEdges(
+  item: Pick<FurnitureItem, 'w' | 'd' | 'rotationDeg'>,
+  at: PointMm,
+  room: RoomBounds,
+  others: Footprint[],
+): EdgeSnap {
+  const f = footprint({ ...item, x: at.x, z: at.z });
+  const nearZ = others.filter((o) => gap(f.minZ, f.maxZ, o.minZ, o.maxZ) <= SNAP_MM);
+  const nearX = others.filter((o) => gap(f.minX, f.maxX, o.minX, o.maxX) <= SNAP_MM);
+  const dx = nearestShift(f.minX, f.maxX, [
+    { lo: room.minX, hi: room.maxX },
+    ...nearZ.map((o) => ({ lo: o.maxX, hi: o.minX })),
+  ]);
+  const dz = nearestShift(f.minZ, f.maxZ, [
+    { lo: room.minZ, hi: room.maxZ },
+    ...nearX.map((o) => ({ lo: o.maxZ, hi: o.minZ })),
+  ]);
+  return { x: at.x + (dx ?? 0), z: at.z + (dz ?? 0), snappedX: dx !== null, snappedZ: dz !== null };
+}
+
+/**
+ * 손을 뗄 때 확정할 중심: 자석 맞춤을 먼저 하고, 붙지 않은 축만 10 mm 격자에 맞춘다. 붙은 축은 정수 mm로만 반올림한다.
+ */
+export function settleCenter(
+  item: Pick<FurnitureItem, 'w' | 'd' | 'rotationDeg'>,
+  at: PointMm,
+  room: RoomBounds,
+  others: Footprint[],
+): PointMm {
+  const s = snapToEdges(item, at, room, others);
+  const grid = snapCenter(item, at);
+  return { x: Math.round(s.snappedX ? s.x : grid.x) + 0, z: Math.round(s.snappedZ ? s.z : grid.z) + 0 };
 }
 
 /** 누른 지점과 가구 중심의 차이. 끄는 동안 이 차이를 유지해 가구가 포인터 밑으로 튀지 않게 한다. */
