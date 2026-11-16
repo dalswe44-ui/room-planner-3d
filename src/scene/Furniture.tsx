@@ -1,5 +1,5 @@
 // 가구 하나를 그린다. 상자 메시는 항상 w×d×h 히트 박스(레이캐스트·검증 조회용)이고, 종류가 있으면 그 안에 단순 도형 부품을 그린다. 위치와 크기 계산은 geometry.ts의 furnitureTransform만 쓴다.
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Color } from 'three';
 import { Edges, Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -88,6 +88,13 @@ interface FurnitureLabelProps {
  */
 function FurnitureLabel({ name, size, rotationY }: FurnitureLabelProps) {
   const invalidate = useThree((s) => s.invalidate);
+  // drei Html은 붙일 요소를 렌더 때마다 events.connected ?? canvas 부모 순으로 고른다. R3F는 events.connected를 첫 그림 뒤에 채우므로,
+  // 첫 그림부터 가구가 있으면(새로 고침으로 불러온 경우) 붙일 요소가 바뀌어 Html이 자기 루트를 렌더 중에 내렸다 다시 만든다.
+  // 이때 앞 루트의 늦은 해제가 새 루트의 내용을 지운다. 붙일 요소가 정해진 뒤에 Html을 만든다.
+  // 또 첫 그림이 React DOM 커밋 안에서 일어나면 Html의 DOM 루트 해제가 "렌더 중"으로 보여 미뤄지므로(개발 모드 StrictMode의 효과 재실행), 한 틱 뒤에 만든다.
+  const connected = useThree((s) => s.events.connected);
+  const [ready, setReady] = useState(false);
+  useEffect(() => { const id = setTimeout(() => setReady(true), 0); return () => clearTimeout(id); }, []);
   const labelRef = useRef<HTMLDivElement | null>(null);
 
   // Html의 내용은 별도 React 루트에서 늦게 붙는다. 붙은 뒤 한 번 더 그려야 최대 너비가 잡힌다(frameloop="demand").
@@ -108,6 +115,7 @@ function FurnitureLabel({ name, size, rotationY }: FurnitureLabelProps) {
     if (el.style.maxWidth !== maxWidth) el.style.maxWidth = maxWidth;
   });
 
+  if (!connected || !ready) return null;
   return (
     <Html
       position={[0, size[1] / 2, 0]}

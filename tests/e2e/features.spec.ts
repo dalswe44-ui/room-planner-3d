@@ -339,3 +339,17 @@ test.describe('[touch] 터치 끌기', () => {
     expect(o1.y).toBeCloseTo(o0.y, 3);
   });
 });
+
+// T-018 회귀: 자동 저장에서 불러온 가구에도 평면 뷰 이름표가 보인다(불러오기가 첫 그림 전이라 drei Html의 붙일 요소가 바뀌며 이름표가 지워지던 결함).
+test.describe('[desktop] 불러온 가구 이름표', () => {
+  test('S-1/T-018 새로 고침으로 불러온 가구에도 이름표가 보인다', async ({ page }) => {
+    await openApp(page);
+    await page.getByTestId('preset-desk').click();
+    await expect(page.locator('.furniture-label')).toHaveCount(1);
+    await page.waitForTimeout(1000); // 자동 저장 지연(300 ms)보다 길게
+    await page.reload();
+    await page.waitForFunction(() => window.__sceneProbe?.snapshot().items.length === 1);
+    await expect(page.locator('.furniture-label')).toHaveCount(1);
+    await expect(page.locator('.furniture-label')).toHaveText('책상');
+  });
+});
