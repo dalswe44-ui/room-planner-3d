@@ -40,6 +40,27 @@ export interface ProjectState {
   setDragPreview(preview: DragPreview | null): void;
   /** 불러오기용. 프로젝트 전체를 바꾸고 선택과 끌기 상태를 지운다. */
   replaceProject(project: Project): void;
+
+  /** 되돌리기용 이전 상태들(가장 최근이 끝). 표시 단위·선택·뷰·끌기 미리보기는 기록하지 않는다. */
+  past: Project[];
+  future: Project[];
+  undo(): void;
+  redo(): void;
+}
+
+/** 되돌리기 기록의 최대 개수 */
+export const HISTORY_LIMIT = 100;
+/** 같은 가구의 위치만 바뀌는 연속 변경(방향키 반복 등)을 한 단계로 묶는 시간(ms) */
+const MERGE_WINDOW_MS = 1000;
+let lastCommit: { key: string; at: number } | null = null;
+
+/** 프로젝트를 바꾸며 이전 상태를 기록한다. mergeKey가 직전과 같고 시간이 짧으면 새 단계를 만들지 않는다. */
+function commit(s: ProjectState, next: Project, mergeKey: string | null = null): Pick<ProjectState, 'project' | 'past' | 'future'> {
+  const now = Date.now();
+  const merge = mergeKey !== null && lastCommit !== null && lastCommit.key === mergeKey && now - lastCommit.at < MERGE_WINDOW_MS;
+  lastCommit = mergeKey === null ? null : { key: mergeKey, at: now };
+  if (merge) return { project: next, past: s.past, future: [] };
+  return { project: next, past: [...s.past, s.project].slice(-HISTORY_LIMIT), future: [] };
 }
 
 export const DEFAULT_COLORS = ['#7aa2d6', '#e0a458', '#8fbf8f', '#c98bb9', '#d97c6c', '#9c9ad6'];
@@ -90,20 +111,22 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   selectedItemId: null,
   viewMode: '2d',
   dragPreview: null,
+  past: [],
+  future: [],
 
   setDisplayUnit: (unit) => set((s) => ({ project: { ...s.project, displayUnit: unit } })),
 
   setRoomSize: ({ width, depth, ceilingHeight }) =>
-    set((s) => ({
-      project: {
+    set((s) =>
+      commit(s, {
         ...s.project,
         room: {
           ...s.project.room,
           ceilingHeight: toMm(ceilingHeight),
           corners: rectCorners(toMm(width), toMm(depth)),
         },
-      },
-    })),
+      }),
+    ),
 
   addItem: (input) => {
     const id = newId();
@@ -125,21 +148,23 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       color: input.color ?? DEFAULT_COLORS[project.items.length % DEFAULT_COLORS.length],
       ...(input.kind && input.kind !== 'box' ? { kind: input.kind } : {}),
     });
-    set((s) => ({ project: { ...s.project, items: [...s.project.items, item] }, selectedItemId: id }));
+    set((s) => ({ ...commit(s, { ...s.project, items: [...s.project.items, item] }), selectedItemId: id }));
     return id;
   },
 
   updateItem: (id, patch) =>
-    set((s) => ({
-      project: {
-        ...s.project,
-        items: s.project.items.map((it) => (it.id === id ? normalizeItem({ ...it, ...patch, id }) : it)),
-      },
-    })),
+    set((s) => {
+      const moveOnly = Object.keys(patch).every((k) => k === 'x' || k === 'z');
+      return commit(
+        s,
+        { ...s.project, items: s.project.items.map((it) => (it.id === id ? normalizeItem({ ...it, ...patch, id }) : it)) },
+        moveOnly ? `move:${id}` : null,
+      );
+    }),
 
   removeItem: (id) =>
     set((s) => ({
-      project: { ...s.project, items: s.project.items.filter((it) => it.id !== id) },
+      ...commit(s, { ...s.project, items: s.project.items.filter((it) => it.id !== id) }),
       selectedItemId: s.selectedItemId === id ? null : s.selectedItemId,
       dragPreview: s.dragPreview?.itemId === id ? null : s.dragPreview,
     })),
@@ -149,9 +174,34 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   setDragPreview: (preview) => set({ dragPreview: preview }),
 
   replaceProject: (project) =>
-    set({
-      project: { ...project, items: project.items.map(normalizeItem) },
+    set((s) => ({
+      ...commit(s, { ...project, items: project.items.map(normalizeItem) }),
       selectedItemId: null,
       dragPreview: null,
+    })),
+
+  undo: () =>
+    set((s) => {
+      const prev = s.past[s.past.length - 1];
+      if (!prev) return {};
+      lastCommit = null;
+      return { project: prev, past: s.past.slice(0, -1), future: [s.project, ...s.future], ...clearMissing(s, prev) };
+    }),
+
+  redo: () =>
+    set((s) => {
+      const next = s.future[0];
+      if (!next) return {};
+      lastCommit = null;
+      return { project: next, past: [...s.past, s.project], future: s.future.slice(1), ...clearMissing(s, next) };
     }),
 }));
+
+/** 되돌린 상태에 없는 가구를 가리키는 선택·끌기 상태를 지운다. */
+function clearMissing(s: ProjectState, p: Project): Partial<ProjectState> {
+  const has = (id: string | null | undefined) => id != null && p.items.some((it) => it.id === id);
+  return {
+    selectedItemId: has(s.selectedItemId) ? s.selectedItemId : null,
+    dragPreview: null,
+  };
+}

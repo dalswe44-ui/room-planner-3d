@@ -237,3 +237,6 @@ T-001에서 하위 에이전트의 보고서 파일 쓰기가 막혔으므로 �
 - pstack 점검: backnotprop/pstack(MIT, 저작권 Lauren Tan)을 프로젝트 밖(/home/claude/vendor/pstack)에 받음. 프로젝트 소스에는 넣지 않음. poteto-mode의 Investigation 플레이북(읽기 전용)으로 분류하고, poteto-agent 역할의 검토자 3명을 원칙별로 나눠 동시에 실행: ① 테스트·검증(test-behavior-not-implementation, prove-it-works, fix-root-causes, attack-the-premise) ② 구조·타입·경계(model-the-domain, boundary-discipline, type-system-discipline, minimize-reader-load, laziness-protocol, subtract-before-you-add) ③ 사용자 경험 실측(experience-first, prove-it-works, fix-root-causes). 이 환경에는 poteto-agent 유형이 없어 general-purpose에 poteto-agent.md와 poteto-mode SKILL.md를 먼저 읽게 하는 머리말로 대신함. pstack 기본값의 다른 모델(Gemini 등) 패널은 이 환경에서 쓸 수 없어 같은 모델로 실행.
 - T-013 결과: 방향키 이동, test 275개. 헤드가 App.tsx에 useKeyboardNudge 조립, SPEC에 K-1 추가.
 - 헤드 통합 확인: 실제 앱에서 책상을 눌러 선택 → → 3번, Shift+↓ 2번 → (1830, 1502). 배포 페이지 갱신.
+- pstack 점검 2(구조)와 3(경험) 결과 저장: docs/reports/review/. 헤드가 점검 2의 지적 3건을 코드에서 직접 확인(사실).
+- 사용자 지시 (00:58): "나 자고올테니까 너 스스로 할수있는것들 하고 오전 8시 30분에 보고해". 08:30 보고 예약(세션으로 돌아오는 예약 메시지).
+- 헤드 직접 작업: contracts/limits.ts, KIND_LABEL·presetFor(+테스트 2), store 되돌리기(past/future, 연속 이동 묶기, +테스트 4), app/useUndoShortcuts(+테스트 3), 헤더 되돌리기·다시 실행 버튼, 패널의 중복 제목(h2) 제거, 인라인 favicon(콘솔 404 원인 추정). test 284개.

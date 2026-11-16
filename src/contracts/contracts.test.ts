@@ -4,7 +4,7 @@ import { formatLength, formatLengthWithUnit, lengthToMm, parseLength } from './u
 import { mmToWorld, roomToWorld, worldToMm, worldToRoom } from './coords';
 import { rectCorners, roomBounds } from './room';
 import type { DisplayUnit } from './types';
-import { FURNITURE_PRESETS, guessKindFromName } from './furniturePresets';
+import { FURNITURE_PRESETS, KIND_LABEL, guessKindFromName, presetFor } from './furniturePresets';
 
 describe('parseLength', () => {
   it('단위가 없으면 fallback 단위로 읽는다', () => {
@@ -146,5 +146,16 @@ describe('기본 가구', () => {
     expect(guessKindFromName('컴퓨터 책상')).toBe('desk');
     expect(guessKindFromName('수납장 (거실)')).toBe('shelf');
     expect(guessKindFromName('화분')).toBe('box');
+  });
+});
+
+describe('종류 이름과 기본 치수 찾기', () => {
+  it('기본 가구의 이름표와 KIND_LABEL이 같다', () => {
+    for (const p of FURNITURE_PRESETS) expect(KIND_LABEL[p.kind]).toBe(p.label);
+    expect(KIND_LABEL.box).toBe('상자');
+  });
+  it('presetFor는 종류의 기본 치수, box는 null', () => {
+    expect(presetFor('desk')).toMatchObject({ w: 1200, d: 600, h: 720 });
+    expect(presetFor('box')).toBeNull();
   });
 });

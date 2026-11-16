@@ -21,6 +21,23 @@ export const FURNITURE_PRESETS: readonly FurniturePreset[] = [
   { kind: 'table', label: '식탁', w: 1200, d: 800, h: 720 },
 ];
 
+/** 종류 이름(화면 표시용). box 포함 모든 종류가 있어야 한다. */
+export const KIND_LABEL: Record<FurnitureKind, string> = {
+  box: '상자',
+  bed: '침대',
+  desk: '책상',
+  chair: '의자',
+  wardrobe: '옷장',
+  shelf: '책장',
+  sofa: '소파',
+  table: '식탁',
+};
+
+/** 종류의 기본 치수. box는 null. */
+export function presetFor(kind: FurnitureKind): FurniturePreset | null {
+  return FURNITURE_PRESETS.find((p) => p.kind === kind) ?? null;
+}
+
 /** 이름으로 종류를 짐작한다(배치도 가져오기 등). 못 찾으면 'box'. */
 export function guessKindFromName(name: string): FurnitureKind {
   const n = name.replace(/\s/g, '');

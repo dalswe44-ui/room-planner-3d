@@ -70,3 +70,52 @@ describe('projectStore', () => {
     expect(store().selectedItemId).toBeNull();
   });
 });
+
+describe('되돌리기', () => {
+  const st = () => useProjectStore.getState();
+  beforeEach(() => {
+    useProjectStore.setState({ project: createDefaultProject(), selectedItemId: null, dragPreview: null, past: [], future: [] });
+  });
+
+  it('추가·이동·삭제를 차례로 되돌리고 다시 실행한다', () => {
+    const id = st().addItem({ name: 'A', w: 1000, d: 600, h: 700 });
+    st().updateItem(id, { x: 500 });
+    st().removeItem(id);
+    expect(st().project.items).toHaveLength(0);
+    st().undo();
+    expect(st().project.items[0]).toMatchObject({ id, x: 500 });
+    st().undo();
+    expect(st().project.items[0].x).toBe(1800);
+    st().undo();
+    expect(st().project.items).toHaveLength(0);
+    st().undo();
+    expect(st().project.items).toHaveLength(0);
+    st().redo();
+    st().redo();
+    expect(st().project.items[0].x).toBe(500);
+  });
+
+  it('같은 가구의 연속 이동은 한 단계로 묶인다', () => {
+    const id = st().addItem({ name: 'A', w: 1000, d: 600, h: 700 });
+    for (let i = 1; i <= 5; i += 1) st().updateItem(id, { x: 1800 + i * 10 });
+    expect(st().project.items[0].x).toBe(1850);
+    st().undo();
+    expect(st().project.items[0].x).toBe(1800);
+  });
+
+  it('새 변경을 하면 다시 실행 목록이 비고, 되돌린 상태에 없는 가구의 선택은 풀린다', () => {
+    const id = st().addItem({ name: 'A', w: 1000, d: 600, h: 700 });
+    expect(st().selectedItemId).toBe(id);
+    st().undo();
+    expect(st().selectedItemId).toBeNull();
+    st().setRoomSize({ width: 4000, depth: 3000, ceilingHeight: 2400 });
+    expect(st().future).toHaveLength(0);
+  });
+
+  it('표시 단위·선택·뷰 전환은 기록하지 않는다', () => {
+    st().setDisplayUnit('cm');
+    st().setViewMode('3d');
+    st().selectItem(null);
+    expect(st().past).toHaveLength(0);
+  });
+});
