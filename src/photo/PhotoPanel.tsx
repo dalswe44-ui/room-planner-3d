@@ -1,12 +1,18 @@
 // 사진·배치도 가져오기 패널. 사진은 참고용으로만 보이고, 치수는 AI가 만든 JSON에서만 온다.
 import { useMemo, useRef, useState } from 'react';
+import { FURNITURE_PRESETS } from '../contracts/furniturePresets';
 import { LAYOUT_READER_PROMPT } from '../contracts/layoutImport';
 import { roomBounds } from '../contracts/room';
+import type { FurnitureKind } from '../contracts/types';
 import { formatLength, UNIT_LABEL } from '../contracts/units';
 import { useProjectStore } from '../store/projectStore';
 import { parseLayoutImport } from './parseLayoutImport';
 import { usePhotoStore } from './photoStore';
 import './photo.css';
+
+function kindLabel(kind: FurnitureKind | undefined): string {
+  return FURNITURE_PRESETS.find((p) => p.kind === kind)?.label ?? '상자';
+}
 
 export function PhotoPanel() {
   const unit = useProjectStore((s) => s.project.displayUnit);
@@ -158,7 +164,7 @@ export function PhotoPanel() {
               <ul className="photo-items">
                 {result.project.items.map((it) => (
                   <li key={it.id}>
-                    <strong>{it.name}</strong> {fmt(it.w)} × {fmt(it.d)} × {fmt(it.h)} {u}, 중심 ({fmt(it.x)}, {fmt(it.z)}) {u}
+                    <strong>{it.name}</strong> ({kindLabel(it.kind)}) {fmt(it.w)} × {fmt(it.d)} × {fmt(it.h)} {u}, 중심 ({fmt(it.x)}, {fmt(it.z)}) {u}
                     {it.rotationDeg !== 0 && `, ${it.rotationDeg}° 회전`}
                   </li>
                 ))}

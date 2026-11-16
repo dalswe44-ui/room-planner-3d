@@ -32,6 +32,7 @@ describe('PhotoPanel', () => {
     expect(screen.getByTestId<HTMLButtonElement>('layout-apply').disabled).toBe(true);
     paste('```json\n' + GOOD + '\n```');
     expect(screen.getByTestId('layout-preview').textContent).toContain('침대');
+    expect(screen.getByTestId('layout-preview').textContent).toContain('(침대) ');
     expect(screen.getByTestId('layout-preview').textContent).toContain('천장 높이는 적혀 있지 않음');
     const user = userEvent.setup();
     await user.click(screen.getByTestId('layout-apply'));

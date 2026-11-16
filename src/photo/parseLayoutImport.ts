@@ -1,5 +1,6 @@
 // AI가 돌려준 배치도 JSON을 검사하고 Project로 바꾸는 순수 함수. 숫자 → mm 변환은 lengthToMm만 쓴다.
 import type { LayoutImport } from '../contracts/layoutImport';
+import { guessKindFromName } from '../contracts/furniturePresets';
 import { rectCorners } from '../contracts/room';
 import type { DisplayUnit, FurnitureItem, Mm, Project } from '../contracts/types';
 import { lengthToMm } from '../contracts/units';
@@ -100,7 +101,7 @@ export function parseLayoutImport(text: string, base: ParseBase): ParseResult {
     errors.push('items가 배열이 아닙니다.');
   } else {
     raw.items.forEach((entry: unknown, i: number) => {
-      const tag = `items[${i}]`;
+      const tag = `${i + 1}번 가구`;
       if (!isRecord(entry)) {
         errors.push(`${tag}: 객체가 아닙니다.`);
         return;
@@ -158,9 +159,11 @@ export function parseLayoutImport(text: string, base: ParseBase): ParseResult {
       if (width > 0 && depth > 0 && (x - fw / 2 < 0 || z - fd / 2 < 0 || x + fw / 2 > width || z + fd / 2 > depth)) {
         warnings.push(`${label}: 방 밖으로 나갑니다.`);
       }
+      const kind = guessKindFromName(name);
       items.push({
         id: crypto.randomUUID(),
         name,
+        ...(kind !== 'box' ? { kind } : {}),
         w,
         d,
         h,

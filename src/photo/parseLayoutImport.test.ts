@@ -108,3 +108,22 @@ describe('parseLayoutImport 거부', () => {
     expect(bad(doc({ items: 'x' }))).toHaveLength(1);
   });
 });
+
+describe('가구 종류 짐작과 경고 표기', () => {
+  it('이름으로 kind를 넣고, 모르는 이름은 kind를 생략한다', () => {
+    const bed = okOf(parseLayoutImport(doc(), base)).project.items[0];
+    expect(bed.kind).toBe('bed');
+    const other = okOf(parseLayoutImport(doc({}, { name: '화분' }), base)).project.items[0];
+    expect('kind' in other).toBe(false);
+    const noName = okOf(parseLayoutImport(doc({}, { name: '' }), base)).project.items[0];
+    expect(noName.kind).toBeUndefined();
+  });
+
+  it('경고와 오류에 "N번 가구(이름)"을 쓰고 items[ 표기는 없다', () => {
+    const w = okOf(parseLayoutImport(doc({}, { h: null }), base));
+    expect(w.warnings.some((m) => m.startsWith('1번 가구(침대)'))).toBe(true);
+    const e = errorsOf(parseLayoutImport(doc({}, { w: 0 }), base));
+    expect(e.some((m) => m.startsWith('1번 가구(침대)'))).toBe(true);
+    expect([...w.warnings, ...e].some((m) => m.includes('items['))).toBe(false);
+  });
+});
