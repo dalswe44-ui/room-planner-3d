@@ -244,3 +244,5 @@ T-001에서 하위 에이전트의 보고서 파일 쓰기가 막혔으므로 �
 - pstack 점검 1(테스트·검증) 결과 저장. 헤드 판단: 가장 중요한 지적은 e2e가 공유 dist/·고정 포트·서버 재사용으로 동시 작업과 섞인다는 것. 지금 돌고 있는 T-014~016이 끝난 뒤 playwright 설정을 고치고(재사용 끔, trace, 포트 변수), 커밋 고정 worktree에서 최종 e2e를 돌린다. 새 기능 e2e는 T-017(qa-verifier)로.
 - T-014·T-015·T-016 결과 저장. 헤드가 App.tsx에 usePersistence 조립(맨 앞). 합친 상태 test 332개 통과. e2e는 새 동작(빈 자리 배치) 때문에 8개 실패 예상 → T-017에서 qa가 고침.
 - 헤드: playwright 설정 격리(점검 1의 높음). 실행마다 .e2e-dist-<포트> 빌드 폴더, 포트는 E2E_PORT(기본 4173), reuseExistingServer false, trace retain-on-failure. .gitignore와 eslint ignores에 .e2e-dist-*.
+- 헤드: SPEC 4-2절(B-1, B-2, L-1, L-2, H-1, H-2, S-1, T-1, C-1) 추가.
+- T-017 위임 (qa-verifier): 새 동작으로 깨진 e2e 8개 의도 유지해 수정, 새 기능 e2e(M, K, B, L, H, S-1, 터치 T-1, 픽셀 색 C-1), evidence 덮어쓰기 방지(EVIDENCE_DIR), 격리 포트로 두 번 연속 실행.
