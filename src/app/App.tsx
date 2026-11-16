@@ -4,6 +4,7 @@ import { FurniturePanel } from '../furniture/FurniturePanel';
 import { useItemStatuses } from '../furniture/useItemStatuses';
 import { useKeyboardNudge } from '../furniture/keyboardNudge';
 import { usePlacement } from '../furniture/usePlacement';
+import { usePersistence } from '../persistence';
 import { PhotoPanel } from '../photo';
 import { RoomPanel } from '../room/RoomPanel';
 import { SceneView } from '../scene/SceneView';
@@ -13,6 +14,8 @@ import { UnitToggle } from '../ui/UnitToggle';
 import { useUndoShortcuts } from './useUndoShortcuts';
 
 export function App() {
+  // 저장본 불러오기는 첫 그림 전에 일어나야 하므로 다른 훅보다 먼저 부른다.
+  usePersistence();
   const handlers = usePlacement();
   useKeyboardNudge();
   useUndoShortcuts();

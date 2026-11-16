@@ -45,8 +45,7 @@ export function clientToFloor(
   const hit = new Vector3();
   if (!raycaster.ray.intersectPlane(FLOOR, hit)) return null;
   const p = worldToRoom(hit.x, hit.z);
-  // Math.round가 만든 -0을 0으로 맞춘다(값은 같고 저장과 비교에서 다르게 보이지 않게)
-  return { x: p.x || 0, z: p.z || 0 };
+  return p;
 }
 
 /** 방 바닥의 한 점이 화면의 어디에 그려지는지(뷰포트 기준 CSS px) */
@@ -61,6 +60,7 @@ export function floorToClient(camera: Camera, rect: ScreenRect, point: PointMm):
 
 /**
  * 화면의 한 점 아래에 있는 가구를 찾는다. 가구보다 가까운 보이는 벽이 있으면 벽이 먼저 맞은 것으로 보고 null이다.
+ * 가구가 겹쳐 있으면 맨 위(가장 가까운) 가구를 고르되, selectedId인 가구가 벽보다 앞의 그 자리에 있으면 그 가구를 고른다.
  */
 export function pickFurniture(
   scene: Object3D,
@@ -68,6 +68,7 @@ export function pickFurniture(
   rect: ScreenRect,
   clientX: number,
   clientY: number,
+  selectedId?: string | null,
 ): FurnitureHit | null {
   // 렌더 전에 눌렸을 수도 있으므로 레이캐스트 전에 월드 행렬을 맞춘다
   scene.updateMatrixWorld();
@@ -79,10 +80,15 @@ export function pickFurniture(
   });
   const raycaster = new Raycaster();
   raycaster.setFromCamera(ndcOf(clientX, clientY, rect), camera);
-  const first = raycaster.intersectObjects(candidates, false)[0];
-  if (!first) return null;
-  const data = sceneDataOf(first.object);
-  if (data.kind !== 'furniture' || data.furnitureId === undefined) return null;
-  const center = worldToRoom(first.object.position.x, first.object.position.z);
-  return { itemId: data.furnitureId, center: { x: center.x || 0, z: center.z || 0 } };
+  // 가까운 순으로 보다가 벽을 만나면 그 뒤는 가려진 것이다.
+  const hits: Object3D[] = [];
+  for (const h of raycaster.intersectObjects(candidates, false)) {
+    if (sceneDataOf(h.object).kind !== 'furniture') break;
+    hits.push(h.object);
+  }
+  const chosen = hits.find((o) => sceneDataOf(o).furnitureId === selectedId) ?? hits[0];
+  if (!chosen) return null;
+  const itemId = sceneDataOf(chosen).furnitureId;
+  if (itemId === undefined) return null;
+  return { itemId, center: worldToRoom(chosen.position.x, chosen.position.z) };
 }

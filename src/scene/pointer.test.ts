@@ -115,4 +115,47 @@ describe('pickFurniture', () => {
     wall.visible = false;
     expect(pickFurniture(scene, cam, rect, c.x, c.y)?.itemId).toBe('sofa-1');
   });
+
+  function overlapped(): Group {
+    const scene = new Group();
+    // 같은 자리에 겹친 두 가구. b가 더 높아 위에서 보면 b가 가까운 쪽(맨 위)이다.
+    for (const [id, h] of [['a', 700], ['b', 900]] as const) {
+      const tr = furnitureTransform({ x: 1800, z: 1500, w: 1200, d: 600, h, elevation: 0, rotationDeg: 0 });
+      const mesh = new Mesh(new BoxGeometry(...tr.size), new MeshBasicMaterial());
+      mesh.position.set(...tr.position);
+      mesh.userData = { kind: 'furniture', furnitureId: id };
+      scene.add(mesh);
+    }
+    return scene;
+  }
+
+  it('겹친 자리에서 선택된 가구가 없으면 맨 위(가장 가까운) 가구를 고른다', () => {
+    const cam = orthoFor(rect);
+    const c = floorToClient(cam, rect, { x: 1800, z: 1500 });
+    expect(pickFurniture(overlapped(), cam, rect, c.x, c.y)?.itemId).toBe('b');
+    expect(pickFurniture(overlapped(), cam, rect, c.x, c.y, null)?.itemId).toBe('b');
+  });
+
+  it('겹친 자리에 선택된 가구가 있으면 아래에 깔린 것이라도 선택된 가구를 고른다', () => {
+    const cam = orthoFor(rect);
+    const c = floorToClient(cam, rect, { x: 1800, z: 1500 });
+    expect(pickFurniture(overlapped(), cam, rect, c.x, c.y, 'a')?.itemId).toBe('a');
+  });
+
+  it('선택된 가구가 그 자리에 없으면 맨 위 가구를 고른다', () => {
+    const cam = orthoFor(rect);
+    const c = floorToClient(cam, rect, { x: 1800, z: 1500 });
+    expect(pickFurniture(overlapped(), cam, rect, c.x, c.y, 'zzz')?.itemId).toBe('b');
+  });
+
+  it('선택된 가구가 벽 뒤에 가려져 있으면 고르지 않는다', () => {
+    const scene = overlapped();
+    const wall = new Mesh(new BoxGeometry(mmToWorld(3600), 2.4, 0.1), new MeshBasicMaterial());
+    wall.position.set(1.8, 1.2, 1.5);
+    wall.userData = { kind: 'wall' };
+    scene.add(wall);
+    const cam = orthoFor(rect);
+    const c = floorToClient(cam, rect, { x: 1800, z: 1500 });
+    expect(pickFurniture(scene, cam, rect, c.x, c.y, 'a')).toBeNull();
+  });
 });

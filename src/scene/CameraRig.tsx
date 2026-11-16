@@ -1,8 +1,8 @@
 // 두 카메라(평면 = 직교, 3D = 원근)와 카메라 조작. 화면 모드에 따라 활성 카메라를 바꾼다.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { OrbitControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
-import { MOUSE, OrthographicCamera, PerspectiveCamera, TOUCH } from 'three';
+import { MOUSE, OrthographicCamera, PerspectiveCamera, TOUCH, Vector3 } from 'three';
 import type { ViewMode } from '../contracts/types';
 import { FOV_DEG, applyWallVisibility, orthoView, orthoZoomToFit, perspectiveView } from './camera';
 import type { SceneRuntime } from './sceneProbe';
@@ -32,6 +32,9 @@ export function CameraRig({ viewMode, width, depth, ceilingHeight, runtime }: Ca
   const invalidate = useThree((s) => s.invalidate);
   const size = useThree((s) => s.size);
   const controlsRef = runtime.controlsRef;
+  // 3D 시점 기억: 카메라 위치는 persp 객체가 그대로 갖고 있으므로 회전 중심만 따로 둔다. 방 크기가 바뀌면 버린다.
+  const saved3d = useRef<{ key: string; target: Vector3 } | null>(null);
+  const extentKey = `${width}x${depth}x${ceilingHeight}`;
 
   useEffect(() => {
     set({ camera: active });
@@ -69,22 +72,31 @@ export function CameraRig({ viewMode, width, depth, ceilingHeight, runtime }: Ca
       controls.maxZoom = ortho.zoom * 20;
     } else {
       const view = perspectiveView(extent, w / h);
-      persp.position.copy(view.position);
-      persp.lookAt(view.target);
-      persp.updateProjectionMatrix();
-      controls.target.copy(view.target);
+      const keep = saved3d.current?.key === extentKey ? saved3d.current.target : null;
+      if (keep) {
+        controls.target.copy(keep);
+      } else {
+        persp.position.copy(view.position);
+        persp.lookAt(view.target);
+        persp.updateProjectionMatrix();
+        controls.target.copy(view.target);
+      }
       controls.minDistance = view.distance * 0.3;
       controls.maxDistance = view.distance * 3;
     }
     controls.update();
     invalidate();
-  }, [viewMode, width, depth, ceilingHeight, ortho, persp, get, invalidate, controlsRef]);
+  }, [viewMode, width, depth, ceilingHeight, extentKey, ortho, persp, get, invalidate, controlsRef]);
 
   // 벽 가림은 카메라가 움직일 때마다 다시 정한다. 장면의 벽 메시는 방이 바뀌면 새로 만들어지므로 그때도 맞춘다.
   const onCameraChange = useCallback(() => {
     const s = get();
     applyWallVisibility(s.scene, s.camera, viewMode);
-  }, [get, viewMode]);
+    const controls = controlsRef.current;
+    if (controls && controls.object === persp) {
+      saved3d.current = { key: extentKey, target: controls.target.clone() };
+    }
+  }, [get, viewMode, controlsRef, persp, extentKey]);
 
   useEffect(() => {
     const s = get();

@@ -57,6 +57,38 @@ describe('parseLayoutImport 정상 입력', () => {
     expect(r.warnings.some((w) => w.includes('위치가 없어 가운데에 둠'))).toBe(true);
   });
 
+  it('left만 있고 top이 null이면 left는 쓰고 세로만 가운데, 경고에 top이 없다고 적는다', () => {
+    const r = okOf(parseLayoutImport(doc({}, { left: 50, top: null }), base));
+    const it = r.project.items[0];
+    expect([it.x, it.z]).toEqual([1000, 1400]);
+    expect(r.warnings.some((w) => w.includes('top') && w.includes('세로'))).toBe(true);
+    expect(r.warnings.some((w) => w.includes('위치가 없어'))).toBe(false);
+  });
+
+  it('top만 있고 left가 null이면 top은 쓰고 가로만 가운데, 경고에 left가 없다고 적는다', () => {
+    const r = okOf(parseLayoutImport(doc({}, { left: null, top: 30 }), base));
+    const it = r.project.items[0];
+    expect([it.x, it.z]).toEqual([1700, 1300]);
+    expect(r.warnings.some((w) => w.includes('left') && w.includes('가로'))).toBe(true);
+  });
+
+  it('left가 글자이면 거부한다', () => {
+    expect(errorsOf(parseLayoutImport(doc({}, { left: '왼쪽', top: 0 }), base)).join()).toContain('숫자');
+  });
+
+  it('높이가 null이면 종류 기본 높이, 상자는 600 mm, 경고에 어떤 기본값인지 적는다', () => {
+    const wardrobe = okOf(parseLayoutImport(doc({}, { name: '옷장', h: null }), base));
+    expect(wardrobe.project.items[0].h).toBe(2000);
+    expect(wardrobe.warnings.some((w) => w.includes('옷장 기본 높이') && w.includes('2000 mm'))).toBe(true);
+    const box = okOf(parseLayoutImport(doc({}, { name: '이상한물건', h: null }), base));
+    expect(box.project.items[0].h).toBe(600);
+    expect(box.warnings.some((w) => w.includes('기본값 600 mm'))).toBe(true);
+  });
+
+  it('결과에 JSON의 단위를 담는다', () => {
+    expect(okOf(parseLayoutImport(doc(), base)).unit).toBe('cm');
+  });
+
   it('rotationDeg 90이면 중심 = left + d/2, top + w/2', () => {
     const r = okOf(parseLayoutImport(doc({}, { rotationDeg: 90, left: 0, top: 0 }), base));
     expect([r.project.items[0].x, r.project.items[0].z]).toEqual([1000, 500]);

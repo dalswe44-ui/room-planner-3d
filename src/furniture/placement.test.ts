@@ -7,6 +7,7 @@ import {
   dragCenter,
   footprint,
   footprintSize,
+  findFreeSpot,
   footprintsOverlap,
   grabOffset,
   isOutsideRoom,
@@ -333,5 +334,61 @@ describe('settleCenter', () => {
 
   it('붙지 않으면 기존 snapCenter와 같다', () => {
     expect(settleCenter(box, { x: 2456, z: 1994 }, ROOM, [])).toEqual(snapCenter(box, { x: 2456, z: 1994 }));
+  });
+});
+
+describe('findFreeSpot (새 가구의 빈 자리)', () => {
+  const bed = { w: 1100, d: 2000 };
+  const fp = (s: { w: number; d: number }, x: number, z: number) => footprint({ ...s, x, z, rotationDeg: 0 });
+
+  it('가구가 없으면 방 가운데(왼쪽·위쪽 변은 10 mm 격자)', () => {
+    expect(findFreeSpot({ w: 1200, d: 600 }, ROOM, [])).toEqual({ x: 1800, z: 1500 });
+    // 폭 450: 왼쪽 변 1575 -> 1580, 중심 1805
+    expect(findFreeSpot({ w: 450, d: 500 }, ROOM, [])).toEqual({ x: 1805, z: 1500 });
+  });
+
+  it('가운데가 차 있으면 가장 가까운 빈 자리, 겹치지 않고 방 안', () => {
+    const others = [fp(bed, 1800, 1500)];
+    const at = findFreeSpot({ w: 600, d: 600 }, ROOM, others);
+    const f = fp({ w: 600, d: 600 }, at.x, at.z);
+    expect(footprintsOverlap(f, others[0])).toBe(false);
+    expect(isOutsideRoom(f, ROOM)).toBe(false);
+    expect(at).not.toEqual({ x: 1800, z: 1500 });
+    // 위쪽 먼저, 같은 거리면 왼쪽 먼저: 침대 왼쪽 변(1250)에 붙는 가장 가까운 자리
+    expect(at).toEqual({ x: 900, z: 1500 });
+  });
+
+  it('1 mm 겹치는 자리는 고르지 않고 정확히 맞닿는 자리는 고른다', () => {
+    const wall = fp({ w: 1000, d: 3000 }, 1800, 1500); // x 1300 ~ 2300, 방 전체 깊이
+    const at = findFreeSpot({ w: 1000, d: 1000 }, ROOM, [wall]);
+    const f = fp({ w: 1000, d: 1000 }, at.x, at.z);
+    expect(footprintsOverlap(f, wall)).toBe(false);
+    expect(f.maxX <= 1300 || f.minX >= 2300).toBe(true);
+  });
+
+  it('빈 자리가 없으면 방 가운데', () => {
+    const full = [fp({ w: 3600, d: 3000 }, 1800, 1500)];
+    expect(findFreeSpot({ w: 600, d: 600 }, ROOM, full)).toEqual({ x: 1800, z: 1500 });
+  });
+
+  it('방보다 큰 가구는 방 가운데', () => {
+    expect(findFreeSpot({ w: 4000, d: 500 }, ROOM, [])).toEqual({ x: 1800, z: 1500 });
+    expect(findFreeSpot({ w: 500, d: 3100 }, ROOM, [])).toEqual({ x: 1800, z: 1500 });
+  });
+
+  it('방과 같은 크기면 가운데에 딱 맞는다', () => {
+    expect(findFreeSpot({ w: 3600, d: 3000 }, ROOM, [])).toEqual({ x: 1800, z: 1500 });
+  });
+
+  it('원점이 아닌 방(경계가 0에서 시작하지 않음)도 따른다', () => {
+    const r = roomBounds({
+      corners: [
+        { x: 1000, z: 1000 },
+        { x: 3000, z: 1000 },
+        { x: 3000, z: 2000 },
+        { x: 1000, z: 2000 },
+      ],
+    });
+    expect(findFreeSpot({ w: 500, d: 500 }, r, [])).toEqual({ x: 2000, z: 1500 });
   });
 });

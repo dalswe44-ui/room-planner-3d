@@ -1,22 +1,22 @@
 // AI가 돌려준 배치도 JSON을 검사하고 Project로 바꾸는 순수 함수. 숫자 → mm 변환은 lengthToMm만 쓴다.
-import type { LayoutImport } from '../contracts/layoutImport';
-import { guessKindFromName } from '../contracts/furniturePresets';
+import type { LayoutImport, LayoutUnit } from '../contracts/layoutImport';
+import { guessKindFromName, KIND_LABEL, presetFor } from '../contracts/furniturePresets';
+import {
+  CEILING_MAX,
+  CEILING_MIN,
+  DEFAULT_ITEM_NAME,
+  ITEM_SIZE_MAX,
+  ITEM_SIZE_MIN,
+  ROOM_SIDE_MAX,
+  ROOM_SIDE_MIN,
+} from '../contracts/limits';
 import { rectCorners } from '../contracts/room';
 import type { DisplayUnit, FurnitureItem, Mm, Project } from '../contracts/types';
 import { lengthToMm } from '../contracts/units';
 import { DEFAULT_COLORS } from '../store/projectStore';
 
-export const ROOM_SIZE_MIN: Mm = 500;
-export const ROOM_SIZE_MAX: Mm = 20000;
-export const CEILING_MIN: Mm = 1800;
-export const CEILING_MAX: Mm = 5000;
-export const ITEM_SIZE_MIN: Mm = 10;
-export const ITEM_SIZE_MAX: Mm = 10000;
-export const DEFAULT_ITEM_HEIGHT: Mm = 600;
-export const DEFAULT_ITEM_NAME = '가구';
-
-/** 가구 색 순환은 store와 같은 팔레트를 쓴다. */
-const COLORS = DEFAULT_COLORS;
+/** 높이가 없고 종류 기본 높이도 없을 때(상자) 쓰는 높이 */
+const BOX_DEFAULT_HEIGHT: Mm = 600;
 
 export interface ParseBase {
   /** 현재 표시 단위. 결과 project에 그대로 유지한다. */
@@ -26,7 +26,7 @@ export interface ParseBase {
 }
 
 export type ParseResult =
-  | { ok: true; project: Project; warnings: string[]; notes: string[] }
+  | { ok: true; project: Project; warnings: string[]; notes: string[]; /** JSON의 길이 단위. 미리보기가 이 단위로 보여 준다. */ unit: LayoutUnit }
   | { ok: false; errors: string[] };
 
 const UNITS: readonly string[] = ['mm', 'cm', 'm'];
@@ -79,11 +79,11 @@ export function parseLayoutImport(text: string, base: ParseBase): ParseResult {
   } else {
     const w = toMm(room.width);
     const d = toMm(room.depth);
-    if (w === null || w < ROOM_SIZE_MIN || w > ROOM_SIZE_MAX) {
-      errors.push(`room.width: ${rangeMsg('값', ROOM_SIZE_MIN, ROOM_SIZE_MAX)} 단위(${u})를 확인하세요.`);
+    if (w === null || w < ROOM_SIDE_MIN || w > ROOM_SIDE_MAX) {
+      errors.push(`room.width: ${rangeMsg('값', ROOM_SIDE_MIN, ROOM_SIDE_MAX)} 단위(${u})를 확인하세요.`);
     } else width = w;
-    if (d === null || d < ROOM_SIZE_MIN || d > ROOM_SIZE_MAX) {
-      errors.push(`room.depth: ${rangeMsg('값', ROOM_SIZE_MIN, ROOM_SIZE_MAX)} 단위(${u})를 확인하세요.`);
+    if (d === null || d < ROOM_SIDE_MIN || d > ROOM_SIDE_MAX) {
+      errors.push(`room.depth: ${rangeMsg('값', ROOM_SIDE_MIN, ROOM_SIDE_MAX)} 단위(${u})를 확인하세요.`);
     } else depth = d;
     if (room.height === null || room.height === undefined) {
       warnings.push('천장 높이가 없어 현재 값을 유지합니다.');
@@ -119,9 +119,11 @@ export function parseLayoutImport(text: string, base: ParseBase): ParseResult {
         errors.push(`${label}.d: ${rangeMsg('값', ITEM_SIZE_MIN, ITEM_SIZE_MAX)} 단위(${u})를 확인하세요.`);
         ok = false;
       }
-      let h: Mm = DEFAULT_ITEM_HEIGHT;
+      const kind = guessKindFromName(name);
+      let h: Mm = presetFor(kind)?.h ?? BOX_DEFAULT_HEIGHT;
       if (entry.h === null || entry.h === undefined) {
-        warnings.push(`${label}: 높이가 없어 ${DEFAULT_ITEM_HEIGHT} mm로 둠`);
+        const why = kind === 'box' ? '기본값' : `${KIND_LABEL[kind]} 기본 높이`;
+        warnings.push(`${label}: 높이가 없어 ${why} ${h} mm로 둠`);
       } else {
         const hv = toMm(entry.h);
         if (hv === null || hv < ITEM_SIZE_MIN || hv > ITEM_SIZE_MAX) {
@@ -134,10 +136,10 @@ export function parseLayoutImport(text: string, base: ParseBase): ParseResult {
         errors.push(`${label}.rotationDeg: 0, 90, 180, 270 중 하나여야 합니다.`);
         ok = false;
       }
-      const left = entry.left === null || entry.left === undefined ? null : toMm(entry.left);
-      const top = entry.top === null || entry.top === undefined ? null : toMm(entry.top);
-      const hasPos = entry.left !== null && entry.left !== undefined && entry.top !== null && entry.top !== undefined;
-      if (hasPos && (left === null || top === null)) {
+      const has = (v: unknown) => v !== null && v !== undefined;
+      const left = has(entry.left) ? toMm(entry.left) : null;
+      const top = has(entry.top) ? toMm(entry.top) : null;
+      if ((has(entry.left) && left === null) || (has(entry.top) && top === null)) {
         errors.push(`${label}: left, top은 숫자여야 합니다.`);
         ok = false;
       }
@@ -146,20 +148,14 @@ export function parseLayoutImport(text: string, base: ParseBase): ParseResult {
       const turned = rot === 90 || rot === 270;
       const fw = turned ? d : w;
       const fd = turned ? w : d;
-      let x: Mm;
-      let z: Mm;
-      if (hasPos && left !== null && top !== null) {
-        x = Math.round(left + fw / 2);
-        z = Math.round(top + fd / 2);
-      } else {
-        x = Math.round(width / 2);
-        z = Math.round(depth / 2);
-        warnings.push(`${label}: 위치가 없어 가운데에 둠`);
-      }
+      const x: Mm = left !== null ? Math.round(left + fw / 2) : Math.round(width / 2);
+      const z: Mm = top !== null ? Math.round(top + fd / 2) : Math.round(depth / 2);
+      if (left === null && top === null) warnings.push(`${label}: 위치가 없어 가운데에 둠`);
+      else if (left === null) warnings.push(`${label}: left(왼쪽 벽에서의 거리)가 없어 가로 방향은 가운데에 둠`);
+      else if (top === null) warnings.push(`${label}: top(위쪽 벽에서의 거리)이 없어 세로 방향은 가운데에 둠`);
       if (width > 0 && depth > 0 && (x - fw / 2 < 0 || z - fd / 2 < 0 || x + fw / 2 > width || z + fd / 2 > depth)) {
         warnings.push(`${label}: 방 밖으로 나갑니다.`);
       }
-      const kind = guessKindFromName(name);
       items.push({
         id: crypto.randomUUID(),
         name,
@@ -171,7 +167,7 @@ export function parseLayoutImport(text: string, base: ParseBase): ParseResult {
         z,
         rotationDeg: rot as number,
         elevation: 0,
-        color: COLORS[items.length % COLORS.length],
+        color: DEFAULT_COLORS[items.length % DEFAULT_COLORS.length],
       });
     });
   }
@@ -182,6 +178,7 @@ export function parseLayoutImport(text: string, base: ParseBase): ParseResult {
     ok: true,
     warnings,
     notes,
+    unit: u,
     project: {
       version: 1,
       displayUnit: base.displayUnit,

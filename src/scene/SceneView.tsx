@@ -25,6 +25,7 @@ export function SceneView({ handlers, statuses }: SceneViewProps) {
   const selectedItemId = useProjectStore((s) => s.selectedItemId);
   const dragPreview = useProjectStore((s) => s.dragPreview);
 
+  const [hintDismissed, setHintDismissed] = useState(false);
   const [runtime] = useState<SceneRuntime>(() => ({ get: null, controlsRef: createRef<ControlsHandle>() }));
 
   // 핸들러는 렌더마다 새 객체일 수 있으므로 최신 것을 ref로 읽는다.
@@ -59,8 +60,9 @@ export function SceneView({ handlers, statuses }: SceneViewProps) {
     if (!s) return;
     const primary = event.pointerType !== 'mouse' || event.button === 0;
     const hit = primary
-      ? pickFurniture(s.scene, s.camera, screenRectOf(s.gl.domElement), event.clientX, event.clientY)
+      ? pickFurniture(s.scene, s.camera, screenRectOf(s.gl.domElement), event.clientX, event.clientY, useProjectStore.getState().selectedItemId)
       : null;
+    if (s && useProjectStore.getState().viewMode === '3d') setHintDismissed(true);
     router.pointerDown(event.pointerId, event.clientX, event.clientY, primary, hit);
   };
 
@@ -93,6 +95,7 @@ export function SceneView({ handlers, statuses }: SceneViewProps) {
       role="img"
       aria-label="방과 가구의 3D 또는 평면 장면"
       onPointerDownCapture={onPointerDownCapture}
+      onWheel={() => setHintDismissed(true)}
       onContextMenu={(e) => e.preventDefault()}
     >
       <Canvas
@@ -124,6 +127,11 @@ export function SceneView({ handlers, statuses }: SceneViewProps) {
           runtime={runtime}
         />
       </Canvas>
+      {viewMode === '3d' && !hintDismissed && (
+        <p className="scene-hint" data-testid="scene-hint">
+          빈 곳을 끌어 돌리기 · 휠·두 손가락으로 확대 · 가구를 끌어 옮기기
+        </p>
+      )}
     </div>
   );
 }

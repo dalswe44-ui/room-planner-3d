@@ -1,12 +1,7 @@
 // 포인터 제스처 분류. 가구 위에서 시작한 한 포인터는 가구 조작이고, 나머지는 카메라 조작이다.
 // 가구를 끄는 동안 카메라를 멈추고, 빈 곳을 짧게 누른 것만 선택 해제로 본다. React와 DOM에 기대지 않는다.
 import type { PlacementHandlers, PointMm } from '../contracts/types';
-
-export interface FurnitureHit {
-  itemId: string;
-  /** 대체 바닥 좌표. 누른 순간 바닥과 교차하지 않을 때 쓴다. */
-  center: PointMm;
-}
+import type { FurnitureHit } from './pointer';
 
 export interface PlacementRouterDeps {
   handlers: PlacementHandlers;

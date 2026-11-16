@@ -34,3 +34,4 @@
 | 2026-11-17 | 사용자 부재 중 진행 범위 | 사용자 지시(00:58) "자고올테니까 너 스스로 할수있는것들 하고 오전 8시 30분에 보고해". pstack 점검에서 나온 것 중 되돌릴 수 있고 사용자 결정과 충돌하지 않는 것만 고친다. 자석 거리(사용자 결정 2 cm)와 끌 때 방 안으로 제한(SPEC W-6과 충돌)은 고치지 않고 보고 때 묻는다. | 헤드 |
 | 2026-11-17 | 되돌리기 | store에 past/future(최대 100). 방 크기, 가구 추가·수정·삭제, 배치도 적용을 기록. 같은 가구 위치만 1초 안에 연속으로 바뀌면 한 단계로 묶음(방향키 반복). 표시 단위·선택·뷰는 기록하지 않음. Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y, 헤더 버튼. 입력 칸에서는 브라우저 기본 동작. | pstack 점검 3의 3번 |
 | 2026-11-17 | 공유 기준값 | src/contracts/limits.ts에 방·천장·가구 범위와 기본 이름, furniturePresets.ts에 KIND_LABEL과 presetFor. 각 모듈의 복사본은 다음 작업에서 이것으로 바꿈. | pstack 점검 2 |
+| 2026-11-17 | 저장 위치 | 프로젝트는 localStorage `room-planner-3d/project`(300 ms 지연), 사진은 IndexedDB `room-planner-3d/photo`(긴 변 2048 px JPEG). 불러오기는 되돌리기 기록에 넣지 않음. Room.photos는 지금은 그대로 둠(항상 []). | T-015 |

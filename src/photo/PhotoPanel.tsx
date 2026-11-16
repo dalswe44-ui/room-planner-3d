@@ -1,52 +1,53 @@
 // 사진·배치도 가져오기 패널. 사진은 참고용으로만 보이고, 치수는 AI가 만든 JSON에서만 온다.
-import { useMemo, useRef, useState } from 'react';
-import { FURNITURE_PRESETS } from '../contracts/furniturePresets';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { KIND_LABEL } from '../contracts/furniturePresets';
 import { LAYOUT_READER_PROMPT } from '../contracts/layoutImport';
 import { roomBounds } from '../contracts/room';
-import type { FurnitureKind } from '../contracts/types';
 import { formatLength, UNIT_LABEL } from '../contracts/units';
 import { useProjectStore } from '../store/projectStore';
 import { parseLayoutImport } from './parseLayoutImport';
 import { usePhotoStore } from './photoStore';
 import './photo.css';
 
-function kindLabel(kind: FurnitureKind | undefined): string {
-  return FURNITURE_PRESETS.find((p) => p.kind === kind)?.label ?? '상자';
-}
-
 export function PhotoPanel() {
   const unit = useProjectStore((s) => s.project.displayUnit);
   const ceilingHeight = useProjectStore((s) => s.project.room.ceilingHeight);
   const replaceProject = useProjectStore((s) => s.replaceProject);
   const photoUrl = usePhotoStore((s) => s.url);
+  const storage = usePhotoStore((s) => s.storage);
   const [text, setText] = useState('');
-  const [fallbackPrompt, setFallbackPrompt] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [applied, setApplied] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'fallback'>('idle');
+  const [applyState, setApplyState] = useState<'idle' | 'confirming' | 'applied'>('idle');
+  const [fileError, setFileError] = useState<string | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
-  const u = UNIT_LABEL[unit];
-  const fmt = (mm: number) => formatLength(mm, unit);
+  const confirmRef = useRef<HTMLDivElement>(null);
+
+  // 확인 줄이 나타나면 "바꾸기" 버튼이 화면 안에 보이게 한다(작은 화면에서 아래로 잘림).
+  useEffect(() => {
+    if (applyState === 'confirming') confirmRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [applyState]);
 
   const result = useMemo(
     () => (text.trim() === '' ? null : parseLayoutImport(text, { displayUnit: unit, ceilingHeight })),
     [text, unit, ceilingHeight],
   );
 
+  // 미리보기는 JSON의 단위로 보여 준다(사용자 그림의 숫자와 맞춰 보기 위해). 적용해도 표시 단위는 그대로.
+  const previewUnit = result && result.ok ? result.unit : unit;
+  const fmt = (mm: number) => formatLength(mm, previewUnit);
+  const u = UNIT_LABEL[previewUnit];
+
   const changeText = (value: string) => {
     setText(value);
-    setConfirming(false);
-    setApplied(false);
+    setApplyState('idle');
   };
 
   async function copyPrompt() {
     try {
       await navigator.clipboard.writeText(LAYOUT_READER_PROMPT);
-      setCopied(true);
-      setFallbackPrompt(false);
+      setCopyState('copied');
     } catch {
-      setCopied(false);
-      setFallbackPrompt(true);
+      setCopyState('fallback');
       // textarea가 그려진 뒤 전체 선택
       setTimeout(() => promptRef.current?.select(), 0);
     }
@@ -54,21 +55,30 @@ export function PhotoPanel() {
 
   async function readFile(file: File | undefined) {
     if (!file) return;
-    changeText(await file.text());
+    try {
+      changeText(await file.text());
+      setFileError(null);
+    } catch {
+      setFileError('파일을 읽지 못했습니다. 다른 파일을 고르거나 내용을 복사해 위 칸에 붙여 넣으세요.');
+    }
   }
 
   function apply() {
     if (!result || !result.ok) return;
     replaceProject(result.project);
-    setConfirming(false);
-    setApplied(true);
+    setApplyState('applied');
   }
 
   return (
     <div className="photo-panel">
       <section className="photo-section">
         <h3 className="photo-title">방 사진 (참고용)</h3>
-        <p className="photo-hint">사진은 이 기기에서만 보이고 밖으로 보내지 않습니다. 새로고침하면 사라집니다.</p>
+        <p className="photo-hint">사진은 이 기기에서만 보이고 밖으로 보내지 않습니다. 긴 변 2048px 이하로 줄여 이 브라우저에 보관하므로 새로고침해도 남습니다.</p>
+        {storage === 'failed' && (
+          <p className="photo-warn" role="status" data-testid="photo-storage-failed">
+            이 브라우저가 보관을 막아 지금 탭에서만 보입니다. 새로고침하면 사라집니다.
+          </p>
+        )}
         <input
           type="file"
           accept="image/*"
@@ -77,7 +87,7 @@ export function PhotoPanel() {
           aria-label="사진 고르기"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) usePhotoStore.getState().setFile(file);
+            if (file) void usePhotoStore.getState().setFile(file);
             e.target.value = '';
           }}
         />
@@ -101,8 +111,8 @@ export function PhotoPanel() {
         <button type="button" className="photo-button" data-testid="layout-prompt-copy" onClick={copyPrompt}>
           AI에게 줄 문구 복사
         </button>
-        {copied && <p className="photo-ok" role="status">복사했습니다.</p>}
-        {fallbackPrompt && (
+        {copyState === 'copied' && <p className="photo-ok" role="status">복사했습니다.</p>}
+        {copyState === 'fallback' && (
           <div>
             <p className="photo-hint">자동 복사가 안 됩니다. 아래 문구를 길게 눌러 직접 복사하세요.</p>
             <textarea
@@ -141,6 +151,12 @@ export function PhotoPanel() {
           }}
         />
 
+        {fileError && (
+          <p className="photo-error" role="alert" data-testid="layout-file-error">
+            {fileError}
+          </p>
+        )}
+
         {result && !result.ok && (
           <div className="photo-error" role="alert" data-testid="layout-error">
             <p>적용할 수 없습니다.</p>
@@ -162,12 +178,20 @@ export function PhotoPanel() {
               <p className="photo-hint">가구가 없습니다.</p>
             ) : (
               <ul className="photo-items">
-                {result.project.items.map((it) => (
-                  <li key={it.id}>
-                    <strong>{it.name}</strong> ({kindLabel(it.kind)}) {fmt(it.w)} × {fmt(it.d)} × {fmt(it.h)} {u}, 중심 ({fmt(it.x)}, {fmt(it.z)}) {u}
-                    {it.rotationDeg !== 0 && `, ${it.rotationDeg}° 회전`}
-                  </li>
-                ))}
+                {result.project.items.map((it) => {
+                  // 사용자가 자기 그림의 숫자와 맞춰 볼 수 있게, 가구 왼쪽·위쪽 변까지의 거리로 보여 준다.
+                  const turned = it.rotationDeg === 90 || it.rotationDeg === 270;
+                  const left = it.x - (turned ? it.d : it.w) / 2;
+                  const top = it.z - (turned ? it.w : it.d) / 2;
+                  return (
+                    <li key={it.id}>
+                      <strong>{it.name}</strong> ({KIND_LABEL[it.kind ?? 'box']}) {fmt(it.w)} × {fmt(it.d)} × {fmt(it.h)} {u}
+                      {it.rotationDeg !== 0 && `, ${it.rotationDeg}° 회전`}
+                      <br />
+                      왼쪽 벽에서 {fmt(left)} {u}, 위쪽 벽에서 {fmt(top)} {u}
+                    </li>
+                  );
+                })}
               </ul>
             )}
             {result.notes.length > 0 && (
@@ -193,31 +217,31 @@ export function PhotoPanel() {
           </div>
         )}
 
-        {!confirming && (
+        {applyState !== 'confirming' && (
           <button
             type="button"
             className="photo-button photo-button--primary"
             data-testid="layout-apply"
             disabled={!result || !result.ok}
-            onClick={() => setConfirming(true)}
+            onClick={() => setApplyState('confirming')}
           >
             이 배치로 바꾸기
           </button>
         )}
-        {confirming && (
-          <div className="photo-confirm" role="alertdialog" aria-label="바꾸기 확인">
+        {applyState === 'confirming' && (
+          <div ref={confirmRef} className="photo-confirm" role="alertdialog" aria-label="바꾸기 확인">
             <p>지금의 방과 가구가 모두 바뀝니다</p>
             <div className="photo-confirm__actions">
               <button type="button" className="photo-button photo-button--primary" data-testid="layout-apply-confirm" onClick={apply}>
                 바꾸기
               </button>
-              <button type="button" className="photo-button" data-testid="layout-apply-cancel" onClick={() => setConfirming(false)}>
+              <button type="button" className="photo-button" data-testid="layout-apply-cancel" onClick={() => setApplyState('idle')}>
                 취소
               </button>
             </div>
           </div>
         )}
-        {applied && (
+        {applyState === 'applied' && (
           <p className="photo-ok" role="status" data-testid="layout-applied">
             방과 가구를 바꿨습니다.
           </p>

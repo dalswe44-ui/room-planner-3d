@@ -2,18 +2,13 @@
 import type { RoomBounds } from '../contracts/room';
 import type { DragPreview, FurnitureItem, ItemStatus, Mm, PointMm } from '../contracts/types';
 
-// SPEC 2절의 기준값(mm)
+// SPEC 2절의 기준값(mm). 가구 크기 범위와 기본 이름은 src/contracts/limits.ts에 있다.
 /** 끌어 놓을 때 바닥 사각형의 왼쪽·위쪽 변을 맞추는 격자 간격 */
 export const GRID_MM = 10;
-/** 가구 폭·깊이·높이의 허용 범위 */
-export const ITEM_SIZE_MIN = 10;
-export const ITEM_SIZE_MAX = 10000;
 /** 겹침·이탈로 보는 최소 길이. 변이 정확히 맞닿은 것(0)은 겹침·이탈이 아니다. */
 export const WARN_MIN_MM = 1;
 /** 끄는 동안 변이 벽·다른 가구의 변에 이 거리 이내로 다가오면 딱 붙인다(맞닿음). SNAP_MM은 붙고 SNAP_MM + 1은 안 붙는다. */
 export const SNAP_MM = 20;
-/** 이름을 비우고 추가하면 쓰는 이름 */
-export const DEFAULT_ITEM_NAME = '가구';
 /** 회전 버튼 한 번에 도는 각도(반시계) */
 export const ROTATE_STEP_DEG = 90;
 
@@ -173,4 +168,34 @@ export function nextRotation(deg: number): number {
  */
 export function wallDistances(f: Footprint, room: RoomBounds): [number, number, number, number] {
   return [f.minZ - room.minZ, room.maxX - f.maxX, room.maxZ - f.maxZ, f.minX - room.minX];
+}
+
+/** 새 가구를 찾을 때 방 가운데에서 바깥으로 훑는 간격 */
+const FREE_SPOT_STEP_MM = 100;
+
+/**
+ * 새 가구(회전 0)를 놓을 빈 자리의 중심. 방 가운데에서 100 mm 격자로 바깥으로 훑어,
+ * 다른 가구와 겹치지 않고 방 안에 들어가는 가장 가까운 자리를 고른다. 왼쪽·위쪽 변은 10 mm 격자에 맞춘다.
+ * 같은 거리면 위쪽, 그다음 왼쪽을 먼저 고른다. 빈 자리가 없으면 방 가운데(겹침·이탈은 경고로 보인다).
+ */
+export function findFreeSpot(size: Pick<FurnitureItem, 'w' | 'd'>, room: RoomBounds, others: Footprint[]): PointMm {
+  const cx = Math.round((room.minX + room.maxX) / 2);
+  const cz = Math.round((room.minZ + room.maxZ) / 2);
+  const shape = { w: size.w, d: size.d, rotationDeg: 0, x: 0, z: 0 };
+  if (size.w > room.width || size.d > room.depth) return { x: cx, z: cz };
+  // 가운데 자리가 가능하려면 가구 절반이 방 안이므로, 더 멀리 가야 할 일은 방 크기의 절반을 넘지 않는다.
+  const stepsX = Math.ceil(room.width / 2 / FREE_SPOT_STEP_MM);
+  const stepsZ = Math.ceil(room.depth / 2 / FREE_SPOT_STEP_MM);
+  const offsets: { i: number; j: number }[] = [];
+  for (let j = -stepsZ; j <= stepsZ; j++) for (let i = -stepsX; i <= stepsX; i++) offsets.push({ i, j });
+  const dist = (o: { i: number; j: number }) => o.i * o.i + o.j * o.j;
+  offsets.sort((a, b) => dist(a) - dist(b) || a.j - b.j || a.i - b.i);
+  for (const o of offsets) {
+    const at = snapCenter(shape, { x: cx + o.i * FREE_SPOT_STEP_MM, z: cz + o.j * FREE_SPOT_STEP_MM });
+    const f = footprint(shape, at);
+    if (isOutsideRoom(f, room)) continue;
+    if (others.some((other) => footprintsOverlap(f, other))) continue;
+    return at;
+  }
+  return { x: cx, z: cz };
 }

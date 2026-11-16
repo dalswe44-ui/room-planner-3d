@@ -1,19 +1,13 @@
 // 가구 추가 폼, 가구 목록, 선택한 가구의 수정·회전·삭제와 벽까지 거리. store를 직접 읽고 쓴다.
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type MutableRefObject } from 'react';
 import { roomBounds } from '../contracts/room';
-import { FURNITURE_PRESETS, guessKindFromName, type FurniturePreset } from '../contracts/furniturePresets';
+import { FURNITURE_PRESETS, guessKindFromName, KIND_LABEL, type FurniturePreset } from '../contracts/furniturePresets';
+import { DEFAULT_ITEM_NAME, ITEM_SIZE_MAX, ITEM_SIZE_MIN } from '../contracts/limits';
 import type { DisplayUnit, FurnitureItem, FurnitureKind, ItemStatus, Mm } from '../contracts/types';
 import { formatLength, UNIT_LABEL } from '../contracts/units';
 import { useProjectStore } from '../store/projectStore';
 import { LengthInput } from '../ui/LengthInput';
-import {
-  currentFootprint,
-  DEFAULT_ITEM_NAME,
-  ITEM_SIZE_MAX,
-  ITEM_SIZE_MIN,
-  nextRotation,
-  wallDistances,
-} from './placement';
+import { currentFootprint, findFreeSpot, footprint, nextRotation, wallDistances } from './placement';
 import { useItemStatuses } from './useItemStatuses';
 import './furniture.css';
 
@@ -32,10 +26,15 @@ const INITIAL_SIZE: Size = { w: 600, d: 600, h: 600 };
 /** 벽 번호와 평면 뷰(원점 왼쪽 위, +z 아래)에서의 위치 */
 const WALL_LABELS = ['위쪽 벽 (벽 0)', '오른쪽 벽 (벽 1)', '아래쪽 벽 (벽 2)', '왼쪽 벽 (벽 3)'] as const;
 
-const KIND_LABEL: Record<FurnitureKind, string> = {
-  box: '상자',
-  ...Object.fromEntries(FURNITURE_PRESETS.map((p) => [p.kind, p.label])),
-} as Record<FurnitureKind, string>;
+/** 새 가구를 놓을 빈 자리. 방과 다른 가구는 누른 순간의 store에서 읽는다. */
+function freeSpotFor(size: Pick<FurnitureItem, 'w' | 'd'>) {
+  const { project } = useProjectStore.getState();
+  return findFreeSpot(
+    size,
+    roomBounds(project.room),
+    project.items.map((it) => footprint(it)),
+  );
+}
 
 function nameOrDefault(text: string): string {
   return text.trim() || DEFAULT_ITEM_NAME;
@@ -47,26 +46,33 @@ export function FurniturePanel() {
   const selectedItemId = useProjectStore((s) => s.selectedItemId);
   const statuses = useItemStatuses();
   const selected = items.find((it) => it.id === selectedItemId) ?? null;
+  const rootRef = useRef<HTMLDivElement>(null);
+  // 이 패널의 추가 버튼으로 막 선택된 가구 id. 추가 직후에는 사용자가 패널에 있으므로 스크롤하지 않는다.
+  const addedIdRef = useRef<string | null>(null);
+
+  // 장면이나 목록 클릭으로 선택이 바뀌면 편집 칸을 보이게 한다(좁은 화면에서 패널이 캔버스 아래에 있다).
+  useEffect(() => {
+    if (selectedItemId === null) return;
+    if (selectedItemId === addedIdRef.current) {
+      addedIdRef.current = null;
+      return;
+    }
+    rootRef.current?.querySelector('.furniture-editor')?.scrollIntoView({ block: 'nearest' });
+  }, [selectedItemId]);
 
   return (
-    <div className="furniture-panel">
-      <AddForm unit={unit} />
+    <div className="furniture-panel" ref={rootRef}>
+      <AddForm unit={unit} addedIdRef={addedIdRef} />
       <ItemList items={items} selectedItemId={selectedItemId} statuses={statuses} unit={unit} />
-      {selected && (
-        <ItemEditor key={selected.id} item={selected} unit={unit} status={statuses[selected.id]} />
-      )}
+      {selected && <ItemEditor key={selected.id} item={selected} unit={unit} status={statuses[selected.id]} />}
     </div>
   );
 }
 
-function AddForm({ unit }: { unit: DisplayUnit }) {
+function AddForm({ unit, addedIdRef }: { unit: DisplayUnit; addedIdRef: MutableRefObject<string | null> }) {
   const addItem = useProjectStore((s) => s.addItem);
   const [name, setName] = useState('');
   const [size, setSize] = useState<Size>(INITIAL_SIZE);
-  // 고른 기본 가구 종류. null이면 고르지 않은 것이고, 'box'는 "직접 입력"을 눌러 푼 것이다.
-  const [presetKind, setPresetKind] = useState<FurnitureKind | null>(null);
-  // 기본값을 채울 때 올려서 입력 칸을 새로 그린다(오류로 남은 글자도 지운다).
-  const [fillCount, setFillCount] = useState(0);
   const [invalid, setInvalid] = useState<Record<SizeKey, boolean>>({ w: false, d: false, h: false });
   // 제출 핸들러가 읽는 최신 값. 확정과 거부는 LengthInput이 이벤트 안에서 바로 알리므로,
   // 제출 직전에 포커스를 풀어 일어난 확정도 다시 렌더하기 전에 여기에 반영된다.
@@ -81,13 +87,9 @@ function AddForm({ unit }: { unit: DisplayUnit }) {
     setInvalid(latest.current.invalid);
   };
 
-  const applyPreset = (p: FurniturePreset) => {
-    latest.current = { size: { w: p.w, d: p.d, h: p.h }, invalid: { w: false, d: false, h: false } };
-    setSize(latest.current.size);
-    setInvalid(latest.current.invalid);
-    setName(p.label);
-    setPresetKind(p.kind);
-    setFillCount((n) => n + 1);
+  // 기본 가구는 바로 빈 자리에 추가하고 선택한다. 치수는 추가한 뒤 편집 칸에서 고친다. 직접 입력 폼과는 따로 동작한다.
+  const addPreset = (p: FurniturePreset) => {
+    addedIdRef.current = addItem({ name: p.label, kind: p.kind, w: p.w, d: p.d, h: p.h, ...freeSpotFor(p) });
   };
 
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -98,14 +100,21 @@ function AddForm({ unit }: { unit: DisplayUnit }) {
     const { size: s, invalid: bad } = latest.current;
     if (bad.w || bad.d || bad.h) return;
     const finalName = nameOrDefault(name);
-    const kind = presetKind && presetKind !== 'box' ? presetKind : guessKindFromName(name);
-    addItem({ name: finalName, w: s.w, d: s.d, h: s.h, ...(kind !== 'box' ? { kind } : {}) });
+    const kind = guessKindFromName(name);
+    addedIdRef.current = addItem({
+      name: finalName,
+      w: s.w,
+      d: s.d,
+      h: s.h,
+      ...freeSpotFor(s),
+      ...(kind !== 'box' ? { kind } : {}),
+    });
   };
 
   const anyInvalid = invalid.w || invalid.d || invalid.h;
 
   return (
-    <form className="furniture-add" aria-label="가구 추가" onSubmit={onSubmit} noValidate>
+    <div className="furniture-add-section">
       <h3 className="furniture-panel__title">가구 추가</h3>
       <div className="furniture-presets" role="group" aria-label="기본 가구">
         {FURNITURE_PRESETS.map((p) => (
@@ -113,56 +122,54 @@ function AddForm({ unit }: { unit: DisplayUnit }) {
             key={p.kind}
             type="button"
             className="furniture-button furniture-presets__button"
-            aria-pressed={presetKind === p.kind}
             data-testid={`preset-${p.kind}`}
-            onClick={() => applyPreset(p)}
+            onClick={() => addPreset(p)}
           >
             {p.label}
           </button>
         ))}
+      </div>
+      <form className="furniture-add" aria-label="직접 입력" onSubmit={onSubmit} noValidate>
+        <h4 className="furniture-editor__subtitle">직접 입력</h4>
+        <div className="furniture-field">
+          <label className="furniture-field__label" htmlFor="furniture-name">
+            이름
+          </label>
+          <input
+            id="furniture-name"
+            className="furniture-field__input"
+            type="text"
+            autoComplete="off"
+            enterKeyHint="done"
+            placeholder={DEFAULT_ITEM_NAME}
+            value={name}
+            data-testid="furniture-name"
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+        {SIZE_FIELDS.map(({ key, label }) => (
+          <LengthInput
+            key={key}
+            label={label}
+            valueMm={size[key]}
+            unit={unit}
+            min={ITEM_SIZE_MIN}
+            max={ITEM_SIZE_MAX}
+            testId={`furniture-${key}`}
+            onCommit={(mm) => commitSize(key, mm)}
+            onValidityChange={(valid) => changeValidity(key, valid)}
+          />
+        ))}
         <button
-          type="button"
-          className="furniture-button furniture-presets__button"
-          aria-pressed={presetKind === null || presetKind === 'box'}
-          data-testid="preset-box"
-          onClick={() => setPresetKind('box')}
+          type="submit"
+          className="furniture-button furniture-button--primary"
+          data-testid="furniture-add"
+          disabled={anyInvalid}
         >
-          직접 입력
+          추가
         </button>
-      </div>
-      <div className="furniture-field">
-        <label className="furniture-field__label" htmlFor="furniture-name">
-          이름
-        </label>
-        <input
-          id="furniture-name"
-          className="furniture-field__input"
-          type="text"
-          autoComplete="off"
-          enterKeyHint="done"
-          placeholder={DEFAULT_ITEM_NAME}
-          value={name}
-          data-testid="furniture-name"
-          onChange={(e) => setName(e.target.value)}
-        />
-      </div>
-      {SIZE_FIELDS.map(({ key, label }) => (
-        <LengthInput
-          key={`${key}-${fillCount}`}
-          label={label}
-          valueMm={size[key]}
-          unit={unit}
-          min={ITEM_SIZE_MIN}
-          max={ITEM_SIZE_MAX}
-          testId={`furniture-${key}`}
-          onCommit={(mm) => commitSize(key, mm)}
-          onValidityChange={(valid) => changeValidity(key, valid)}
-        />
-      ))}
-      <button type="submit" className="furniture-button furniture-button--primary" data-testid="furniture-add" disabled={anyInvalid}>
-        추가
-      </button>
-    </form>
+      </form>
+    </div>
   );
 }
 
@@ -196,7 +203,9 @@ function ItemList({ items, selectedItemId, statuses, unit }: ItemListProps) {
               <span className="furniture-list__swatch" style={{ background: it.color }} aria-hidden="true" />
               <span className="furniture-list__name">
                 {it.name}
-                {it.kind && it.kind !== 'box' && <small className="furniture-list__kind"> {KIND_LABEL[it.kind]}</small>}
+                {it.kind && it.kind !== 'box' && KIND_LABEL[it.kind] !== it.name && (
+                  <small className="furniture-list__kind"> {KIND_LABEL[it.kind]}</small>
+                )}
               </span>
               <span className="furniture-list__size">
                 {formatLength(it.w, unit)} × {formatLength(it.d, unit)} × {formatLength(it.h, unit)} {u}

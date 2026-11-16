@@ -35,6 +35,7 @@ async function enter(id: string, text: string) {
 }
 
 beforeEach(() => {
+  Element.prototype.scrollIntoView = () => {}; // jsdom에는 없다
   useProjectStore.setState({
     project: createDefaultProject(),
     selectedItemId: null,
@@ -183,7 +184,16 @@ describe('선택한 가구의 수정·회전·삭제', () => {
   it('선택이 없으면 수정 칸, 거리, 회전·삭제 버튼이 없다', async () => {
     await add('A', '1000', '600', '700');
     act(() => store().selectItem(null));
-    for (const id of ['item-name', 'item-w', 'item-d', 'item-h', 'item-color', 'item-rotate', 'item-delete', 'item-dist-0']) {
+    for (const id of [
+      'item-name',
+      'item-w',
+      'item-d',
+      'item-h',
+      'item-color',
+      'item-rotate',
+      'item-delete',
+      'item-dist-0',
+    ]) {
       expect(screen.queryByTestId(id)).toBeNull();
     }
   });
@@ -217,6 +227,8 @@ describe('경고와 벽까지 거리', () => {
     await add('B', '1000', '1000', '500');
     expect(screen.queryByTestId('item-status')).toBeNull();
     await add('B', '1000', '1000', '500');
+    expect(screen.queryByTestId('item-status')).toBeNull(); // 새 가구는 빈 자리에 놓인다
+    act(() => store().updateItem(items()[1].id, { x: items()[0].x, z: items()[0].z }));
     expect(byId('item-status').textContent).toContain('겹침');
     expect(rows().every((r) => r.getAttribute('data-warning') === 'true')).toBe(true);
   });
@@ -276,22 +288,19 @@ describe('useItemStatuses', () => {
 describe('기본 가구 (T-011)', () => {
   const click = (id: string) => userEvent.setup().click(byId(id));
 
-  it('책상 버튼: 칸을 채우지만 추가하지 않고, 추가하면 kind desk', async () => {
+  it('책상 버튼: 바로 추가되고 선택되며 kind desk, 폼은 그대로', async () => {
     await click('preset-desk');
-    expect(items()).toHaveLength(0);
-    expect(byId('preset-desk').getAttribute('aria-pressed')).toBe('true');
-    expect(byId<HTMLInputElement>('furniture-name').value).toBe('책상');
-    expect(byId<HTMLInputElement>('furniture-w').value).toBe('1200');
-    await click('furniture-add');
+    expect(items()).toHaveLength(1);
     expect(items()[0]).toMatchObject({ name: '책상', w: 1200, d: 600, h: 720, kind: 'desk' });
+    expect(store().selectedItemId).toBe(items()[0].id);
+    expect(byId<HTMLInputElement>('furniture-name').value).toBe('');
+    expect(byId<HTMLInputElement>('furniture-w').value).toBe('600');
   });
 
-  it('이름을 바꿔도 kind 유지, 치수 수정 반영', async () => {
+  it('추가한 뒤 편집 칸에서 치수를 고친다', async () => {
     await click('preset-chair');
-    await fill('furniture-name', '내 물건');
-    await fill('furniture-w', '500');
-    await click('furniture-add');
-    expect(items()[0]).toMatchObject({ name: '내 물건', w: 500, d: 500, h: 850, kind: 'chair' });
+    await enter('item-w', '500');
+    expect(items()[0]).toMatchObject({ w: 500, d: 500, h: 850, kind: 'chair' });
   });
 
   it('직접 입력: 이름으로 짐작하고, 못 찾으면 kind 키 없음', async () => {
@@ -301,21 +310,46 @@ describe('기본 가구 (T-011)', () => {
     expect('kind' in items()[1]).toBe(false);
   });
 
-  it('preset-box는 기본 가구 선택을 푼다', async () => {
+  it('기본 가구 버튼과 직접 입력 폼은 따로: 버튼은 폼 값을 쓰지 않고 폼은 버튼 종류를 잇지 않는다', async () => {
+    await fill('furniture-w', '700');
     await click('preset-bed');
-    await click('preset-box');
-    expect(byId('preset-bed').getAttribute('aria-pressed')).toBe('false');
-    expect(byId('preset-box').getAttribute('aria-pressed')).toBe('true');
+    expect(items()[0]).toMatchObject({ w: 1100, d: 2000 });
     await fill('furniture-name', '물건');
     await click('furniture-add');
-    expect(items()[0].kind).toBeUndefined();
+    expect(items()[1]).toMatchObject({ name: '물건', w: 700 });
+    expect(items()[1].kind).toBeUndefined();
   });
 
-  it('오류로 남은 입력도 기본값 버튼이 지운다', async () => {
+  it('기본 가구 7개를 차례로 누르면 서로 겹치지 않게 놓인다(방 6000 x 5000)', async () => {
+    act(() => store().setRoomSize({ width: 6000, depth: 5000, ceilingHeight: 2400 }));
+    for (const id of ['bed', 'desk', 'chair', 'wardrobe', 'shelf', 'sofa', 'table']) await click(`preset-${id}`);
+    expect(items()).toHaveLength(7);
+    const { result } = renderHook(() => useItemStatuses());
+    for (const it of items()) expect(result.current[it.id]).toEqual({ overlap: false, outside: false });
+    expect(store().selectedItemId).toBe(items()[6].id);
+  });
+
+  it('새 가구는 빈 자리에 놓인다: 같은 것을 두 번 누르면 겹치지 않는다', async () => {
+    await click('preset-bed');
+    await click('preset-bed');
+    const { result } = renderHook(() => useItemStatuses());
+    expect(items()[0]).toMatchObject({ x: 1800, z: 1500 });
+    expect(items()[1]).not.toMatchObject({ x: 1800, z: 1500 });
+    expect(result.current[items()[1].id]).toEqual({ overlap: false, outside: false });
+  });
+
+  it('이름이 종류 이름과 같으면 목록에 종류를 다시 보이지 않는다', async () => {
+    await click('preset-bed');
+    expect(rows()[0].textContent).toContain('침대');
+    expect(rows()[0].querySelector('.furniture-list__kind')).toBeNull();
+    await userEvent.setup().selectOptions(byId('item-kind'), 'shelf');
+    expect(rows()[0].querySelector('.furniture-list__kind')?.textContent).toContain('책장');
+  });
+
+  it('직접 입력 칸에 오류가 남아도 기본 가구 버튼은 추가한다', async () => {
     await fill('furniture-w', 'abc');
     await click('preset-sofa');
-    expect(byId<HTMLInputElement>('furniture-w').value).toBe('1800');
-    expect((byId('furniture-add') as HTMLButtonElement).disabled).toBe(false);
+    expect(items()).toHaveLength(1);
   });
 
   it('편집 칸 종류 select가 kind를 바꾼다', async () => {
@@ -323,5 +357,27 @@ describe('기본 가구 (T-011)', () => {
     await userEvent.setup().selectOptions(byId('item-kind'), 'shelf');
     expect(items()[0].kind).toBe('shelf');
     expect(rows()[0].textContent).toContain('책장');
+  });
+});
+
+describe('선택 시 편집 칸 스크롤', () => {
+  const click = (id: string) => userEvent.setup().click(byId(id));
+
+  it('목록 클릭·장면 선택은 스크롤하고, 추가 버튼과 입력은 스크롤하지 않는다', async () => {
+    const calls: unknown[] = [];
+    Element.prototype.scrollIntoView = function (arg?: unknown) {
+      calls.push(arg);
+    };
+    await click('preset-bed');
+    await add('물건', '800', '500', '700');
+    expect(calls).toHaveLength(0);
+    await enter('item-w', '900');
+    expect(calls).toHaveLength(0);
+    await userEvent.setup().click(rows()[0]);
+    expect(calls).toEqual([{ block: 'nearest' }]);
+    act(() => store().selectItem(items()[1].id));
+    expect(calls).toHaveLength(2);
+    act(() => store().selectItem(null));
+    expect(calls).toHaveLength(2);
   });
 });

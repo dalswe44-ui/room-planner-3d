@@ -17,9 +17,10 @@ const GOOD = JSON.stringify({
 
 beforeEach(() => {
   useProjectStore.setState({ project: createDefaultProject() });
-  usePhotoStore.setState({ url: null });
+  usePhotoStore.setState({ url: null, storage: 'none' });
   URL.createObjectURL = vi.fn(() => 'blob:fake');
   URL.revokeObjectURL = vi.fn();
+  Element.prototype.scrollIntoView = vi.fn();
 });
 afterEach(cleanup);
 
@@ -33,6 +34,9 @@ describe('PhotoPanel', () => {
     paste('```json\n' + GOOD + '\n```');
     expect(screen.getByTestId('layout-preview').textContent).toContain('침대');
     expect(screen.getByTestId('layout-preview').textContent).toContain('(침대) ');
+    // JSON의 단위(cm)로, 가구 왼쪽·위쪽 변까지의 거리로 보인다
+    expect(screen.getByTestId('layout-preview').textContent).toContain('왼쪽 벽에서 0.0 cm, 위쪽 벽에서 0.0 cm');
+    expect(screen.getByTestId('layout-preview').textContent).toContain('100.0 × 200.0 × 45.0 cm');
     expect(screen.getByTestId('layout-preview').textContent).toContain('천장 높이는 적혀 있지 않음');
     const user = userEvent.setup();
     await user.click(screen.getByTestId('layout-apply'));
@@ -70,7 +74,7 @@ describe('PhotoPanel', () => {
     render(<PhotoPanel />);
     const user = userEvent.setup();
     await user.upload(screen.getByTestId('photo-file'), new File(['x'], 'a.jpg', { type: 'image/jpeg' }));
-    expect(screen.getByTestId<HTMLImageElement>('photo-preview').src).toBe('blob:fake');
+    expect((await screen.findByTestId<HTMLImageElement>('photo-preview')).src).toBe('blob:fake');
     expect(useProjectStore.getState().project.room.corners[1].x).toBe(3600);
     await user.click(screen.getByTestId('photo-remove'));
     expect(screen.queryByTestId('photo-preview')).toBeNull();
@@ -92,5 +96,33 @@ describe('PhotoPanel', () => {
     const ta = await screen.findByTestId<HTMLTextAreaElement>('layout-prompt-text');
     expect(ta.readOnly).toBe(true);
     expect(ta.value).toBe(LAYOUT_READER_PROMPT);
+  });
+
+  it('표시 단위가 mm여도 미리보기는 JSON의 단위로 보인다', () => {
+    render(<PhotoPanel />);
+    paste(GOOD.replace('"left":0', '"left":25.5'));
+    expect(screen.getByTestId('layout-preview').textContent).toContain('왼쪽 벽에서 25.5 cm');
+    expect(useProjectStore.getState().project.displayUnit).toBe('mm');
+  });
+
+  it('확인 줄이 나타나면 그 줄을 화면 안으로 스크롤한다', async () => {
+    render(<PhotoPanel />);
+    paste(GOOD);
+    await userEvent.setup().click(screen.getByTestId('layout-apply'));
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+  });
+
+  it('파일을 읽지 못하면 오류 문구를 보인다', async () => {
+    render(<PhotoPanel />);
+    const bad = new File(['x'], 'a.json', { type: 'application/json' });
+    bad.text = () => Promise.reject(new Error('읽기 실패'));
+    fireEvent.change(screen.getByTestId('layout-json-file'), { target: { files: [bad] } });
+    expect((await screen.findByTestId('layout-file-error')).textContent).toContain('읽지 못했습니다');
+  });
+
+  it('보관에 실패하면 새로고침하면 사라진다고 알린다', () => {
+    usePhotoStore.setState({ url: 'blob:fake', storage: 'failed' });
+    render(<PhotoPanel />);
+    expect(screen.getByTestId('photo-storage-failed')).toBeTruthy();
   });
 });
