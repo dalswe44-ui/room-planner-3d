@@ -111,33 +111,93 @@ describe('parseLayoutImport 정상 입력', () => {
 
 describe('parseLayoutImport 거부', () => {
   const bad = (text: string) => errorsOf(parseLayoutImport(text, base));
+  // 오류가 정확히 1개이고 그 문구에 expected가 모두 들어 있어야 한다.
+  const expectOne = (errs: string[], ...expected: string[]) => {
+    expect(errs).toHaveLength(1);
+    for (const e of expected) expect(errs[0]).toContain(e);
+  };
+  const room = (width: unknown, depth: unknown, height: unknown = null, unit = 'cm') => doc({ unit, room: { width, depth, height } });
+
   it('빈 값, 깨진 JSON, JSON 없음', () => {
-    expect(bad('')).toHaveLength(1);
-    expect(bad('   ')).toHaveLength(1);
-    expect(bad('{"format": ')).toHaveLength(1);
-    expect(bad('{ 깨짐 }')).toHaveLength(1);
-    expect(bad('그냥 글자')).toHaveLength(1);
+    expectOne(bad(''), '붙여 넣은 내용이 없습니다');
+    expectOne(bad('   '), '붙여 넣은 내용이 없습니다');
+    expectOne(bad('{"format": '), 'JSON');
+    expectOne(bad('{ 깨짐 }'), '깨져');
+    expectOne(bad('그냥 글자'), 'JSON을 찾을 수 없습니다');
   });
   it('format, version, unit 오류', () => {
-    expect(bad(doc({ format: 'x' }))).toHaveLength(1);
-    expect(bad(doc({ version: 2 }))).toHaveLength(1);
-    expect(bad(doc({ unit: 'inch' }))).toHaveLength(1);
+    expectOne(bad(doc({ format: 'x' })), 'format');
+    expectOne(bad(doc({ version: 2 })), 'version');
+    expectOne(bad(doc({ unit: 'inch' })), 'unit');
   });
   it('방 범위 밖과 단위 혼용(m 값을 cm로)', () => {
-    expect(bad(doc({ room: { width: 3.4, depth: 2.8, height: null } })).length).toBe(2); // 34 mm
-    expect(bad(doc({ room: { width: 340, depth: 0, height: null } }))).toHaveLength(1);
-    expect(bad(doc({ room: { width: -340, depth: 280, height: null } }))).toHaveLength(1);
-    expect(bad(doc({ room: { width: 340, depth: 280, height: 100 } }))).toHaveLength(1);
-    expect(bad(doc({ room: { width: 3000, depth: 280, height: null } }))).toHaveLength(1); // 30000 mm
+    const mixed = bad(room(3.4, 2.8)); // 34 mm
+    expect(mixed).toHaveLength(2);
+    expect(mixed[0]).toContain('room.width');
+    expect(mixed[1]).toContain('room.depth');
+    expectOne(bad(room(340, 0)), 'room.depth');
+    expectOne(bad(room(-340, 280)), 'room.width');
+    expectOne(bad(room(340, 280, 100)), 'room.height');
+    expectOne(bad(room(3000, 280)), 'room.width'); // 30000 mm
   });
   it('글자 숫자, 가구 범위 밖, 잘못된 회전', () => {
-    expect(bad(doc({ room: { width: '340', depth: 280, height: null } }))).toHaveLength(1);
-    expect(bad(doc({}, { w: 0 }))).toHaveLength(1);
-    expect(bad(doc({}, { d: -5 }))).toHaveLength(1);
-    expect(bad(doc({}, { w: 1001 }))).toHaveLength(1);
-    expect(bad(doc({}, { h: '높음' }))).toHaveLength(1);
-    expect(bad(doc({}, { rotationDeg: 45 }))).toHaveLength(1);
-    expect(bad(doc({ items: 'x' }))).toHaveLength(1);
+    expectOne(bad(room('340', 280)), 'room.width');
+    expectOne(bad(doc({}, { w: 0 })), '1번 가구', '.w:');
+    expectOne(bad(doc({}, { d: -5 })), '1번 가구', '.d:');
+    expectOne(bad(doc({}, { w: 1001 })), '1번 가구', '.w:');
+    expectOne(bad(doc({}, { h: '높음' })), '1번 가구', '.h:');
+    expectOne(bad(doc({}, { rotationDeg: 45 })), '1번 가구', 'rotationDeg');
+    expectOne(bad(doc({ items: 'x' })), 'items');
+  });
+  it('오류는 해당 가구 번호를 가리킨다', () => {
+    const second = { name: '책상', w: 0, d: 50, h: 70, left: 0, top: 0, rotationDeg: 0 };
+    const first = { name: '침대', w: 100, d: 200, h: 45, left: 0, top: 0, rotationDeg: 0 };
+    expectOne(bad(doc({ items: [first, second] })), '2번 가구(책상)', '.w:');
+  });
+
+  describe('경계값', () => {
+    it('가구 상한 10000 mm는 받고 10001 mm는 거부한다 (mm)', () => {
+      const ok = (w: number) => parseLayoutImport(doc({ unit: 'mm', room: { width: 20000, depth: 20000, height: null } }, { w, left: 0, top: 0 }), base);
+      expect(okOf(ok(10000)).project.items[0].w).toBe(10000);
+      expectOne(errorsOf(ok(10001)), '1번 가구', '.w:');
+    });
+    it('가구 상한 단위 변환 경계: cm 1000은 받고 1000.1은 거부', () => {
+      expect(okOf(parseLayoutImport(doc({}, { w: 1000 }), base)).project.items[0].w).toBe(10000);
+      expectOne(errorsOf(parseLayoutImport(doc({}, { w: 1000.1 }), base)), '1번 가구', '.w:'); // 10001 mm
+    });
+    it('가구 상한 m 10은 받고 10.001은 거부', () => {
+      const m = (w: number) => parseLayoutImport(doc({ unit: 'm', room: { width: 20, depth: 20, height: null } }, { w, d: 1, h: 1 }), base);
+      expect(okOf(m(10)).project.items[0].w).toBe(10000);
+      expectOne(errorsOf(m(10.001)), '1번 가구', '.w:');
+    });
+    it('가구 하한 10 mm는 받고 9 mm는 거부, d와 h도 같은 경계', () => {
+      const mm = (item: Record<string, unknown>) => parseLayoutImport(doc({ unit: 'mm', room: { width: 3400, depth: 2800, height: null } }, item), base);
+      const it = okOf(mm({ w: 10, d: 10, h: 10 })).project.items[0];
+      expect([it.w, it.d, it.h]).toEqual([10, 10, 10]);
+      expectOne(errorsOf(mm({ w: 9 })), '1번 가구', '.w:');
+      expectOne(errorsOf(mm({ d: 9 })), '1번 가구', '.d:');
+      expectOne(errorsOf(mm({ h: 9 })), '1번 가구', '.h:');
+      expectOne(errorsOf(mm({ h: 10001 })), '1번 가구', '.h:');
+      expect(okOf(mm({ h: 10000 })).project.items[0].h).toBe(10000);
+    });
+    it('방 한 변 500~20000 mm 경계', () => {
+      const r = (width: number, depth: number) => parseLayoutImport(doc({ unit: 'mm', room: { width, depth, height: null }, items: [] }), base);
+      const lo = okOf(r(500, 500)).project.room.corners;
+      expect(lo[2]).toEqual({ x: 500, z: 500 });
+      const hi = okOf(r(20000, 20000)).project.room.corners;
+      expect(hi[2]).toEqual({ x: 20000, z: 20000 });
+      expectOne(errorsOf(r(499, 500)), 'room.width');
+      expectOne(errorsOf(r(500, 499)), 'room.depth');
+      expectOne(errorsOf(r(20001, 500)), 'room.width');
+      expectOne(errorsOf(r(500, 20001)), 'room.depth');
+    });
+    it('천장 1800~5000 mm 경계', () => {
+      const r = (height: number) => parseLayoutImport(doc({ unit: 'mm', room: { width: 3400, depth: 2800, height } }, { w: 100, d: 100, h: 100 }), base);
+      expect(okOf(r(1800)).project.room.ceilingHeight).toBe(1800);
+      expect(okOf(r(5000)).project.room.ceilingHeight).toBe(5000);
+      expectOne(errorsOf(r(1799)), 'room.height');
+      expectOne(errorsOf(r(5001)), 'room.height');
+    });
   });
 });
 
@@ -146,7 +206,7 @@ describe('가구 종류 짐작과 경고 표기', () => {
     const bed = okOf(parseLayoutImport(doc(), base)).project.items[0];
     expect(bed.kind).toBe('bed');
     const other = okOf(parseLayoutImport(doc({}, { name: '화분' }), base)).project.items[0];
-    expect('kind' in other).toBe(false);
+    expect(other.kind ?? 'box').toBe('box');
     const noName = okOf(parseLayoutImport(doc({}, { name: '' }), base)).project.items[0];
     expect(noName.kind).toBeUndefined();
   });
