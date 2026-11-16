@@ -333,6 +333,9 @@ test.describe('[touch] 터치 끌기', () => {
     await expectNear(page, (await itemById(page, id)).center, { x: 1000, z: 800 });
     expect(await scrollState()).toEqual(scroll0);
     // 카메라도 그대로(평면 뷰 투영이 같다)
-    expect(await floorToClient(page, { x: 0, z: 0 })).toEqual(o0);
+    // 카메라가 움직이지 않았는지: 0.001 px까지 비교(부동소수 반올림 차이만 허용)
+    const o1 = await floorToClient(page, { x: 0, z: 0 });
+    expect(o1.x).toBeCloseTo(o0.x, 3);
+    expect(o1.y).toBeCloseTo(o0.y, 3);
   });
 });

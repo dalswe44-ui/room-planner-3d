@@ -278,7 +278,10 @@ for (const vp of VIEWPORTS) {
       await expectNear(page, after.center, { x: 1000, z: 800 });
       expect(after.size).toEqual(before.size);
       expect(after.rotationDeg).toBe(before.rotationDeg);
-      expect(await floorToClient(page, { x: 0, z: 0 })).toEqual(o0);
+      // 카메라가 움직이지 않았는지: 화면 좌표를 0.001 px까지 비교(부동소수 반올림 차이만 허용)
+      const o1 = await floorToClient(page, { x: 0, z: 0 });
+      expect(o1.x).toBeCloseTo(o0.x, 3);
+      expect(o1.y).toBeCloseTo(o0.y, 3);
     });
 
     test('P-2 놓을 때 10 mm 격자(변 기준)', async ({ page }) => {
