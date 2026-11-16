@@ -267,3 +267,56 @@ describe('useItemStatuses', () => {
     expect(result.current[a].outside).toBe(true);
   });
 });
+
+describe('기본 가구 (T-011)', () => {
+  const click = (id: string) => userEvent.setup().click(byId(id));
+
+  it('책상 버튼: 칸을 채우지만 추가하지 않고, 추가하면 kind desk', async () => {
+    await click('preset-desk');
+    expect(items()).toHaveLength(0);
+    expect(byId('preset-desk').getAttribute('aria-pressed')).toBe('true');
+    expect(byId<HTMLInputElement>('furniture-name').value).toBe('책상');
+    expect(byId<HTMLInputElement>('furniture-w').value).toBe('1200');
+    await click('furniture-add');
+    expect(items()[0]).toMatchObject({ name: '책상', w: 1200, d: 600, h: 720, kind: 'desk' });
+  });
+
+  it('이름을 바꿔도 kind 유지, 치수 수정 반영', async () => {
+    await click('preset-chair');
+    await fill('furniture-name', '내 물건');
+    await fill('furniture-w', '500');
+    await click('furniture-add');
+    expect(items()[0]).toMatchObject({ name: '내 물건', w: 500, d: 500, h: 850, kind: 'chair' });
+  });
+
+  it('직접 입력: 이름으로 짐작하고, 못 찾으면 kind 키 없음', async () => {
+    await add('작은 책상', '800', '500', '700');
+    expect(items()[0].kind).toBe('desk');
+    await add('박스', '800', '500', '700');
+    expect('kind' in items()[1]).toBe(false);
+  });
+
+  it('preset-box는 기본 가구 선택을 푼다', async () => {
+    await click('preset-bed');
+    await click('preset-box');
+    expect(byId('preset-bed').getAttribute('aria-pressed')).toBe('false');
+    expect(byId('preset-box').getAttribute('aria-pressed')).toBe('true');
+    await fill('furniture-name', '물건');
+    await click('furniture-add');
+    expect(items()[0].kind).toBeUndefined();
+  });
+
+  it('오류로 남은 입력도 기본값 버튼이 지운다', async () => {
+    await fill('furniture-w', 'abc');
+    await click('preset-sofa');
+    expect(byId<HTMLInputElement>('furniture-w').value).toBe('1800');
+    expect((byId('furniture-add') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('편집 칸 종류 select가 kind를 바꾼다', async () => {
+    await add('물건', '800', '500', '700');
+    await userEvent.setup().selectOptions(byId('item-kind'), 'shelf');
+    expect(items()[0].kind).toBe('shelf');
+    expect(rows()[0].textContent).toContain('책장');
+  });
+});

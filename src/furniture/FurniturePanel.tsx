@@ -1,7 +1,8 @@
 // 가구 추가 폼, 가구 목록, 선택한 가구의 수정·회전·삭제와 벽까지 거리. store를 직접 읽고 쓴다.
 import { useRef, useState, type FormEvent } from 'react';
 import { roomBounds } from '../contracts/room';
-import type { DisplayUnit, FurnitureItem, ItemStatus, Mm } from '../contracts/types';
+import { FURNITURE_PRESETS, guessKindFromName, type FurniturePreset } from '../contracts/furniturePresets';
+import type { DisplayUnit, FurnitureItem, FurnitureKind, ItemStatus, Mm } from '../contracts/types';
 import { formatLength, UNIT_LABEL } from '../contracts/units';
 import { useProjectStore } from '../store/projectStore';
 import { LengthInput } from '../ui/LengthInput';
@@ -31,6 +32,11 @@ const INITIAL_SIZE: Size = { w: 600, d: 600, h: 600 };
 /** 벽 번호와 평면 뷰(원점 왼쪽 위, +z 아래)에서의 위치 */
 const WALL_LABELS = ['위쪽 벽 (벽 0)', '오른쪽 벽 (벽 1)', '아래쪽 벽 (벽 2)', '왼쪽 벽 (벽 3)'] as const;
 
+const KIND_LABEL: Record<FurnitureKind, string> = {
+  box: '상자',
+  ...Object.fromEntries(FURNITURE_PRESETS.map((p) => [p.kind, p.label])),
+} as Record<FurnitureKind, string>;
+
 function nameOrDefault(text: string): string {
   return text.trim() || DEFAULT_ITEM_NAME;
 }
@@ -57,6 +63,10 @@ function AddForm({ unit }: { unit: DisplayUnit }) {
   const addItem = useProjectStore((s) => s.addItem);
   const [name, setName] = useState('');
   const [size, setSize] = useState<Size>(INITIAL_SIZE);
+  // 고른 기본 가구 종류. null이면 고르지 않은 것이고, 'box'는 "직접 입력"을 눌러 푼 것이다.
+  const [presetKind, setPresetKind] = useState<FurnitureKind | null>(null);
+  // 기본값을 채울 때 올려서 입력 칸을 새로 그린다(오류로 남은 글자도 지운다).
+  const [fillCount, setFillCount] = useState(0);
   const [invalid, setInvalid] = useState<Record<SizeKey, boolean>>({ w: false, d: false, h: false });
   // 제출 핸들러가 읽는 최신 값. 확정과 거부는 LengthInput이 이벤트 안에서 바로 알리므로,
   // 제출 직전에 포커스를 풀어 일어난 확정도 다시 렌더하기 전에 여기에 반영된다.
@@ -71,6 +81,15 @@ function AddForm({ unit }: { unit: DisplayUnit }) {
     setInvalid(latest.current.invalid);
   };
 
+  const applyPreset = (p: FurniturePreset) => {
+    latest.current = { size: { w: p.w, d: p.d, h: p.h }, invalid: { w: false, d: false, h: false } };
+    setSize(latest.current.size);
+    setInvalid(latest.current.invalid);
+    setName(p.label);
+    setPresetKind(p.kind);
+    setFillCount((n) => n + 1);
+  };
+
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     // 입력 칸 포커스를 푼다. 버튼을 눌러도 칸이 포커스를 잃지 않는 브라우저(iOS)에서 입력 중인 값을 먼저 확정하고
@@ -78,7 +97,9 @@ function AddForm({ unit }: { unit: DisplayUnit }) {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     const { size: s, invalid: bad } = latest.current;
     if (bad.w || bad.d || bad.h) return;
-    addItem({ name: nameOrDefault(name), w: s.w, d: s.d, h: s.h });
+    const finalName = nameOrDefault(name);
+    const kind = presetKind && presetKind !== 'box' ? presetKind : guessKindFromName(name);
+    addItem({ name: finalName, w: s.w, d: s.d, h: s.h, ...(kind !== 'box' ? { kind } : {}) });
   };
 
   const anyInvalid = invalid.w || invalid.d || invalid.h;
@@ -86,6 +107,29 @@ function AddForm({ unit }: { unit: DisplayUnit }) {
   return (
     <form className="furniture-add" aria-label="가구 추가" onSubmit={onSubmit} noValidate>
       <h3 className="furniture-panel__title">가구 추가</h3>
+      <div className="furniture-presets" role="group" aria-label="기본 가구">
+        {FURNITURE_PRESETS.map((p) => (
+          <button
+            key={p.kind}
+            type="button"
+            className="furniture-button furniture-presets__button"
+            aria-pressed={presetKind === p.kind}
+            data-testid={`preset-${p.kind}`}
+            onClick={() => applyPreset(p)}
+          >
+            {p.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="furniture-button furniture-presets__button"
+          aria-pressed={presetKind === null || presetKind === 'box'}
+          data-testid="preset-box"
+          onClick={() => setPresetKind('box')}
+        >
+          직접 입력
+        </button>
+      </div>
       <div className="furniture-field">
         <label className="furniture-field__label" htmlFor="furniture-name">
           이름
@@ -104,7 +148,7 @@ function AddForm({ unit }: { unit: DisplayUnit }) {
       </div>
       {SIZE_FIELDS.map(({ key, label }) => (
         <LengthInput
-          key={key}
+          key={`${key}-${fillCount}`}
           label={label}
           valueMm={size[key]}
           unit={unit}
@@ -150,7 +194,10 @@ function ItemList({ items, selectedItemId, statuses, unit }: ItemListProps) {
               onClick={() => selectItem(it.id)}
             >
               <span className="furniture-list__swatch" style={{ background: it.color }} aria-hidden="true" />
-              <span className="furniture-list__name">{it.name}</span>
+              <span className="furniture-list__name">
+                {it.name}
+                {it.kind && it.kind !== 'box' && <small className="furniture-list__kind"> {KIND_LABEL[it.kind]}</small>}
+              </span>
               <span className="furniture-list__size">
                 {formatLength(it.w, unit)} × {formatLength(it.d, unit)} × {formatLength(it.h, unit)} {u}
               </span>
@@ -206,6 +253,25 @@ function ItemEditor({ item, unit, status }: ItemEditorProps) {
             if (e.key === 'Enter') commitName();
           }}
         />
+      </div>
+      <div className="furniture-field">
+        <label className="furniture-field__label" htmlFor="item-kind">
+          종류
+        </label>
+        <select
+          id="item-kind"
+          className="furniture-field__input"
+          value={item.kind ?? 'box'}
+          data-testid="item-kind"
+          onChange={(e) => updateItem(item.id, { kind: e.target.value as FurnitureKind })}
+        >
+          <option value="box">{KIND_LABEL.box}</option>
+          {FURNITURE_PRESETS.map((p) => (
+            <option key={p.kind} value={p.kind}>
+              {p.label}
+            </option>
+          ))}
+        </select>
       </div>
       {/* 선택이 바뀌면 사라지는 칸이므로 onValidityChange를 넘기지 않는다(T-002b) */}
       {SIZE_FIELDS.map(({ key, label }) => (
