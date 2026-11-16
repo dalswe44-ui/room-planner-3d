@@ -11,7 +11,10 @@ import {
   grabOffset,
   isOutsideRoom,
   nextRotation,
+  settleCenter,
   snapCenter,
+  snapToEdges,
+  SNAP_MM,
   wallDistances,
 } from './placement';
 
@@ -220,5 +223,112 @@ describe('wallDistances (벽 0 ~ 3)', () => {
   it('D-3: 방과 같은 크기 → 0, 폭 3700 → 벽 1·3이 -50', () => {
     expect(wallDistances(footprint(item('X', 3600, 3000, 1800, 1500)), ROOM)).toEqual([0, 0, 0, 0]);
     expect(wallDistances(footprint(item('X', 3700, 3000, 1800, 1500)), ROOM)).toEqual([0, -50, 0, -50]);
+  });
+});
+
+// ---------- 자석 맞춤(T-008) ----------
+describe('snapToEdges', () => {
+  const box = { w: 1000, d: 600, rotationDeg: 0 }; // 반폭 500, 반깊이 300
+  const snap = (at: { x: number; z: number }, others: ReturnType<typeof footprint>[] = [], r = ROOM, it = box) =>
+    snapToEdges(it, at, r, others);
+
+  it('SNAP_MM은 100', () => {
+    expect(SNAP_MM).toBe(100);
+  });
+
+  it('벽 4개 각각에 붙는다', () => {
+    expect(snap({ x: 560, z: 1500 })).toMatchObject({ x: 500, snappedX: true, snappedZ: false }); // 왼쪽 벽, 변 60
+    expect(snap({ x: 3040, z: 1500 })).toMatchObject({ x: 3100, snappedX: true }); // 오른쪽 벽, 변 3540
+    expect(snap({ x: 1800, z: 340 })).toMatchObject({ z: 300, snappedZ: true, snappedX: false }); // 위쪽 벽
+    expect(snap({ x: 1800, z: 2660 })).toMatchObject({ z: 2700, snappedZ: true }); // 아래쪽 벽
+  });
+
+  it('100 mm는 붙고 101 mm는 붙지 않는다', () => {
+    expect(snap({ x: 600, z: 1500 })).toMatchObject({ x: 500, snappedX: true });
+    expect(snap({ x: 601, z: 1500 })).toMatchObject({ x: 601, snappedX: false });
+    expect(snap({ x: 3000, z: 1500 })).toMatchObject({ x: 3100, snappedX: true });
+    expect(snap({ x: 2999, z: 1500 })).toMatchObject({ x: 2999, snappedX: false });
+  });
+
+  it('방 밖에 나간 가구도 벽 가까이면 안쪽으로 붙는다', () => {
+    expect(snap({ x: 450, z: 1500 })).toMatchObject({ x: 500, snappedX: true }); // 변 -50
+    expect(snap({ x: 3150, z: 1500 })).toMatchObject({ x: 3100, snappedX: true });
+    expect(snap({ x: 100, z: 1500 }).snappedX).toBe(false); // 변 -400은 너무 멀다
+  });
+
+  it('다른 가구의 반대쪽 변에 좌우로 붙는다', () => {
+    const o = footprint(item('o', 1000, 600, 1800, 1500)); // x 1300 ~ 2300
+    expect(snap({ x: 2880, z: 1500 }, [o])).toMatchObject({ x: 2800, snappedX: true }); // 내 왼쪽 2380 -> 그 가구 오른쪽 2300
+    expect(snap({ x: 720, z: 1500 }, [o])).toMatchObject({ x: 800, snappedX: true }); // 내 오른쪽 1220 -> 그 가구 왼쪽 1300
+    // 같은 쪽 변끼리는 붙지 않는다(내 왼쪽 ↔ 그 가구 왼쪽)
+    expect(snap({ x: 1850, z: 1500 }, [o]).snappedX).toBe(false);
+  });
+
+  it('다른 가구의 반대쪽 변에 위아래로 붙는다', () => {
+    const o = footprint(item('o', 1000, 600, 1800, 1500)); // z 1200 ~ 1800
+    expect(snap({ x: 1800, z: 2160 }, [o])).toMatchObject({ z: 2100, snappedZ: true });
+    expect(snap({ x: 1800, z: 840 }, [o])).toMatchObject({ z: 900, snappedZ: true });
+  });
+
+  it('다른 축으로 먼 가구는 무시한다', () => {
+    const o = footprint(item('o', 1000, 600, 1800, 1500)); // z 1200 ~ 1800
+    // 내 z 범위 200 ~ 800 는 그 가구와 400 떨어져 있다. x가 2380이어도 끌려가지 않는다
+    expect(snap({ x: 2880, z: 500 }, [o]).snappedX).toBe(false);
+    // 간격이 정확히 100이면 후보, 101이면 아니다
+    expect(snap({ x: 2880, z: 800 }, [o]).snappedX).toBe(true); // z 500 ~ 1100, 간격 100
+    expect(snap({ x: 2880, z: 799 }, [o]).snappedX).toBe(false); // 간격 101
+  });
+
+  it('회전 90도 가구는 바뀐 발자국으로 붙는다', () => {
+    const rot = { w: 1000, d: 600, rotationDeg: 90 }; // x방향 600, z방향 1000
+    expect(snap({ x: 340, z: 1500 }, [], ROOM, rot)).toMatchObject({ x: 300, snappedX: true });
+    expect(snap({ x: 1800, z: 560 }, [], ROOM, rot)).toMatchObject({ z: 500, snappedZ: true });
+  });
+
+  it('후보가 여럿이면 가장 가까운 것, 같은 거리면 벽', () => {
+    const o = footprint(item('o', 400, 600, 650, 1500)); // x 450 ~ 850
+    // 내 왼쪽 변 -20 이 벽(0)에서 20, 가구 오른쪽 850에서 870 -> 벽
+    expect(snap({ x: 480, z: 1500 }, [o]).x).toBe(500);
+    // 가구 변이 더 가깝다: 내 왼쪽 870 -> 850(20), 오른쪽 벽과는 멀다
+    expect(snap({ x: 1370, z: 1500 }, [o]).x).toBe(1350);
+    // 같은 거리: 벽 0과 가구 오른쪽 변 50 이 내 왼쪽 25 에서 25씩 -> 벽
+    const o2 = footprint(item('o2', 100, 600, 0, 1500)); // x -50 ~ 50
+    expect(snap({ x: 525, z: 1500 }, [o2]).x).toBe(500);
+  });
+
+  it('방보다 큰 가구도 오류 없이 처리한다', () => {
+    expect(snap({ x: 1800, z: 1500 }, [], room(800, 800))).toMatchObject({ snappedX: false });
+  });
+});
+
+describe('settleCenter', () => {
+  const box = { w: 450, d: 450, rotationDeg: 0 };
+
+  it('붙은 축은 격자를 적용하지 않고, 붙지 않은 축은 왼쪽·위쪽 변을 10 mm 격자에 맞춘다', () => {
+    // 오른쪽 벽: 변 3565 -> 3605 이라 center 3375(변 3150)는 격자에 안 맞아도 된다. z는 변 1003 -> 1000(중심 1225)
+    const a = settleCenter(box, { x: 3340, z: 1228 }, room(3605, 3000), []);
+    expect(a).toEqual({ x: 3380, z: 1225 }); // 왼쪽 변 3155는 격자 밖이다
+    expect((a.x - 225) % 10).not.toBe(0);
+  });
+
+  it('붙은 가구 옆에 놓아도 맞닿음이고 겹침·이탈 경고가 없다', () => {
+    const o = item('o', 1000, 600, 800, 1500); // x 300 ~ 1300
+    const mine = item('m', 1000, 600, 0, 0);
+    const at = settleCenter(mine, { x: 1880, z: 1500 }, ROOM, [footprint(o)]);
+    expect(at).toEqual({ x: 1800, z: 1500 });
+    const st = computeItemStatuses([o, { ...mine, ...at }], ROOM, null);
+    expect(st.o).toEqual({ overlap: false, outside: false });
+    expect(st.m).toEqual({ overlap: false, outside: false });
+  });
+
+  it('벽에 붙은 홀수 치수 가구는 반올림해도 이탈 경고가 없다', () => {
+    const odd = item('odd', 451, 301, 0, 0);
+    const at = settleCenter(odd, { x: 280, z: 160 }, ROOM, []);
+    const st = computeItemStatuses([{ ...odd, ...at }], ROOM, null);
+    expect(st.odd.outside).toBe(false);
+  });
+
+  it('붙지 않으면 기존 snapCenter와 같다', () => {
+    expect(settleCenter(box, { x: 2456, z: 1994 }, ROOM, [])).toEqual(snapCenter(box, { x: 2456, z: 1994 }));
   });
 });

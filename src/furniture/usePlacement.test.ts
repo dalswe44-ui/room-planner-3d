@@ -2,6 +2,8 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDefaultProject, useProjectStore } from '../store/projectStore';
+import { roomBounds } from '../contracts/room';
+import { computeItemStatuses } from './placement';
 import { createPlacementHandlers, usePlacement } from './usePlacement';
 
 const store = () => useProjectStore.getState();
@@ -88,6 +90,46 @@ describe('createPlacementHandlers', () => {
     expect(itemOf(a)).toMatchObject({ x: 1000, z: 800 });
   });
 
+  it('끄는 동안 dragPreview에 자석 맞춤이 반영되고 놓으면 벽에 딱 붙는다', () => {
+    const h = createPlacementHandlers(store);
+    const a = addA(); // 1000 x 600
+    h.onItemPointerDown(a, { x: 1800, z: 1500 });
+    h.onFloorPointerMove({ x: 560 + 0, z: 1500 }); // 왼쪽 변 60
+    expect(store().dragPreview).toEqual({ itemId: a, x: 500, z: 1500 });
+    h.onPointerUp();
+    expect(itemOf(a)).toMatchObject({ x: 500, z: 1500 });
+  });
+
+  it('다른 가구 80 mm 옆까지 끌면 맞닿고 경고가 없다, 150 mm면 붙지 않는다', () => {
+    const h = createPlacementHandlers(store);
+    const a = addA();
+    store().updateItem(a, { x: 1000, z: 1500 }); // x 500 ~ 1500
+    const b = store().addItem({ name: 'B', w: 1000, d: 600, h: 500 });
+    h.onItemPointerDown(b, { x: 1800, z: 1500 });
+    h.onFloorPointerMove({ x: 2580, z: 1500 }); // 왼쪽 변 2080 이므로 오른쪽 변 1500에서 580: 멀다
+    h.onFloorPointerMove({ x: 2080, z: 1500 }); // 왼쪽 변 1580, 간격 80
+    expect(store().dragPreview).toEqual({ itemId: b, x: 2000, z: 1500 });
+    h.onPointerUp();
+    expect(itemOf(b)).toMatchObject({ x: 2000, z: 1500 });
+    h.onItemPointerDown(b, { x: 2000, z: 1500 });
+    h.onFloorPointerMove({ x: 2150, z: 1500 }); // 간격 150
+    h.onPointerUp();
+    expect(itemOf(b)).toMatchObject({ x: 2150, z: 1500 });
+  });
+
+  it('끄는 가구 자신은 후보가 아니고, 맞닿은 뒤 겹침 경고가 없다', () => {
+    const h = createPlacementHandlers(store);
+    const a = addA();
+    const b = store().addItem({ name: 'B', w: 1000, d: 600, h: 500 });
+    store().updateItem(a, { x: 600, z: 1500 });
+    h.onItemPointerDown(b, { x: 1800, z: 1500 });
+    h.onFloorPointerMove({ x: 1680, z: 1500 }); // 내 왼쪽 1180, a 오른쪽 1100과 80
+    h.onPointerUp();
+    expect(itemOf(b)).toMatchObject({ x: 1600, z: 1500 });
+    const st = computeItemStatuses(store().project.items, roomBounds(store().project.room), null);
+    expect(st[a].overlap || st[b].overlap).toBe(false);
+  });
+
   it('빈 곳을 누르면 선택을 푼다(F-6)', () => {
     const h = createPlacementHandlers(store);
     addA();
@@ -120,9 +162,10 @@ describe('createPlacementHandlers', () => {
     const a = addA();
     const b = store().addItem({ name: 'B', w: 1000, d: 1000, h: 500 });
     h.onItemPointerDown(b, { x: 1800, z: 1500 });
-    h.onFloorPointerMove({ x: 600, z: 600 });
+    // (600, 600)은 B의 변이 벽 100 mm 이내라 (500, 500)으로 붙으므로 벽에서 먼 (1000, 1000)으로 확인한다(T-008)
+    h.onFloorPointerMove({ x: 1000, z: 1000 });
     h.onPointerUp();
-    expect(itemOf(b)).toMatchObject({ x: 600, z: 600 });
+    expect(itemOf(b)).toMatchObject({ x: 1000, z: 1000 });
     expect(itemOf(a)).toMatchObject({ x: 1800, z: 1500 });
   });
 });
