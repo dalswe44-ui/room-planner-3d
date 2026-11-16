@@ -52,7 +52,7 @@
 
 | 파일 | 내보내는 것 |
 |---|---|
-| `src/ui/LengthInput.tsx` | `LengthInput(props: { label: string; valueMm: Mm; unit: DisplayUnit; onCommit(mm: Mm): void; min?: Mm; max?: Mm; testId?: string })`. Enter나 포커스 이탈 때 확정한다. 읽을 수 없거나 범위를 벗어난 값은 `onCommit`을 부르지 않고 오류를 보여 준다. `min`의 기본값은 1이다 |
+| `src/ui/LengthInput.tsx` | `LengthInput(props: { label: string; valueMm: Mm; unit: DisplayUnit; onCommit(mm: Mm): void; min?: Mm; max?: Mm; testId?: string })`. Enter나 포커스 이탈 때 확정한다. 읽을 수 없거나 범위를 벗어난 값은 `onCommit`을 부르지 않고 오류를 보여 준다. 오류 문구에는 허용 범위가 현재 표시 단위로 들어간다. `min`의 기본값은 1이다. `valueMm`이나 `unit`이 바뀌면 칸의 글자도 새 값으로 바뀐다 |
 | `src/ui/UnitToggle.tsx` | `UnitToggle()`. store의 `displayUnit`을 읽고 바꾼다 |
 | `src/room/RoomPanel.tsx` | `RoomPanel()`. 방의 폭·깊이·천장 높이 입력. store를 직접 읽고 쓴다 |
 
@@ -100,5 +100,7 @@ e2e 테스트가 화면 요소를 찾을 때 쓴다. 모듈은 아래 이름을 
 | `scene-canvas` | 캔버스를 감싼 요소 | scene-engine |
 | `furniture-name`, `furniture-w`, `furniture-d`, `furniture-h`, `furniture-add` | 가구 추가 폼 | furniture-placement |
 | `item-row` | 가구 목록의 한 줄. `data-item-id`에 id | furniture-placement |
+| `item-name`, `item-w`, `item-d`, `item-h`, `item-color` | 선택한 가구의 수정 칸. 선택이 없으면 요소가 없다 | furniture-placement |
+| `item-dist-0` ~ `item-dist-3` | 선택한 가구에서 벽 0 ~ 3까지의 거리(숫자만, 현재 표시 단위). 선택이 없으면 요소가 없다 | furniture-placement |
 | `item-rotate`, `item-delete` | 선택한 가구의 회전·삭제 버튼 | furniture-placement |
 | `item-status` | 선택한 가구의 경고 문구(겹침, 방 이탈). 경고가 없으면 요소가 없다 | furniture-placement |

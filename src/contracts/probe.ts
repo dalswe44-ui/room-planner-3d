@@ -10,6 +10,8 @@ export interface SceneProbeItem {
   size: { w: Mm; h: Mm; d: Mm };
   /** 그려진 상자의 y축 회전(정수 도, 0 이상 360 미만) */
   rotationDeg: number;
+  /** 가구에 지정된 색(경고 색으로 덮이기 전의 원래 색, "#rrggbb") */
+  color: string;
   /** 경고 색으로 표시되고 있는지 */
   warning: boolean;
   selected: boolean;
