@@ -42,7 +42,7 @@ export interface ProjectState {
   replaceProject(project: Project): void;
 }
 
-const DEFAULT_COLORS = ['#7aa2d6', '#e0a458', '#8fbf8f', '#c98bb9', '#d97c6c', '#9c9ad6'];
+export const DEFAULT_COLORS = ['#7aa2d6', '#e0a458', '#8fbf8f', '#c98bb9', '#d97c6c', '#9c9ad6'];
 
 export function createDefaultProject(): Project {
   return {

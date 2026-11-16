@@ -3,6 +3,7 @@ import type { LayoutImport } from '../contracts/layoutImport';
 import { rectCorners } from '../contracts/room';
 import type { DisplayUnit, FurnitureItem, Mm, Project } from '../contracts/types';
 import { lengthToMm } from '../contracts/units';
+import { DEFAULT_COLORS } from '../store/projectStore';
 
 export const ROOM_SIZE_MIN: Mm = 500;
 export const ROOM_SIZE_MAX: Mm = 20000;
@@ -13,8 +14,8 @@ export const ITEM_SIZE_MAX: Mm = 10000;
 export const DEFAULT_ITEM_HEIGHT: Mm = 600;
 export const DEFAULT_ITEM_NAME = '가구';
 
-/** 기존 가구 색 순환(src/store/projectStore.ts의 DEFAULT_COLORS)과 같은 값. store가 내보내지 않아 복사했다. */
-const COLORS = ['#7aa2d6', '#e0a458', '#8fbf8f', '#c98bb9', '#d97c6c', '#9c9ad6'];
+/** 가구 색 순환은 store와 같은 팔레트를 쓴다. */
+const COLORS = DEFAULT_COLORS;
 
 export interface ParseBase {
   /** 현재 표시 단위. 결과 project에 그대로 유지한다. */
