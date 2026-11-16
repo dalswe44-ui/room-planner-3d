@@ -195,6 +195,11 @@ describe('선택한 가구의 수정·회전·삭제', () => {
     expect(byId<HTMLButtonElement>('furniture-add').disabled).toBe(false);
   });
 
+  it('선택한 가구 편집 칸에 방향키 안내가 있다', async () => {
+    await add('A', '1000', '600', '700');
+    expect(byId('item-nudge-hint').textContent).toBe('방향키로 1 cm, Shift+방향키로 1 mm 이동');
+  });
+
   it('P-4: 회전 네 번 → 90, 180, 270, 0, 중심·크기 그대로', async () => {
     await add('A', '1000', '600', '700');
     const seen: number[] = [];

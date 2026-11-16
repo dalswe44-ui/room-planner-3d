@@ -231,3 +231,9 @@ T-001에서 하위 에이전트의 보고서 파일 쓰기가 막혔으므로 �
 - T-011 위임·결과 (furniture-placement): 기본 가구 버튼 줄, 종류 select, 목록에 종류 표시. test 263개 통과. 보고서 docs/reports/T-011.md.
 - T-009 결과 (헤드 검증): 기본 가구 7종 모양, 히트 박스 유지, 테스트 37개 추가. 헤드가 3D 스크린샷을 직접 보고 7종 모두 알아볼 수 있음을 확인. 스크린샷을 docs/evidence/T-009/에 보관.
 - T-012 결과: 테스트를 SNAP_MM 기준으로 다시 씀. 헤드 통합 검증: typecheck·lint·build 통과, test 263개, e2e 80/80. 실제 앱: 기본 가구 책상 kind desk 1200×720×600, 벽 15 mm 앞 → 붙음, 40 mm 앞 → 그대로, 의자 kind chair. 배포 페이지 갱신(사진·배치도, 자석 맞춤 2 cm, 기본 가구 7종).
+
+- 사용자 지시 (00:50): "가구를 누른상태에서 방향기로도 세밀하게 움직일수있게 만들어줘" 그리고 다른 대화에서 받은 안내문(pstack의 poteto-mode investigation 플레이북과 원칙 스킬로 검토)을 붙여 "pstack 으로 적절한 에이전트 골라서 점검한번해줘".
+- T-013 위임 (furniture-placement): 선택한 가구를 방향키 10 mm, Shift+방향키 1 mm. 자석·격자 미적용, 입력 칸 포커스 시 무시.
+- pstack 점검: backnotprop/pstack(MIT, 저작권 Lauren Tan)을 프로젝트 밖(/home/claude/vendor/pstack)에 받음. 프로젝트 소스에는 넣지 않음. poteto-mode의 Investigation 플레이북(읽기 전용)으로 분류하고, poteto-agent 역할의 검토자 3명을 원칙별로 나눠 동시에 실행: ① 테스트·검증(test-behavior-not-implementation, prove-it-works, fix-root-causes, attack-the-premise) ② 구조·타입·경계(model-the-domain, boundary-discipline, type-system-discipline, minimize-reader-load, laziness-protocol, subtract-before-you-add) ③ 사용자 경험 실측(experience-first, prove-it-works, fix-root-causes). 이 환경에는 poteto-agent 유형이 없어 general-purpose에 poteto-agent.md와 poteto-mode SKILL.md를 먼저 읽게 하는 머리말로 대신함. pstack 기본값의 다른 모델(Gemini 등) 패널은 이 환경에서 쓸 수 없어 같은 모델로 실행.
+- T-013 결과: 방향키 이동, test 275개. 헤드가 App.tsx에 useKeyboardNudge 조립, SPEC에 K-1 추가.
+- 헤드 통합 확인: 실제 앱에서 책상을 눌러 선택 → → 3번, Shift+↓ 2번 → (1830, 1502). 배포 페이지 갱신.

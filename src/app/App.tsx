@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { FurniturePanel } from '../furniture/FurniturePanel';
 import { useItemStatuses } from '../furniture/useItemStatuses';
+import { useKeyboardNudge } from '../furniture/keyboardNudge';
 import { usePlacement } from '../furniture/usePlacement';
 import { PhotoPanel } from '../photo';
 import { RoomPanel } from '../room/RoomPanel';
@@ -11,6 +12,7 @@ import { UnitToggle } from '../ui/UnitToggle';
 
 export function App() {
   const handlers = usePlacement();
+  useKeyboardNudge();
   const statuses = useItemStatuses();
   const [tab, setTab] = useState<'main' | 'photo'>('main');
   return (

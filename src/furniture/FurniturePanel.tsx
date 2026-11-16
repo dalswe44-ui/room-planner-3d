@@ -307,6 +307,10 @@ function ItemEditor({ item, unit, status }: ItemEditorProps) {
         </p>
       )}
 
+      <p className="furniture-editor__hint" data-testid="item-nudge-hint">
+        방향키로 1 cm, Shift+방향키로 1 mm 이동
+      </p>
+
       <h4 className="furniture-editor__subtitle">벽까지 거리 (평면 뷰 기준)</h4>
       <dl className="furniture-distances">
         {distances.map((mm, i) => (
