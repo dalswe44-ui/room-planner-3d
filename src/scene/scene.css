@@ -99,6 +99,8 @@
   line-height: 18px;
   white-space: nowrap;
   pointer-events: none;
+  /* 첫 위치 계산(place) 전에는 (0,0)에 보이지 않도록 숨긴다. place가 visible로 바꾼다. */
+  visibility: hidden;
 }
 
 .scene-dim-chip--room {

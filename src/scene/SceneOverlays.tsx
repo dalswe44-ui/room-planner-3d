@@ -31,7 +31,9 @@ function tick(at: PxPoint, dir: PxPoint): string {
   return segment({ x: at.x - nx, y: at.y - ny }, { x: at.x + nx, y: at.y + ny });
 }
 const place = (el: HTMLElement | null, x: number, y: number, rotate = '') => {
-  if (el) el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)${rotate}`;
+  if (!el) return;
+  el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)${rotate}`;
+  el.style.visibility = 'visible';
 };
 
 export function SceneOverlays({ runtime, selectionOverlay, wallDistances }: SceneOverlaysProps) {

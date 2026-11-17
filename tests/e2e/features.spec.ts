@@ -503,3 +503,26 @@ test.describe('[desktop] 불러온 가구 이름표', () => {
     await expect(page.locator('.furniture-label')).toHaveText('책상');
   });
 });
+
+// T-028 회귀: 첫 그림이 늦어도 방 치수 글자가 위치 잡히기 전에 (0,0)에 보이지 않는다.
+test.describe('[desktop] 첫 그림 전 치수 글자', () => {
+  test('T-028 첫 그림 전에는 방 치수 글자가 숨겨져 있다가 제자리에서 나타난다', async ({ page }) => {
+    await page.addInitScript(() => {
+      const raf = window.requestAnimationFrame.bind(window);
+      const t0 = performance.now();
+      window.requestAnimationFrame = (cb) =>
+        performance.now() - t0 < 4000 ? (setTimeout(() => raf(cb), 4000) as unknown as number) : raf(cb);
+    });
+    await page.goto('/');
+    const state = () =>
+      page.evaluate(() => {
+        const e = document.querySelector<HTMLElement>('[data-testid=room-dim-depth]');
+        return e ? { vis: getComputedStyle(e).visibility, tf: e.style.transform } : null;
+      });
+    await page.waitForTimeout(500);
+    const early = await state();
+    expect(early?.vis ?? 'hidden', '위치가 잡히기 전에는 보이지 않는다').toBe('hidden');
+    await expect.poll(async () => (await state())?.vis, { timeout: 10_000 }).toBe('visible');
+    expect((await state())!.tf).toContain('rotate(-90deg)');
+  });
+});
