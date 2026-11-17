@@ -86,3 +86,67 @@ describe('parseSavedProject 거부', () => {
     expect(parseSavedProject(text((p) => (p.room.openings = [{ id: 'o', type: 'gate', wall: 0, offset: 0, width: 900, height: 2000, sill: 0 }])))).toBeNull();
   });
 });
+
+describe('벽·문·이름표 저장', () => {
+  const withStructure = (): Project => {
+    const p = createDefaultProject();
+    p.room.walls = [{ id: 'w1', a: { x: 1800, z: 0 }, b: { x: 1800, z: 2000 }, thickness: 100 }];
+    p.room.openings = [
+      { id: 'o1', type: 'door', wall: 'w1', offset: 500, width: 900, height: 2100, sill: 0, hinge: 'end', swing: 'opposite' },
+      { id: 'o2', type: 'window', wall: 0, offset: 800, width: 1200, height: 1200, sill: 900 },
+    ];
+    p.room.labels = [{ id: 'l1', name: '거실', at: { x: 900, z: 1500 } }];
+    return p;
+  };
+  const mutated = (fn: (room: Loose) => void) => {
+    const saved = JSON.parse(serializeProject(withStructure()));
+    fn(saved.project.room);
+    return JSON.stringify(saved);
+  };
+
+  it('왕복한다(hinge·swing 포함)', () => {
+    const p = withStructure();
+    expect(parseSavedProject(serializeProject(p))).toEqual(p);
+  });
+  it('이전 저장본(walls·labels 없음)은 빈 배열로 받는다', () => {
+    const text = mutated((r) => {
+      delete r.walls;
+      delete r.labels;
+      r.openings = [];
+    });
+    const room = parseSavedProject(text)?.room;
+    expect(room?.walls).toEqual([]);
+    expect(room?.labels).toEqual([]);
+  });
+  it('기울어진 벽, 길이 0인 벽을 거절한다', () => {
+    expect(parseSavedProject(mutated((r) => (r.walls[0].b = { x: 1900, z: 2000 })))).toBeNull();
+    expect(parseSavedProject(mutated((r) => (r.walls[0].b = { x: 1800, z: 0 })))).toBeNull();
+  });
+  it('두께가 범위 밖이거나 좌표가 정수가 아닌 벽을 거절한다', () => {
+    expect(parseSavedProject(mutated((r) => (r.walls[0].thickness = 5)))).toBeNull();
+    expect(parseSavedProject(mutated((r) => (r.walls[0].thickness = 1001)))).toBeNull();
+    expect(parseSavedProject(mutated((r) => (r.walls[0].thickness = 0)))).toBeNull();
+    expect(parseSavedProject(mutated((r) => (r.walls[0].thickness = -100)))).toBeNull();
+    expect(parseSavedProject(mutated((r) => (r.walls[0].thickness = '100')))).toBeNull();
+    expect(parseSavedProject(mutated((r) => (r.walls[0].a.z = 0.5)))).toBeNull();
+    expect(parseSavedProject(mutated((r) => (r.walls[0].a.x = 1.8)))).toBeNull();
+  });
+  it('walls·labels가 배열이 아니면 거절한다', () => {
+    expect(parseSavedProject(mutated((r) => (r.walls = {})))).toBeNull();
+    expect(parseSavedProject(mutated((r) => (r.labels = '거실')))).toBeNull();
+  });
+  it('없는 벽을 가리키는 문을 거절한다', () => {
+    expect(parseSavedProject(mutated((r) => (r.openings[0].wall = 'nope')))).toBeNull();
+    expect(parseSavedProject(mutated((r) => (r.openings[1].wall = 4)))).toBeNull();
+    expect(parseSavedProject(mutated((r) => (r.openings[1].wall = -1)))).toBeNull();
+  });
+  it('hinge·swing 값이 틀리면 거절한다', () => {
+    expect(parseSavedProject(mutated((r) => (r.openings[0].hinge = 'left')))).toBeNull();
+    expect(parseSavedProject(mutated((r) => (r.openings[0].swing = 1)))).toBeNull();
+  });
+  it('이름이 글자가 아니거나 위치가 틀린 이름표를 거절한다', () => {
+    expect(parseSavedProject(mutated((r) => (r.labels[0].name = 3)))).toBeNull();
+    expect(parseSavedProject(mutated((r) => delete r.labels[0].name))).toBeNull();
+    expect(parseSavedProject(mutated((r) => (r.labels[0].at = { x: '1', z: 2 })))).toBeNull();
+  });
+});

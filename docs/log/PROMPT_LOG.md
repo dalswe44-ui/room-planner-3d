@@ -289,3 +289,4 @@ T-001에서 하위 에이전트의 보고서 파일 쓰기가 막혔으므로 �
 - 헤드: 계약(types: WallRef·InteriorWall·AreaLabel·문 hinge/swing·ItemStatus wall/door·StructureTarget·StructureHandlers, probe 확장), contracts/structure.ts 기하 + 테스트 13개, store 구조 편집 상태·동작 + 테스트 6개. 다른 소유 파일의 컴파일만 풀기 위한 최소 변경(placement의 상태 기본값 false, savedProject의 walls·labels 빈 배열, furniture 테스트의 상태 단언에 새 필드) — 실제 구현은 각 소유자. SPEC 4-4, CLAUDE.md 소유(src/structure → room-input).
 - 사용자 질문 (13:45): "검증부분은 클로드코드로 진행할건데 괜찮지?" → 헤드: 괜찮다, 이 세션이 벽·문 작업을 올린 뒤 받아서 검증, 고칠 것은 별도 브랜치, 기록은 PROMPT_LOG·reports에 이어서.
 - T-036 결과 저장. 경고색 규칙 변경 요청을 T-035(scene)에 전달.
+- T-034 결과 저장(벽·문 편집 모듈, 저장 형식 확장). App 조립은 T-035(장면의 structureHandlers prop) 뒤에.

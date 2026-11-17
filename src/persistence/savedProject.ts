@@ -9,7 +9,7 @@ import {
   ROOM_SIDE_MIN,
 } from '../contracts/limits';
 import { roomBounds } from '../contracts/room';
-import type { FurnitureItem, FurnitureKind, Opening, PointMm, Project } from '../contracts/types';
+import type { AreaLabel, FurnitureItem, FurnitureKind, InteriorWall, Opening, PointMm, Project } from '../contracts/types';
 
 export const STORAGE_KEY = 'room-planner-3d/project';
 export const SAVE_FORMAT = 'room-planner-project';
@@ -40,11 +40,43 @@ function parseCorner(v: unknown): PointMm | null {
   return { x: v.x, z: v.z };
 }
 
+/** 개구부의 wall이 이 방에 있는 벽(바깥 번호 또는 칸막이 id)인지는 호출하는 쪽이 따로 본다. */
 function parseOpening(v: unknown): Opening | null {
   if (!isRec(v)) return null;
   if (typeof v.id !== 'string' || typeof v.type !== 'string' || !OPENING_TYPES.includes(v.type)) return null;
-  if (!isInt(v.wall) || !isInt(v.offset) || !isInt(v.width) || !isInt(v.height) || !isInt(v.sill)) return null;
-  return { id: v.id, type: v.type as Opening['type'], wall: v.wall, offset: v.offset, width: v.width, height: v.height, sill: v.sill };
+  if (!isInt(v.wall) && typeof v.wall !== 'string') return null;
+  if (!isInt(v.offset) || !isInt(v.width) || !isInt(v.height) || !isInt(v.sill)) return null;
+  if (v.hinge !== undefined && v.hinge !== 'start' && v.hinge !== 'end') return null;
+  if (v.swing !== undefined && v.swing !== 'normal' && v.swing !== 'opposite') return null;
+  return {
+    id: v.id,
+    type: v.type as Opening['type'],
+    wall: v.wall,
+    offset: v.offset,
+    width: v.width,
+    height: v.height,
+    sill: v.sill,
+    ...(v.hinge !== undefined ? { hinge: v.hinge } : {}),
+    ...(v.swing !== undefined ? { swing: v.swing } : {}),
+  };
+}
+
+export const WALL_THICKNESS_LIMITS = { min: 10, max: 1000 } as const;
+
+/** 칸막이 벽: 가로 또는 세로, 길이 > 0, 두께 10 ~ 1000 mm, 좌표는 정수 */
+function parseWall(v: unknown): InteriorWall | null {
+  if (!isRec(v) || typeof v.id !== 'string') return null;
+  const a = parseCorner(v.a);
+  const b = parseCorner(v.b);
+  if (!a || !b || !inRange(v.thickness, WALL_THICKNESS_LIMITS.min, WALL_THICKNESS_LIMITS.max)) return null;
+  if ((a.x !== b.x) === (a.z !== b.z)) return null; // 둘 다 같으면 길이 0, 둘 다 다르면 기울어짐
+  return { id: v.id, a, b, thickness: v.thickness };
+}
+
+function parseLabel(v: unknown): AreaLabel | null {
+  if (!isRec(v) || typeof v.id !== 'string' || typeof v.name !== 'string') return null;
+  const at = parseCorner(v.at);
+  return at ? { id: v.id, name: v.name, at } : null;
 }
 
 function parseItem(v: unknown): FurnitureItem | null {
@@ -104,12 +136,19 @@ export function parseSavedProject(text: string): Project | null {
   if (!inRange(width, ROOM_SIDE_MIN, ROOM_SIDE_MAX) || !inRange(depth, ROOM_SIDE_MIN, ROOM_SIDE_MAX)) return null;
   const openings = parseAll(room.openings, parseOpening);
   if (openings === null) return null;
+  // 이전 저장본에는 walls·labels가 없다. 없으면 빈 배열로 받고, 있는데 틀리면 거부한다.
+  const walls = room.walls === undefined ? [] : parseAll(room.walls, parseWall);
+  const labels = room.labels === undefined ? [] : parseAll(room.labels, parseLabel);
+  if (walls === null || labels === null) return null;
+  const wallExists = (ref: Opening['wall']) =>
+    typeof ref === 'number' ? ref >= 0 && ref < corners.length : walls.some((w) => w.id === ref);
+  if (!openings.every((o) => wallExists(o.wall))) return null;
   const items = parseAll(p.items, parseItem);
   if (items === null) return null;
   return {
     version: 1,
     displayUnit: p.displayUnit as Project['displayUnit'],
-    room: { ceilingHeight: room.ceilingHeight, corners, openings, walls: [], labels: [], photos: [] }, // 칸막이 벽·이름표 저장은 T-034에서
+    room: { ceilingHeight: room.ceilingHeight, corners, openings, walls, labels, photos: [] },
     items,
   };
 }

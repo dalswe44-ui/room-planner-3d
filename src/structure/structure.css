@@ -1,0 +1,112 @@
+/* 벽·문 패널. 색은 src/app/app.css의 변수만 쓴다.  */
+.structure-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.structure-panel__hint {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.structure-panel__title {
+  margin: 0 0 8px;
+  font-size: var(--fs-base);
+}
+
+.structure-panel__empty {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+}
+
+.structure-panel__tool {
+  justify-self: start;
+}
+
+.structure-walls {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.structure-walls__row {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.structure-walls__row[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.structure-card {
+  padding: 14px;
+}
+
+.structure-card__title {
+  margin: 0 0 8px;
+  font-size: var(--fs-base);
+}
+
+.structure-card__info {
+  margin: 0 0 4px;
+}
+
+.structure-card__warning {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--warn);
+  border-radius: var(--r-md);
+  background: var(--warn-soft);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.structure-card__delete {
+  margin-top: 8px;
+}
+
+.structure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.structure-field {
+  display: grid;
+  grid-template-columns: 5em minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  margin-bottom: 8px;
+}
+
+.structure-field__label {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+/* 16px 미만이면 iOS Safari가 포커스 때 화면을 확대한다 */
+.structure-field__input {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--ink-soft);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.structure-field__input:focus {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--accent);
+}
