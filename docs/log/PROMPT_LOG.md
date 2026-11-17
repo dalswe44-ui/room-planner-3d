@@ -292,3 +292,6 @@ T-001에서 하위 에이전트의 보고서 파일 쓰기가 막혔으므로 �
 - T-034 결과 저장(벽·문 편집 모듈, 저장 형식 확장). App 조립은 T-035(장면의 structureHandlers prop) 뒤에.
 - T-032 결과 저장(131 통과, 2 실패 = DR-3b 결함 1: 칩에 포커스가 남아 Escape·Enter 무시). 헤드 수정(src/furniture/keyboardNudge.ts handleDraftKey: Escape는 버튼 포커스에서도 취소, Enter는 preset- 칩에서만 확정) + 단위 테스트 1개. 재실행 DR-3 4 통과.
 - T-035 결과 저장(장면: 칸막이·문·창문·이름표·구조 모드 포인터·경고 규칙 overlap‖outside‖wall‖door). 헤드: App에 "벽·문" 탭 조립(editMode 전환, StructurePanel, structureHandlers). 단위 552 통과, e2e 전체 133 통과·12 건너뜀. CONTRACT에 T-035 동작 정리. T-037(qa) 위임: SPEC 4-4 e2e와 서버 경로 모의 e2e.
+- T-037 결과: 전체 159 통과·2 실패(WL-1 = D-T037-01, 바깥 벽 위에서 시작하면 칸막이 대신 바깥 벽 선택). 헤드 수정: src/structure/useStructureHandlers.ts(바깥 벽 누름 후 끌기 → 안쪽 면에서 칸막이 그리기), src/scene/pointer.ts(평면 뷰에서 칸막이가 가구를 가리지 않음, 관찰 1). 재검증 161 통과·0 실패.
+- T-038 결과: SPEC DR-W2 정정(경첩은 그림만, 안·밖은 경고), WL-1 보강, 4-5 DR·AR·SV 항목.
+- 고정 커밋 검증 중 lint 오류 1건(tests/e2e/structure.spec.ts 사용하지 않는 변수) 발견 → 헤드가 단언은 그대로 두고 정리(6080cfb). 고정 커밋 6080cfb 워크트리 2회: typecheck·lint·build 통과, 단위 554 통과, e2e 161 통과·12 건너뜀·0 실패 (두 번 모두).
