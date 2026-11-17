@@ -32,3 +32,4 @@
 | 2026-11-16 | docs/submission/report.md, docs/reports/T-001.md | spec-report가 응답으로 돌려준 내용을 그대로 저장 |
 | 2026-11-17 | src/furniture/usePlacement.ts (furniture-placement 소유) | 3D 뷰에서도 끌기 허용(사용자 피드백). 테스트 1개를 새 동작으로 바꿈 |
 | 2026-11-17 | src/photo/parseLayoutImport.ts (room-input 소유) | 복사해 둔 색 팔레트를 store의 DEFAULT_COLORS로 바꿈(T-007 변경 요청) |
+| 2026-11-17 | src/ui/icons.tsx (room-input 소유 경로) | 헤드가 공용 그림 기호 파일을 추가(세 모듈이 동시에 필요) |

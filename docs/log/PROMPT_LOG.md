@@ -263,3 +263,7 @@ T-001에서 하위 에이전트의 보고서 파일 쓰기가 막혔으므로 �
 - 헤드: 계약 onFloorPointerMove(floor, mmPerPx?) 추가. T-021(scene-engine: mmPerPx 계산·전달)과 T-022(furniture-placement: SNAP_PX 12 × mmPerPx) 동시 위임, 이후 qa가 M-1~M-3 e2e 갱신.
 - T-021·T-022 결과 저장. 헤드: SPEC 자석 맞춤 문장과 M-1 ~ M-3를 화면 기준으로, e2e M-1 ~ M-3를 화면에서 잰 자석 거리(12 px × mm/px)로 다시 씀(qa 소유 파일, 기록). 확인: 장면 쪽 변경을 빼면 M-1이 데스크톱·모바일 모두 실패.
 - ed3bb5f를 깨끗한 worktree에서 두 번(test 352, e2e 98 passed + 12 skipped ×2) 확인 후 배포. 사례 보고서 사례 C에 사용자 답과 결과 반영.
+
+- 사용자 지시 (09:24, 다른 평면도 서비스 화면 캡처 첨부): "이런식으로 가구를 누르면 이런 옵션들이 있으면 좋겟고, 디자인도 너무 픽셀이라 저런식으로 조금 디자인화 되있으면좋겟어". 캡처는 제3자 화면이라 저장소에 넣지 않음.
+- 헤드: 현재 화면을 캡처해 보고(평평한 회색 바닥, 상자, 경고 시 전체 빨강) frontend-design 스킬 절차로 방향을 정함(docs/DESIGN-SYSTEM.md). app.css에 색·모양 기준값과 공용 부품(.btn, .icon-btn, .chip, .card, .num), src/ui/icons.tsx(직접 그린 선 그림 8개, room-input 소유 경로에 헤드가 추가: 세 모듈이 동시에 써야 해서), 헤더 아이콘 버튼. 계약: SceneView에 selectionOverlay·wallDistances, furniture에 ItemToolbar·useSelectedWallDistances, 새 data-testid.
+- 동시 위임: T-023 scene-engine(도면 모양: 바닥 무늬, 먹색 벽, 방 치수선, 선택 가구 벽 거리선, 선택·경고 표시, 3D 조명, 도구 막대 자리), T-024 furniture-placement(ItemToolbar, 벽 거리 훅, 패널 다듬기), T-025 room-input(입력 칸·단위 전환·사진 탭 다듬기).

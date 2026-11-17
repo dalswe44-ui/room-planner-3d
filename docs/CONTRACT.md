@@ -60,7 +60,7 @@
 
 | 파일 | 내보내는 것 |
 |---|---|
-| `src/scene/SceneView.tsx` | `SceneView(props: { handlers: PlacementHandlers; statuses: Record<string, ItemStatus> })`. `project`, `viewMode`, `selectedItemId`, `dragPreview`는 store에서 읽는다. 부모 요소를 가득 채운다. `window.__sceneProbe`를 제공한다 |
+| `src/scene/SceneView.tsx` | `SceneView(props: { handlers: PlacementHandlers; statuses: Record<string, ItemStatus>; selectionOverlay?: ReactNode; wallDistances?: readonly [Mm, Mm, Mm, Mm] \| null })`. `selectionOverlay`는 선택한 가구의 화면 위치 바로 위(자리가 없으면 아래)에 띄우는 DOM(가구 도구 막대). 끄는 중에는 숨긴다. `wallDistances`는 선택한 가구에서 벽 0 ~ 3까지의 거리로, 평면 뷰에서 치수선과 글자로 그린다(2026-11-17 추가). `project`, `viewMode`, `selectedItemId`, `dragPreview`는 store에서 읽는다. 부모 요소를 가득 채운다. `window.__sceneProbe`를 제공한다 |
 | `src/scene/ViewToggle.tsx` | `ViewToggle()`. store의 `viewMode`를 읽고 바꾼다 |
 
 끄는 중인 가구는 `dragPreview`의 위치에 그린다(`dragPreview.itemId`가 그 가구일 때).
@@ -72,6 +72,8 @@
 | `src/furniture/FurniturePanel.tsx` | `FurniturePanel()`. 가구 추가 폼, 목록, 선택한 가구의 수정·회전·삭제 |
 | `src/furniture/usePlacement.ts` | `usePlacement(): PlacementHandlers`. 포인터 이벤트를 받아 선택, 끌기, 확정을 처리한다 |
 | `src/furniture/useItemStatuses.ts` | `useItemStatuses(): Record<string, ItemStatus>`. `dragPreview`를 반영한 현재 배치의 상태 |
+| `src/furniture/ItemToolbar.tsx` | `ItemToolbar()`. 선택한 가구의 도구 막대(복제, 왼쪽·오른쪽 90도 돌리기, 삭제). 선택이 없으면 아무것도 그리지 않는다 (2026-11-17 추가) |
+| `src/furniture/useSelectedWallDistances.ts` | `useSelectedWallDistances(): readonly [Mm, Mm, Mm, Mm] \| null`. 선택한 가구(끄는 중이면 임시 위치)에서 벽 0 ~ 3까지의 거리 (2026-11-17 추가) |
 
 ## 6. 포인터 이벤트 (`PlacementHandlers`)
 
@@ -104,3 +106,13 @@ e2e 테스트가 화면 요소를 찾을 때 쓴다. 모듈은 아래 이름을 
 | `item-dist-0` ~ `item-dist-3` | 선택한 가구에서 벽 0 ~ 3까지의 거리(숫자만, 현재 표시 단위). 선택이 없으면 요소가 없다 | furniture-placement |
 | `item-rotate`, `item-delete` | 선택한 가구의 회전·삭제 버튼 | furniture-placement |
 | `item-status` | 선택한 가구의 경고 문구(겹침, 방 이탈). 경고가 없으면 요소가 없다 | furniture-placement |
+
+
+### 2026-11-17 추가 data-testid (가구 도구 막대, 도면 치수)
+| data-testid | 어디 | 뜻 |
+|---|---|---|
+| `item-toolbar` | 장면 위 | 선택한 가구의 도구 막대. 선택이 없거나 끄는 중이면 없다 |
+| `tool-duplicate`, `tool-rotate-left`, `tool-rotate-right`, `tool-delete` | 도구 막대 | 복제(복제본이 선택됨), 반시계 90도, 시계 90도, 삭제 |
+| `item-duplicate`, `item-rotate-left` | 패널의 선택한 가구 칸 | 위와 같은 동작. 기존 `item-rotate`(시계 90도), `item-delete`는 그대로 |
+| `room-dim-width`, `room-dim-depth` | 평면 뷰 | 방 폭·깊이 치수 글자(현재 단위의 숫자와 단위) |
+| `scene-dist-0` ~ `scene-dist-3` | 평면 뷰 | 선택한 가구에서 벽 0 ~ 3까지 거리 글자. 선택이 없으면 없다 |

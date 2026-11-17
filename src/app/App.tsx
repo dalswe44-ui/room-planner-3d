@@ -10,6 +10,7 @@ import { RoomPanel } from '../room/RoomPanel';
 import { SceneView } from '../scene/SceneView';
 import { ViewToggle } from '../scene/ViewToggle';
 import { useProjectStore } from '../store/projectStore';
+import { IconPlan, IconRedo, IconUndo } from '../ui/icons';
 import { UnitToggle } from '../ui/UnitToggle';
 import { useUndoShortcuts } from './useUndoShortcuts';
 
@@ -28,17 +29,18 @@ export function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>3D 가구배치</h1>
+        <h1>
+          <IconPlan size={24} />
+          3D 가구배치
+        </h1>
         <p className="app-sub">방 치수를 입력하고, 가구를 미리 놓아 보세요.</p>
         <div className="app-header-tools">
           <div className="app-history" role="group" aria-label="되돌리기">
-            <button type="button" className="app-history-btn" data-testid="undo" onClick={undo} disabled={!canUndo} title="되돌리기 (Ctrl+Z)" aria-label="되돌리기">
-              <span aria-hidden="true">↶</span>
-              <span className="app-history-text">되돌리기</span>
+            <button type="button" className="icon-btn" data-testid="undo" onClick={undo} disabled={!canUndo} title="되돌리기 (Ctrl+Z)" aria-label="되돌리기">
+              <IconUndo />
             </button>
-            <button type="button" className="app-history-btn" data-testid="redo" onClick={redo} disabled={!canRedo} title="다시 실행 (Ctrl+Shift+Z)" aria-label="다시 실행">
-              <span aria-hidden="true">↷</span>
-              <span className="app-history-text">다시 실행</span>
+            <button type="button" className="icon-btn" data-testid="redo" onClick={redo} disabled={!canRedo} title="다시 실행 (Ctrl+Shift+Z)" aria-label="다시 실행">
+              <IconRedo />
             </button>
           </div>
           <UnitToggle />
