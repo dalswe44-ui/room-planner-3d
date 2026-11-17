@@ -1,5 +1,5 @@
 // 앱의 조립 지점. 각 모듈이 내보낸 컴포넌트를 여기서 한 화면으로 묶는다. 이 파일은 헤드만 고친다.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DraftToolbar } from '../furniture/DraftToolbar';
 import { FurniturePanel } from '../furniture/FurniturePanel';
 import { ItemToolbar } from '../furniture/ItemToolbar';
@@ -13,6 +13,7 @@ import { RoomPanel } from '../room/RoomPanel';
 import { SceneView } from '../scene/SceneView';
 import { ViewToggle } from '../scene/ViewToggle';
 import { useProjectStore } from '../store/projectStore';
+import { StructurePanel, useStructureHandlers } from '../structure';
 import { IconPlan, IconRedo, IconUndo } from '../ui/icons';
 import { UnitToggle } from '../ui/UnitToggle';
 import { useUndoShortcuts } from './useUndoShortcuts';
@@ -30,7 +31,13 @@ export function App() {
   const statuses = useItemStatuses();
   const wallDistances = useSelectedWallDistances();
   const hasDraft = useProjectStore((s) => s.draft !== null);
-  const [tab, setTab] = useState<'main' | 'photo'>('main');
+  const structureHandlers = useStructureHandlers();
+  const setEditMode = useProjectStore((s) => s.setEditMode);
+  const [tab, setTab] = useState<'main' | 'structure' | 'photo'>('main');
+  // 벽·문 탭에 있을 때만 구조 편집 모드. 탭을 떠나면 가구 모드로 돌아간다.
+  useEffect(() => {
+    setEditMode(tab === 'structure' ? 'structure' : 'furniture');
+  }, [tab, setEditMode]);
   return (
     <div className="app">
       <header className="app-header">
@@ -69,6 +76,16 @@ export function App() {
             type="button"
             role="tab"
             className="app-tab"
+            data-testid="tab-structure"
+            aria-selected={tab === 'structure'}
+            onClick={() => setTab('structure')}
+          >
+            벽·문
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className="app-tab"
             data-testid="tab-photo"
             aria-selected={tab === 'photo'}
             onClick={() => setTab('photo')}
@@ -85,6 +102,10 @@ export function App() {
               <FurniturePanel />
             </section>
           </>
+        ) : tab === 'structure' ? (
+          <section className="app-section" aria-label="벽·문">
+            <StructurePanel />
+          </section>
         ) : (
           <section className="app-section" aria-label="사진·배치도">
             <PhotoPanel />
@@ -93,7 +114,7 @@ export function App() {
       </aside>
       <main className="app-scene" data-testid="scene">
         <ViewToggle />
-        <SceneView handlers={handlers} statuses={statuses} selectionOverlay={hasDraft ? <DraftToolbar /> : <ItemToolbar />} wallDistances={wallDistances} />
+        <SceneView handlers={handlers} statuses={statuses} selectionOverlay={hasDraft ? <DraftToolbar /> : <ItemToolbar />} wallDistances={wallDistances} structureHandlers={structureHandlers} />
       </main>
     </div>
   );
