@@ -85,7 +85,7 @@ describe('draft 키보드', () => {
     expect(store().project.items).toHaveLength(1);
   });
 
-  it('입력 칸이나 버튼에 포커스가 있으면 Enter·Escape·방향키를 무시한다', () => {
+  it('입력 칸에 포커스가 있으면 Enter·Escape·방향키를, 다른 버튼이면 Enter를 무시한다', () => {
     store().startDraft({ name: 'A', w: 1000, d: 600, h: 700, x: 1800, z: 1500 });
     const input = document.createElement('input');
     const button = document.createElement('button');
@@ -95,6 +95,22 @@ describe('draft 키보드', () => {
     expect(key('Enter', button)).toBe(false);
     expect(store().draft).toMatchObject({ x: 1800, z: 1500 });
     expect(store().project.items).toHaveLength(0);
+  });
+
+  it('가구 칩을 누른 직후(칩에 포커스): Escape는 취소, Enter는 확정 (결함 1)', () => {
+    const chip = document.createElement('button');
+    chip.dataset.testid = 'preset-bed';
+    const other = document.createElement('button');
+    store().startDraft({ name: 'A', w: 1000, d: 600, h: 700 });
+    expect(key('Escape', other)).toBe(true);
+    expect(store().draft).toBeNull();
+    store().startDraft({ name: 'B', w: 1000, d: 600, h: 700 });
+    expect(key('Escape', chip)).toBe(true);
+    expect(store().draft).toBeNull();
+    store().startDraft({ name: 'C', w: 1000, d: 600, h: 700 });
+    expect(key('Enter', chip)).toBe(true);
+    expect(store().project.items).toHaveLength(1);
+    expect(store().draft).toBeNull();
   });
 
   it('draft가 없으면 Enter·Escape는 아무 일도 하지 않는다', () => {

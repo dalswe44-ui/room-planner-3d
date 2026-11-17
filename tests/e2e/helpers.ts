@@ -162,3 +162,17 @@ export async function detachedTargetRightOf(page: Page, otherId: string, w: numb
   expect(Math.min(other.center.z - d / 2, room.depth - (other.center.z + d / 2)), '위·아래 벽과의 간격').toBeGreaterThanOrEqual(snap * 2);
   return { x: left + w / 2, z: other.center.z };
 }
+
+/** 기본 가구 칩을 누르고 장면 위 ✓(draft-confirm)로 확정한다. 확정된 가구의 id를 돌려준다(확정하면 선택된다). */
+export async function addPreset(page: Page, kind: string): Promise<string> {
+  const before = await page.getByTestId('item-row').count();
+  await page.getByTestId(`preset-${kind}`).click();
+  await expect.poll(async () => (await snapshot(page)).draft?.kind).toBe(kind);
+  await page.getByTestId('draft-confirm').click();
+  await expect(page.getByTestId('item-row')).toHaveCount(before + 1);
+  await expect.poll(async () => (await snapshot(page)).draft).toBeNull();
+  const snap = await snapshot(page);
+  const sel = snap.items.find((it) => it.selected);
+  if (!sel) throw new Error('확정한 가구가 선택돼 있지 않다');
+  return sel.id;
+}

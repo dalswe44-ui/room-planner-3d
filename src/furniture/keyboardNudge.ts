@@ -40,9 +40,17 @@ function isTextEntry(el: EventTarget | null): boolean {
 /** 미리보기가 있을 때 Enter는 확정, Escape는 취소. 입력 칸과 버튼에 포커스가 있으면 무시한다(버튼의 Enter는 그 버튼의 일). */
 function handleDraftKey(e: KeyboardEvent): boolean {
   if (e.key !== 'Enter' && e.key !== 'Escape') return false;
-  if (isTextEntry(e.target) || e.target instanceof HTMLButtonElement) return false;
+  if (isTextEntry(e.target)) return false;
   const s = useProjectStore.getState();
   if (!s.draft || s.dragPreview) return false;
+  // 버튼에 포커스가 있을 때 Enter는 그 버튼의 클릭으로 둔다. 방금 누른 가구 칩만 예외로 확정한다.
+  if (
+    e.key === 'Enter' &&
+    e.target instanceof HTMLButtonElement &&
+    !e.target.dataset.testid?.startsWith('preset-')
+  ) {
+    return false;
+  }
   if (e.key === 'Enter') s.commitDraft();
   else s.cancelDraft();
   e.preventDefault();

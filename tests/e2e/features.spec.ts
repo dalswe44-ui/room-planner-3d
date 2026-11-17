@@ -6,6 +6,7 @@ import {
   addA,
   addB,
   addItem,
+  addPreset,
   detachedTargetRightOf,
   dragItemTo,
   enter,
@@ -106,8 +107,8 @@ for (const vp of VIEWPORTS) {
     });
 
     // ---------- 기본 가구 ----------
-    test('B-1 책상 버튼은 바로 추가하고 선택한다', async ({ page }) => {
-      await page.getByTestId('preset-desk').click();
+    test('B-1 책상 칩 → 확정하면 추가되고 선택된다', async ({ page }) => {
+      await addPreset(page, 'desk');
       await expect(page.getByTestId('item-row')).toHaveCount(1);
       const snap = await snapshot(page);
       expect(snap.items).toHaveLength(1);
@@ -122,7 +123,7 @@ for (const vp of VIEWPORTS) {
       await expect.poll(async () => (await snapshot(page)).room.width).toBe(6000);
       const kinds = ['bed', 'desk', 'chair', 'wardrobe', 'shelf', 'sofa', 'table'];
       for (const [i, k] of kinds.entries()) {
-        await page.getByTestId(`preset-${k}`).click();
+        await addPreset(page, k);
         await expect.poll(() => itemCount(page)).toBe(i + 1);
       }
       const snap = await snapshot(page);
@@ -494,7 +495,7 @@ test.describe('[touch] 터치 끌기', () => {
 test.describe('[desktop] 불러온 가구 이름표', () => {
   test('S-1/T-018 새로 고침으로 불러온 가구에도 이름표가 보인다', async ({ page }) => {
     await openApp(page);
-    await page.getByTestId('preset-desk').click();
+    await addPreset(page, 'desk');
     await expect(page.locator('.furniture-label')).toHaveCount(1);
     await page.waitForTimeout(1000); // 자동 저장 지연(300 ms)보다 길게
     await page.reload();
