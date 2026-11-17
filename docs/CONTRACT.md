@@ -135,3 +135,10 @@ e2e 테스트가 화면 요소를 찾을 때 쓴다. 모듈은 아래 이름을 
 - SceneView props 추가: `structureHandlers?: StructureHandlers`.
 - probe: `snapshot().walls`, `.openings`, `.labels`, `.editMode`.
 - 모듈: src/structure/ (room-input 소유) — `StructurePanel()`, `useStructureHandlers(): StructureHandlers`. App 왼쪽 탭 "벽·문"을 고르면 `editMode = 'structure'`.
+
+#### T-035 이후 확정된 동작 (장면)
+- `probe.snapshot().labels`는 평면 뷰에서만 채워진다. 3D 뷰는 이름표를 그리지 않으므로 빈 배열이다.
+- 고른 칸막이 벽의 길이 치수 `wall-dim`은 평면과 3D 모두에 나온다. 그리는 중인 벽 길이는 `wall-preview-dim`.
+- 이름표 DOM은 `data-testid="area-label"`, `data-label-id`, `data-at-x`, `data-at-z`. 구조 모드 표시는 `structure-mode-badge`.
+- 경고 규칙: `overlap || outside || wall || door` (scene/geometry.ts `isWarningStatus`). 확정 가구와 draft가 같은 규칙.
+- 탭: `tab-main`, `tab-structure`("벽·문"), `tab-photo`. 벽·문 탭에 있을 때만 editMode가 'structure'.
