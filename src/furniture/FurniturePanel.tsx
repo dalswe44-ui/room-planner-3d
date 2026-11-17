@@ -3,12 +3,13 @@ import { useEffect, useRef, useState, type FormEvent, type MutableRefObject } fr
 import { roomBounds } from '../contracts/room';
 import { FURNITURE_PRESETS, guessKindFromName, KIND_LABEL, type FurniturePreset } from '../contracts/furniturePresets';
 import { DEFAULT_ITEM_NAME, ITEM_SIZE_MAX, ITEM_SIZE_MIN } from '../contracts/limits';
-import type { DisplayUnit, FurnitureItem, FurnitureKind, ItemStatus, Mm } from '../contracts/types';
+import type { DisplayUnit, FurnitureItem, FurnitureKind, ItemStatus, Mm, PointMm } from '../contracts/types';
 import { formatLength, UNIT_LABEL } from '../contracts/units';
 import { useProjectStore } from '../store/projectStore';
 import { LengthInput } from '../ui/LengthInput';
 import { IconDuplicate, IconPlus, IconRotateLeft, IconRotateRight, IconTrash } from '../ui/icons';
 import { duplicateItem } from './duplicateItem';
+import { IconCheck, IconClose } from './DraftIcons';
 import { findFreeSpot, footprint, nextRotation, ROTATE_STEP_DEG } from './placement';
 import { useItemStatuses } from './useItemStatuses';
 import { useSelectedWallDistances } from './useSelectedWallDistances';
@@ -30,12 +31,13 @@ const INITIAL_SIZE: Size = { w: 600, d: 600, h: 600 };
 const WALL_LABELS = ['위쪽 벽 (벽 0)', '오른쪽 벽 (벽 1)', '아래쪽 벽 (벽 2)', '왼쪽 벽 (벽 3)'] as const;
 
 /** 새 가구를 놓을 빈 자리. 방과 다른 가구는 누른 순간의 store에서 읽는다. */
-function freeSpotFor(size: Pick<FurnitureItem, 'w' | 'd'>) {
+function freeSpotFor(size: Pick<FurnitureItem, 'w' | 'd'>, from?: PointMm) {
   const { project } = useProjectStore.getState();
   return findFreeSpot(
     size,
     roomBounds(project.room),
     project.items.map((it) => footprint(it)),
+    from,
   );
 }
 
@@ -52,6 +54,7 @@ export function FurniturePanel() {
   const unit = useProjectStore((s) => s.project.displayUnit);
   const items = useProjectStore((s) => s.project.items);
   const selectedItemId = useProjectStore((s) => s.selectedItemId);
+  const draft = useProjectStore((s) => s.draft);
   const statuses = useItemStatuses();
   const selected = items.find((it) => it.id === selectedItemId) ?? null;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -71,6 +74,7 @@ export function FurniturePanel() {
   return (
     <div className="furniture-panel" ref={rootRef}>
       <AddForm unit={unit} addedIdRef={addedIdRef} />
+      {draft && <DraftCard key={draft.id} draft={draft} unit={unit} addedIdRef={addedIdRef} />}
       <ItemList items={items} selectedItemId={selectedItemId} statuses={statuses} unit={unit} />
       {selected && <ItemEditor key={selected.id} item={selected} unit={unit} status={statuses[selected.id]} />}
     </div>
@@ -79,6 +83,8 @@ export function FurniturePanel() {
 
 function AddForm({ unit, addedIdRef }: { unit: DisplayUnit; addedIdRef: MutableRefObject<string | null> }) {
   const addItem = useProjectStore((s) => s.addItem);
+  const startDraft = useProjectStore((s) => s.startDraft);
+  const draftKind = useProjectStore((s) => s.draft?.kind ?? null);
   const [name, setName] = useState('');
   const [size, setSize] = useState<Size>(INITIAL_SIZE);
   const [invalid, setInvalid] = useState<Record<SizeKey, boolean>>({ w: false, d: false, h: false });
@@ -95,9 +101,11 @@ function AddForm({ unit, addedIdRef }: { unit: DisplayUnit; addedIdRef: MutableR
     setInvalid(latest.current.invalid);
   };
 
-  // 기본 가구는 바로 빈 자리에 추가하고 선택한다. 치수는 추가한 뒤 편집 칸에서 고친다. 직접 입력 폼과는 따로 동작한다.
+  // 기본 가구는 바로 추가하지 않고 빈 자리에 미리보기로 놓는다(✓로 확정). 다른 기본 가구를 누르면 미리보기가 바뀌고, 이미 미리보기가 있으면 그 자리 근처에서 빈 자리를 찾는다.
+  // 직접 입력 폼과는 따로 동작한다(폼은 값을 다 적고 "추가"를 누르는 것이므로 바로 추가).
   const addPreset = (p: FurniturePreset) => {
-    addedIdRef.current = addItem({ name: p.label, kind: p.kind, w: p.w, d: p.d, h: p.h, ...freeSpotFor(p) });
+    const prev = useProjectStore.getState().draft;
+    startDraft({ name: p.label, kind: p.kind, w: p.w, d: p.d, h: p.h, ...freeSpotFor(p, prev ? { x: prev.x, z: prev.z } : undefined) });
   };
 
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -131,6 +139,7 @@ function AddForm({ unit, addedIdRef }: { unit: DisplayUnit; addedIdRef: MutableR
             type="button"
             className="chip furniture-presets__button"
             data-testid={`preset-${p.kind}`}
+            aria-pressed={draftKind === p.kind}
             onClick={() => addPreset(p)}
           >
             {p.label}
@@ -179,6 +188,83 @@ function AddForm({ unit, addedIdRef }: { unit: DisplayUnit; addedIdRef: MutableR
         </button>
       </form>
     </div>
+  );
+}
+
+function DraftCard({ draft, unit, addedIdRef }: { draft: FurnitureItem; unit: DisplayUnit; addedIdRef: MutableRefObject<string | null> }) {
+  const updateDraft = useProjectStore((s) => s.updateDraft);
+  const commitDraft = useProjectStore((s) => s.commitDraft);
+  const cancelDraft = useProjectStore((s) => s.cancelDraft);
+  const status = useItemStatuses()[draft.id];
+  const [nameText, setNameText] = useState(draft.name);
+
+  const commitName = () => {
+    const next = nameOrDefault(nameText);
+    setNameText(next);
+    if (next !== draft.name) updateDraft({ name: next });
+  };
+  const confirm = () => {
+    commitName();
+    addedIdRef.current = commitDraft();
+  };
+
+  return (
+    <section className="draft-card card" aria-label="미리보기 가구" data-testid="draft-card">
+      <header className="draft-card__head">
+        <span className="furniture-editor__swatch" style={{ background: draft.color }} aria-hidden="true" />
+        <div className="furniture-editor__headtext">
+          <p className="draft-card__hint">위치를 정한 뒤 추가를 누르세요</p>
+          <p className="furniture-editor__size num">{sizeSummary(draft, unit)}</p>
+        </div>
+      </header>
+      {status && (status.overlap || status.outside) && (
+        <p className="furniture-editor__status" role="status" data-testid="draft-status">
+          {status.overlap && <span>겹침: 다른 가구와 겹칩니다.</span>}
+          {status.outside && <span>방 밖: 방 경계를 벗어났습니다.</span>}
+        </p>
+      )}
+      <div className="furniture-field">
+        <label className="furniture-field__label" htmlFor="draft-name">
+          이름
+        </label>
+        <input
+          id="draft-name"
+          className="furniture-field__input"
+          type="text"
+          autoComplete="off"
+          enterKeyHint="done"
+          value={nameText}
+          data-testid="draft-name"
+          onChange={(e) => setNameText(e.target.value)}
+          onBlur={commitName}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commitName();
+          }}
+        />
+      </div>
+      {SIZE_FIELDS.map(({ key, label }) => (
+        <LengthInput
+          key={key}
+          label={label}
+          valueMm={draft[key]}
+          unit={unit}
+          min={ITEM_SIZE_MIN}
+          max={ITEM_SIZE_MAX}
+          testId={`draft-${key}`}
+          onCommit={(mm) => updateDraft({ [key]: mm })}
+        />
+      ))}
+      <div className="draft-card__actions">
+        <button type="button" className="btn btn--primary" data-testid="draft-card-confirm" onClick={confirm}>
+          <IconCheck size={18} />
+          추가
+        </button>
+        <button type="button" className="btn" data-testid="draft-card-cancel" onClick={cancelDraft}>
+          <IconClose size={18} />
+          취소
+        </button>
+      </div>
+    </section>
   );
 }
 

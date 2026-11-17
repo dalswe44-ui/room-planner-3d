@@ -124,3 +124,4 @@ e2e 테스트가 화면 요소를 찾을 때 쓴다. 모듈은 아래 이름을 
 - 장면: draft를 반투명으로 그리고, 누르고 끌 수 있다(`onItemPointerDown(draft.id, …)`, 끄는 중 위치는 `dragPreview.itemId === draft.id`). 도구 막대 자리(`selectionOverlay`)는 draft가 있으면 draft 위에 띄운다. probe: `snapshot().draft`(items와 같은 모양, 없으면 null).
 - 가구 쪽: `usePlacement`가 draft 끌기를 처리(놓으면 `updateDraft({x, z})`, 자석·격자 규칙은 가구와 같다), `useItemStatuses`는 draft의 겹침·방 밖도 계산(키 draft.id), `useKeyboardNudge`는 draft도 움직인다. `DraftToolbar()`: ✓ 추가(`draft-confirm`), 왼쪽·오른쪽 90도(`draft-rotate-left`, `draft-rotate-right`), ✗ 취소(`draft-cancel`). 패널에는 미리보기 카드(`draft-card`, 이름과 치수 편집 가능, 같은 ✓ ✗ 버튼).
 - App: `selectionOverlay={draft ? <DraftToolbar /> : <ItemToolbar />}`.
+- 추가 data-testid (T-030): `draft-toolbar`, `draft-confirm`, `draft-cancel`, `draft-rotate-left`, `draft-rotate-right`, `draft-card`, `draft-card-confirm`, `draft-card-cancel`, `draft-name`, `draft-w`, `draft-d`, `draft-h`, `draft-status`. 내보내기: `src/furniture/DraftToolbar.tsx`의 `DraftToolbar()`.

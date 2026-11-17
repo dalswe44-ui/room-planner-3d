@@ -78,6 +78,20 @@ export function computeItemStatuses(
   return result;
 }
 
+/** 미리보기 가구 하나의 상태. 확정된 가구와 겹쳤는지, 방 밖인지(끄는 중이면 임시 위치). 확정 가구의 상태에는 영향을 주지 않는다. */
+export function computeDraftStatus(
+  draft: FurnitureItem,
+  items: FurnitureItem[],
+  room: RoomBounds,
+  preview: DragPreview | null,
+): ItemStatus {
+  const fp = currentFootprint(draft, preview);
+  return {
+    overlap: items.some((it) => footprintsOverlap(fp, footprint(it))),
+    outside: isOutsideRoom(fp, room),
+  };
+}
+
 /**
  * 손을 뗄 때 확정할 중심. 바닥 사각형의 왼쪽 변(x가 작은 쪽)과 위쪽 변(z가 작은 쪽)을 가장 가까운 10 mm 배수에 맞추고,
  * 중심을 정수 mm로 반올림한다. 절반이 정수가 아닌 치수(홀수 mm)는 변이 0.5 mm 어긋난다(docs/DECISIONS.md 알려진 한계).

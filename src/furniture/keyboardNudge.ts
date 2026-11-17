@@ -1,4 +1,4 @@
-// 선택한 가구를 방향키로 옮긴다. 자석 맞춤과 격자는 적용하지 않는다(원하는 만큼 정확히 움직이는 것이 목적).
+// 선택한 가구(미리보기가 있으면 미리보기)를 방향키로 옮기고, 미리보기는 Enter로 확정, Escape로 취소한다. 자석 맞춤과 격자는 적용하지 않는다(원하는 만큼 정확히 움직이는 것이 목적).
 import { useEffect } from 'react';
 import type { Mm } from '../contracts/types';
 import { useProjectStore } from '../store/projectStore';
@@ -37,14 +37,32 @@ function isTextEntry(el: EventTarget | null): boolean {
   );
 }
 
+/** 미리보기가 있을 때 Enter는 확정, Escape는 취소. 입력 칸과 버튼에 포커스가 있으면 무시한다(버튼의 Enter는 그 버튼의 일). */
+function handleDraftKey(e: KeyboardEvent): boolean {
+  if (e.key !== 'Enter' && e.key !== 'Escape') return false;
+  if (isTextEntry(e.target) || e.target instanceof HTMLButtonElement) return false;
+  const s = useProjectStore.getState();
+  if (!s.draft || s.dragPreview) return false;
+  if (e.key === 'Enter') s.commitDraft();
+  else s.cancelDraft();
+  e.preventDefault();
+  return true;
+}
+
 /** keydown을 처리한다. 이동했으면 true. */
 export function handleNudgeKey(e: KeyboardEvent): boolean {
   if (e.ctrlKey || e.metaKey || e.altKey) return false;
+  if (handleDraftKey(e)) return true;
   const delta = nudgeDelta(e.key, e.shiftKey);
   if (!delta) return false;
   if (isTextEntry(e.target)) return false;
   const s = useProjectStore.getState();
   if (s.dragPreview) return false;
+  if (s.draft) {
+    s.updateDraft({ x: s.draft.x + delta.dx, z: s.draft.z + delta.dz });
+    e.preventDefault();
+    return true;
+  }
   const item = s.project.items.find((it) => it.id === s.selectedItemId);
   if (!item) return false;
   s.updateItem(item.id, { x: item.x + delta.dx, z: item.z + delta.dz });

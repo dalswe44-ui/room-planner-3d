@@ -324,3 +324,45 @@
     transition: background-color 120ms;
   }
 }
+
+/* 미리보기 막대의 ✓: 노랑 원 위에 먹색 체크. 막대에서 가장 눈에 띄는 버튼 */
+.item-toolbar__btn--confirm {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.item-toolbar__btn--confirm:hover {
+  background: color-mix(in srgb, var(--accent) 85%, white);
+}
+
+/* 패널의 미리보기 카드 */
+.draft-card {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 2px dashed var(--accent);
+}
+
+.draft-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.draft-card__hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}
+
+.draft-card__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.draft-card__actions .btn {
+  flex: 1;
+  min-height: 44px;
+  gap: 6px;
+}

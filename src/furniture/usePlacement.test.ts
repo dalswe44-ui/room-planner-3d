@@ -19,6 +19,7 @@ beforeEach(() => {
     selectedItemId: null,
     viewMode: '2d',
     dragPreview: null,
+    draft: null,
   });
 });
 
@@ -214,5 +215,49 @@ describe('화면 기준 자석 거리(T-022)', () => {
     expect(store().dragPreview).toEqual({ itemId: a, x: 531, z: 1500 });
     h.onPointerUp();
     expect(itemOf(a)).toMatchObject({ x: 530 }); // 안 붙음: 격자 530
+  });
+});
+
+describe('미리보기(draft) 끌기', () => {
+  it('draft를 누르면 draft가 유지되고, 끄는 동안 임시 위치, 놓으면 updateDraft(격자), 가구는 그대로', () => {
+    const h = createPlacementHandlers(store);
+    const a = addA();
+    store().selectItem(null);
+    const id = store().startDraft({ name: 'D', w: 1000, d: 600, h: 700, x: 4000, z: 2500 });
+    h.onItemPointerDown(id, { x: 4000, z: 2500 });
+    expect(store().draft?.id).toBe(id);
+    h.onFloorPointerMove({ x: 4000, z: 2500 });
+    h.onFloorPointerMove({ x: 4256, z: 2494 });
+    expect(store().dragPreview).toEqual({ itemId: id, x: 4256, z: 2494 });
+    expect(store().draft).toMatchObject({ x: 4000, z: 2500 });
+    h.onPointerUp();
+    expect(store().draft).toMatchObject({ x: 4260, z: 2490 });
+    expect(store().dragPreview).toBeNull();
+    expect(itemOf(a)).toMatchObject({ x: 1800, z: 1500 });
+    expect(store().project.items).toHaveLength(1);
+  });
+
+  it('draft는 다른 가구에 자석처럼 붙는다', () => {
+    const h = createPlacementHandlers(store);
+    addA(); // x 1800, 폭 1000: 오른쪽 변 2300
+    store().selectItem(null);
+    const id = store().startDraft({ name: 'D', w: 400, d: 400, h: 700, x: 3000, z: 1500 });
+    h.onItemPointerDown(id, { x: 3000, z: 1500 });
+    h.onFloorPointerMove({ x: 2500 - SNAP_MM + 5, z: 1500 });
+    expect(store().dragPreview!.x - 200).toBe(2300);
+    h.onPointerUp();
+    expect(store().draft!.x - 200).toBe(2300);
+  });
+
+  it('확정된 가구를 누르면 draft는 버려지고, 빈 곳 탭은 draft를 버리지 않는다', () => {
+    const h = createPlacementHandlers(store);
+    const a = addA();
+    store().selectItem(null);
+    store().startDraft({ name: 'D', w: 400, d: 400, h: 700 });
+    h.onBackgroundTap();
+    expect(store().draft).not.toBeNull();
+    h.onItemPointerDown(a, { x: 1800, z: 1500 });
+    expect(store().draft).toBeNull();
+    expect(store().selectedItemId).toBe(a);
   });
 });

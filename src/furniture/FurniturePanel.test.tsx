@@ -41,6 +41,9 @@ beforeEach(() => {
     selectedItemId: null,
     viewMode: '2d',
     dragPreview: null,
+    draft: null,
+    past: [],
+    future: [],
   });
   render(
     <>
@@ -287,9 +290,17 @@ describe('useItemStatuses', () => {
 
 describe('기본 가구 (T-011)', () => {
   const click = (id: string) => userEvent.setup().click(byId(id));
+  /** T-030: 기본 가구 버튼은 미리보기만 만든다. 패널의 ✓로 확정한다. */
+  const addPreset = async (kind: string) => {
+    await click(`preset-${kind}`);
+    await click('draft-card-confirm');
+  };
 
-  it('책상 버튼: 바로 추가되고 선택되며 kind desk, 폼은 그대로', async () => {
+  it('책상 버튼: 미리보기만 만들고 ✓로 추가되며 선택되고 kind desk, 폼은 그대로', async () => {
     await click('preset-desk');
+    expect(items()).toHaveLength(0);
+    expect(store().draft).toMatchObject({ name: '책상', w: 1200, d: 600, h: 720, kind: 'desk' });
+    await click('draft-card-confirm');
     expect(items()).toHaveLength(1);
     expect(items()[0]).toMatchObject({ name: '책상', w: 1200, d: 600, h: 720, kind: 'desk' });
     expect(store().selectedItemId).toBe(items()[0].id);
@@ -298,7 +309,7 @@ describe('기본 가구 (T-011)', () => {
   });
 
   it('추가한 뒤 편집 칸에서 치수를 고친다', async () => {
-    await click('preset-chair');
+    await addPreset('chair');
     await enter('item-w', '500');
     expect(items()[0]).toMatchObject({ w: 500, d: 500, h: 850, kind: 'chair' });
   });
@@ -312,7 +323,7 @@ describe('기본 가구 (T-011)', () => {
 
   it('기본 가구 버튼과 직접 입력 폼은 따로: 버튼은 폼 값을 쓰지 않고 폼은 버튼 종류를 잇지 않는다', async () => {
     await fill('furniture-w', '700');
-    await click('preset-bed');
+    await addPreset('bed');
     expect(items()[0]).toMatchObject({ w: 1100, d: 2000 });
     await fill('furniture-name', '물건');
     await click('furniture-add');
@@ -322,7 +333,7 @@ describe('기본 가구 (T-011)', () => {
 
   it('기본 가구 7개를 차례로 누르면 서로 겹치지 않게 놓인다(방 6000 x 5000)', async () => {
     act(() => store().setRoomSize({ width: 6000, depth: 5000, ceilingHeight: 2400 }));
-    for (const id of ['bed', 'desk', 'chair', 'wardrobe', 'shelf', 'sofa', 'table']) await click(`preset-${id}`);
+    for (const id of ['bed', 'desk', 'chair', 'wardrobe', 'shelf', 'sofa', 'table']) await addPreset(id);
     expect(items()).toHaveLength(7);
     const { result } = renderHook(() => useItemStatuses());
     for (const it of items()) expect(result.current[it.id]).toEqual({ overlap: false, outside: false });
@@ -330,8 +341,8 @@ describe('기본 가구 (T-011)', () => {
   });
 
   it('새 가구는 빈 자리에 놓인다: 같은 것을 두 번 누르면 겹치지 않는다', async () => {
-    await click('preset-bed');
-    await click('preset-bed');
+    await addPreset('bed');
+    await addPreset('bed');
     const { result } = renderHook(() => useItemStatuses());
     expect(items()[0]).toMatchObject({ x: 1800, z: 1500 });
     expect(items()[1]).not.toMatchObject({ x: 1800, z: 1500 });
@@ -339,16 +350,18 @@ describe('기본 가구 (T-011)', () => {
   });
 
   it('이름이 종류 이름과 같으면 목록에 종류를 다시 보이지 않는다', async () => {
-    await click('preset-bed');
+    await addPreset('bed');
     expect(rows()[0].textContent).toContain('침대');
     expect(rows()[0].querySelector('.furniture-list__kind')).toBeNull();
     await userEvent.setup().selectOptions(byId('item-kind'), 'shelf');
     expect(rows()[0].querySelector('.furniture-list__kind')?.textContent).toContain('책장');
   });
 
-  it('직접 입력 칸에 오류가 남아도 기본 가구 버튼은 추가한다', async () => {
+  it('직접 입력 칸에 오류가 남아도 기본 가구 버튼은 미리보기를 만든다', async () => {
     await fill('furniture-w', 'abc');
     await click('preset-sofa');
+    expect(store().draft?.kind).toBe('sofa');
+    await click('draft-card-confirm');
     expect(items()).toHaveLength(1);
   });
 
@@ -362,13 +375,17 @@ describe('기본 가구 (T-011)', () => {
 
 describe('선택 시 편집 칸 스크롤', () => {
   const click = (id: string) => userEvent.setup().click(byId(id));
+  const addPreset = async (kind: string) => {
+    await click(`preset-${kind}`);
+    await click('draft-card-confirm');
+  };
 
   it('목록 클릭·장면 선택은 스크롤하고, 추가 버튼과 입력은 스크롤하지 않는다', async () => {
     const calls: unknown[] = [];
     Element.prototype.scrollIntoView = function (arg?: unknown) {
       calls.push(arg);
     };
-    await click('preset-bed');
+    await addPreset('bed');
     await add('물건', '800', '500', '700');
     expect(calls).toHaveLength(0);
     await enter('item-w', '900');
@@ -379,5 +396,76 @@ describe('선택 시 편집 칸 스크롤', () => {
     expect(calls).toHaveLength(2);
     act(() => store().selectItem(null));
     expect(calls).toHaveLength(2);
+  });
+});
+
+describe('미리보기 가구 (T-030)', () => {
+  const click = (id: string) => userEvent.setup().click(byId(id));
+  const pressed = (kind: string) => byId(`preset-${kind}`).getAttribute('aria-pressed');
+
+  it('칩: draft만 생기고 items는 0개, 카드와 aria-pressed가 보인다', async () => {
+    expect(screen.queryByTestId('draft-card')).toBeNull();
+    await click('preset-sofa');
+    expect(items()).toHaveLength(0);
+    expect(store().draft).toMatchObject({ kind: 'sofa' });
+    expect(byId('draft-card')).toBeTruthy();
+    expect(pressed('sofa')).toBe('true');
+    expect(pressed('bed')).toBe('false');
+  });
+
+  it('다른 칩: 미리보기가 바뀌고 자리는 근처에 유지된다', async () => {
+    await click('preset-sofa');
+    const first = store().draft!;
+    act(() => store().updateDraft({ x: 900, z: 800 }));
+    await click('preset-bed');
+    const d = store().draft!;
+    expect(d.id).not.toBe(first.id);
+    expect(d.kind).toBe('bed');
+    expect(items()).toHaveLength(0);
+    expect(Math.hypot(d.x - 900, d.z - 800)).toBeLessThan(600);
+    expect(pressed('bed')).toBe('true');
+    expect(pressed('sofa')).toBe('false');
+  });
+
+  it('카드 ✓: items 1개, 선택, 카드 사라짐, 되돌리기 1번으로 0개', async () => {
+    await click('preset-desk');
+    await click('draft-card-confirm');
+    expect(items()).toHaveLength(1);
+    expect(store().selectedItemId).toBe(items()[0].id);
+    expect(store().draft).toBeNull();
+    expect(screen.queryByTestId('draft-card')).toBeNull();
+    act(() => store().undo());
+    expect(items()).toHaveLength(0);
+  });
+
+  it('카드 ✗: items 0개, 되돌리기 기록 없음', async () => {
+    await click('preset-desk');
+    await click('draft-card-cancel');
+    expect(items()).toHaveLength(0);
+    expect(store().draft).toBeNull();
+    expect(store().past).toHaveLength(0);
+  });
+
+  it('카드에서 이름과 치수를 고치면 draft가 바뀌고 확정한 가구에 반영된다', async () => {
+    await click('preset-desk');
+    await fill('draft-name', '내 책상');
+    await enter('draft-w', '900');
+    expect(store().draft).toMatchObject({ name: '내 책상', w: 900, d: 600 });
+    await click('draft-card-confirm');
+    expect(items()[0]).toMatchObject({ name: '내 책상', w: 900 });
+  });
+
+  it('draft 상태: 키 draft.id, 겹치면 draft만 경고하고 확정 가구는 그대로', async () => {
+    const a = store().addItem({ name: 'A', w: 1000, d: 600, h: 700 });
+    await click('preset-desk');
+    const id = store().draft!.id;
+    act(() => store().updateDraft({ x: 1800, z: 1500 }));
+    const { result } = renderHook(() => useItemStatuses());
+    expect(result.current[id]).toEqual({ overlap: true, outside: false });
+    expect(result.current[a]).toEqual({ overlap: false, outside: false });
+    act(() => store().updateDraft({ x: 100, z: 1500 }));
+    expect(result.current[id]).toEqual({ overlap: false, outside: true });
+    act(() => store().setDragPreview({ itemId: id, x: 3000, z: 500 }));
+    expect(result.current[id]).toEqual({ overlap: false, outside: false });
   });
 });
