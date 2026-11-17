@@ -1,31 +1,42 @@
-/* 사진·배치도 패널. 색은 src/app/app.css의 변수만 쓴다. */
-.photo-panel { display: grid; gap: 16px; }
-.photo-section { display: grid; gap: 8px; }
-.photo-title { margin: 0; font-size: 16px; }
-.photo-hint { margin: 0; font-size: 13px; line-height: 1.4; color: var(--ink-soft); }
-.photo-steps { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.5; }
+/* 사진·배치도 패널. 색은 src/app/app.css의 변수만 쓴다. 버튼은 공용 .btn을 쓴다. */
+.photo-panel { display: grid; gap: 20px; }
+.photo-section { display: grid; gap: 10px; }
+.photo-section + .photo-section { padding-top: 16px; border-top: 1px solid var(--line); }
+.photo-title { margin: 0; font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em; }
+.photo-hint { margin: 0; font-size: var(--fs-sm); line-height: 1.45; color: var(--ink-soft); }
+.photo-steps { margin: 0; padding-left: 22px; font-size: 14px; line-height: 1.55; }
+.photo-steps li::marker { font-weight: 700; }
 .photo-label { margin: 4px 0 0; font-size: 14px; font-weight: 600; }
 .photo-file { font-size: 14px; min-height: 44px; max-width: 100%; }
 .photo-frame { display: grid; gap: 8px; }
-.photo-img { display: block; max-width: 100%; height: auto; border-radius: 8px; }
+.photo-img { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--r-md); }
 .photo-textarea {
-  width: 100%; box-sizing: border-box; font: 13px/1.4 monospace; padding: 8px;
-  border: 1px solid var(--ink-soft); border-radius: 8px; background: var(--panel); color: var(--ink);
+  width: 100%; box-sizing: border-box; font: 13px/1.4 ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; padding: 10px;
+  border: 1.5px solid var(--line); border-radius: var(--r-sm); background: var(--panel); color: var(--ink);
 }
-.photo-button {
-  min-height: 44px; padding: 0 16px; font-size: 15px; border-radius: 8px;
-  border: 1px solid var(--ink-soft); background: var(--panel); color: var(--ink); cursor: pointer;
-}
-.photo-button--primary { border-color: var(--ink); font-weight: 600; }
-.photo-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.photo-textarea:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
 .photo-error, .photo-warn, .photo-preview, .photo-confirm {
-  padding: 10px 12px; border: 1px solid var(--ink-soft); border-radius: 8px;
-  font-size: 14px; line-height: 1.45; background: var(--panel); color: var(--ink);
+  padding: 10px 12px; border-radius: var(--r-md);
+  font-size: 14px; line-height: 1.45; color: var(--ink);
 }
-.photo-error { border-color: var(--warn); border-left-width: 4px; }
-.photo-warn { border-color: var(--warn); }
-.photo-preview p, .photo-error p, .photo-confirm p { margin: 0 0 4px; }
-.photo-preview ul, .photo-error ul { margin: 0; padding-left: 20px; }
-.photo-preview__room { font-weight: 600; }
+.photo-error { border: 1.5px solid var(--warn); background: var(--warn-soft); }
+.photo-error > p:first-child { font-weight: 700; color: var(--warn); }
+.photo-warn { border: 1.5px dashed var(--warn); background: var(--panel); }
+.photo-preview { display: grid; gap: 8px; }
+.photo-confirm { display: grid; gap: 10px; border: 1.5px solid var(--ink); background: var(--panel); box-shadow: var(--shadow-card); }
+.photo-confirm p { font-weight: 700; }
+.photo-preview p, .photo-error p, .photo-confirm p, .photo-warn p { margin: 0; }
+.photo-preview ul, .photo-error ul, .photo-warn ul { margin: 0; padding-left: 20px; }
+.photo-items { display: grid; gap: 6px; }
+.photo-preview__room { font-weight: 700; font-size: var(--fs-base); font-variant-numeric: tabular-nums; }
+.photo-items, .photo-confirm { font-variant-numeric: tabular-nums; }
+.photo-notes { padding: 8px 10px; border-left: 3px solid var(--ink-soft); background: var(--paper); border-radius: 0 var(--r-sm) var(--r-sm) 0; color: var(--ink-soft); }
+.photo-notes .photo-label { color: var(--ink); margin: 0 0 2px; }
 .photo-confirm__actions { display: flex; gap: 8px; }
-.photo-ok { margin: 0; font-size: 14px; }
+.photo-confirm__actions .btn { flex: 1; }
+.photo-ok { margin: 0; font-size: 14px; color: var(--ink-soft); }
+.photo-file::file-selector-button {
+  min-height: 44px; margin-right: 10px; padding: 0 14px; font: inherit; font-weight: 500; color: var(--ink);
+  border: 1.5px solid var(--line); border-radius: var(--r-md); background: var(--panel); cursor: pointer;
+}
+.photo-file::file-selector-button:hover { border-color: var(--ink); }

@@ -94,7 +94,7 @@ export function PhotoPanel() {
         {photoUrl && (
           <div className="photo-frame">
             <img src={photoUrl} alt="첨부한 방 사진" className="photo-img" data-testid="photo-preview" />
-            <button type="button" className="photo-button" data-testid="photo-remove" onClick={() => usePhotoStore.getState().clear()}>
+            <button type="button" className="btn" data-testid="photo-remove" onClick={() => usePhotoStore.getState().clear()}>
               사진 지우기
             </button>
           </div>
@@ -108,7 +108,7 @@ export function PhotoPanel() {
           <li>사진과 이 문구를 AI에게 보낸다</li>
           <li>AI가 준 JSON을 아래에 붙여 넣는다</li>
         </ol>
-        <button type="button" className="photo-button" data-testid="layout-prompt-copy" onClick={copyPrompt}>
+        <button type="button" className="btn" data-testid="layout-prompt-copy" onClick={copyPrompt}>
           AI에게 줄 문구 복사
         </button>
         {copyState === 'copied' && <p className="photo-ok" role="status">복사했습니다.</p>}
@@ -169,7 +169,7 @@ export function PhotoPanel() {
         )}
 
         {result && result.ok && (
-          <div className="photo-preview" data-testid="layout-preview">
+          <div className="card photo-preview" data-testid="layout-preview">
             <p className="photo-preview__room">
               방 {fmt(roomBounds(result.project.room).width)} × {fmt(roomBounds(result.project.room).depth)} ×{' '}
               {fmt(result.project.room.ceilingHeight)} {u}
@@ -195,7 +195,7 @@ export function PhotoPanel() {
               </ul>
             )}
             {result.notes.length > 0 && (
-              <div data-testid="layout-notes">
+              <div className="photo-notes" data-testid="layout-notes">
                 <p className="photo-label">AI 메모</p>
                 <ul>
                   {result.notes.map((m, i) => (
@@ -220,7 +220,7 @@ export function PhotoPanel() {
         {applyState !== 'confirming' && (
           <button
             type="button"
-            className="photo-button photo-button--primary"
+            className="btn btn--primary"
             data-testid="layout-apply"
             disabled={!result || !result.ok}
             onClick={() => setApplyState('confirming')}
@@ -232,10 +232,10 @@ export function PhotoPanel() {
           <div ref={confirmRef} className="photo-confirm" role="alertdialog" aria-label="바꾸기 확인">
             <p>지금의 방과 가구가 모두 바뀝니다</p>
             <div className="photo-confirm__actions">
-              <button type="button" className="photo-button photo-button--primary" data-testid="layout-apply-confirm" onClick={apply}>
+              <button type="button" className="btn btn--primary" data-testid="layout-apply-confirm" onClick={apply}>
                 바꾸기
               </button>
-              <button type="button" className="photo-button" data-testid="layout-apply-cancel" onClick={() => setApplyState('idle')}>
+              <button type="button" className="btn btn--quiet" data-testid="layout-apply-cancel" onClick={() => setApplyState('idle')}>
                 취소
               </button>
             </div>

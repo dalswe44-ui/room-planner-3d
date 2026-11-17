@@ -30,8 +30,10 @@ export function App() {
     <div className="app">
       <header className="app-header">
         <h1>
-          <IconPlan size={24} />
-          3D 가구배치
+          <span className="app-title-mark">
+            <IconPlan size={24} />
+          </span>
+          <span className="app-title-text">3D 가구배치</span>
         </h1>
         <p className="app-sub">방 치수를 입력하고, 가구를 미리 놓아 보세요.</p>
         <div className="app-header-tools">

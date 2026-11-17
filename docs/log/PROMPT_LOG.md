@@ -267,3 +267,5 @@ T-001에서 하위 에이전트의 보고서 파일 쓰기가 막혔으므로 �
 - 사용자 지시 (09:24, 다른 평면도 서비스 화면 캡처 첨부): "이런식으로 가구를 누르면 이런 옵션들이 있으면 좋겟고, 디자인도 너무 픽셀이라 저런식으로 조금 디자인화 되있으면좋겟어". 캡처는 제3자 화면이라 저장소에 넣지 않음.
 - 헤드: 현재 화면을 캡처해 보고(평평한 회색 바닥, 상자, 경고 시 전체 빨강) frontend-design 스킬 절차로 방향을 정함(docs/DESIGN-SYSTEM.md). app.css에 색·모양 기준값과 공용 부품(.btn, .icon-btn, .chip, .card, .num), src/ui/icons.tsx(직접 그린 선 그림 8개, room-input 소유 경로에 헤드가 추가: 세 모듈이 동시에 써야 해서), 헤더 아이콘 버튼. 계약: SceneView에 selectionOverlay·wallDistances, furniture에 ItemToolbar·useSelectedWallDistances, 새 data-testid.
 - 동시 위임: T-023 scene-engine(도면 모양: 바닥 무늬, 먹색 벽, 방 치수선, 선택 가구 벽 거리선, 선택·경고 표시, 3D 조명, 도구 막대 자리), T-024 furniture-placement(ItemToolbar, 벽 거리 훅, 패널 다듬기), T-025 room-input(입력 칸·단위 전환·사진 탭 다듬기).
+- T-025 결과 저장(docs/reports/T-025.md). 에이전트가 알린 헤더 넘침(390·320px에서 단위 버튼 잘림)을 헤드가 app.css·App.tsx에서 수정: grid 열 minmax(0,1fr), 420px 이하 제목 기호 숨김과 단위 버튼 44px, 372px 이하 제목 글자를 화면에서만 숨김. 320/360/390/430/800/1280 폭에서 문서 폭 = 화면 폭, 단위 m 버튼이 화면 안에 있음을 측정.
+- 사용자 질문 (09:32): "우리가 지금 하는거 클로드코드에서 보려면 어떻게해?"
