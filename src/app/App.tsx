@@ -14,6 +14,7 @@ import { SceneView } from '../scene/SceneView';
 import { ViewToggle } from '../scene/ViewToggle';
 import { useProjectStore } from '../store/projectStore';
 import { StructurePanel, useStructureHandlers } from '../structure';
+import { SuggestPanel } from '../suggest';
 import { IconPlan, IconRedo, IconUndo } from '../ui/icons';
 import { UnitToggle } from '../ui/UnitToggle';
 import { useUndoShortcuts } from './useUndoShortcuts';
@@ -33,7 +34,7 @@ export function App() {
   const hasDraft = useProjectStore((s) => s.draft !== null);
   const structureHandlers = useStructureHandlers();
   const setEditMode = useProjectStore((s) => s.setEditMode);
-  const [tab, setTab] = useState<'main' | 'structure' | 'photo'>('main');
+  const [tab, setTab] = useState<'main' | 'structure' | 'photo' | 'suggest'>('main');
   // 벽·문 탭에 있을 때만 구조 편집 모드. 탭을 떠나면 가구 모드로 돌아간다.
   useEffect(() => {
     setEditMode(tab === 'structure' ? 'structure' : 'furniture');
@@ -92,6 +93,16 @@ export function App() {
           >
             사진·배치도
           </button>
+          <button
+            type="button"
+            role="tab"
+            className="app-tab"
+            data-testid="tab-suggest"
+            aria-selected={tab === 'suggest'}
+            onClick={() => setTab('suggest')}
+          >
+            AI 추천
+          </button>
         </div>
         {tab === 'main' ? (
           <>
@@ -105,6 +116,10 @@ export function App() {
         ) : tab === 'structure' ? (
           <section className="app-section" aria-label="벽·문">
             <StructurePanel />
+          </section>
+        ) : tab === 'suggest' ? (
+          <section className="app-section" aria-label="AI 추천">
+            <SuggestPanel />
           </section>
         ) : (
           <section className="app-section" aria-label="사진·배치도">

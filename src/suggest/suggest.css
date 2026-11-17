@@ -1,0 +1,22 @@
+/* AI 추천 패널. 색은 src/app/app.css의 변수만 쓴다. 버튼·칩·카드는 공용 클래스. */
+.suggest-panel { display: grid; gap: 20px; }
+.suggest-section { display: grid; gap: 10px; }
+.suggest-title { margin: 0; font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em; }
+.suggest-hint { margin: 0; font-size: var(--fs-sm); line-height: 1.45; color: var(--ink-soft); }
+.suggest-label { margin: 4px 0 0; font-size: 14px; font-weight: 600; }
+.suggest-textarea {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; line-height: 1.4; padding: 10px;
+  border: 1.5px solid var(--line); border-radius: var(--r-sm); background: var(--panel); color: var(--ink);
+}
+.suggest-textarea:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+.suggest-examples { display: flex; flex-wrap: wrap; gap: 8px; }
+.suggest-actions { display: flex; gap: 8px; }
+.suggest-actions .btn { flex: 1; }
+.suggest-error, .suggest-warn, .suggest-result { padding: 10px 12px; border-radius: var(--r-md); font-size: 14px; line-height: 1.45; color: var(--ink); }
+.suggest-error { display: grid; gap: 8px; border: 1.5px solid var(--warn); background: var(--warn-soft); }
+.suggest-warn { border: 1.5px dashed var(--warn); background: var(--panel); }
+.suggest-result { display: grid; gap: 10px; }
+.suggest-error p, .suggest-warn p, .suggest-result p { margin: 0; }
+.suggest-error ul, .suggest-warn ul, .suggest-result ul { margin: 0; padding-left: 20px; }
+.suggest-tips { padding: 8px 10px; border-left: 3px solid var(--ink-soft); background: var(--paper); border-radius: 0 var(--r-sm) var(--r-sm) 0; color: var(--ink-soft); }
+.suggest-tips .suggest-label { color: var(--ink); margin: 0 0 2px; }
