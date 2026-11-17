@@ -97,7 +97,7 @@ const OUTLINE_LIFT = 0.004;
 /**
  * 선택(줄자 노랑)과 경고(빨강) 테두리. 화면 픽셀 굵기의 선이라 확대해도 굵기가 같다.
  * 선택은 노랑 선 아래에 먹색 선을 한 겹 더 깔아 밝은 바닥과 가구 위에서 모두 보이게 한다.
- * 평면 뷰는 윗면 둘레만(다른 가구에 가려지지 않게 깊이 검사 없음), 3D 뷰는 상자의 12개 모서리를 그린다.
+ * 평면 뷰는 윗면 둘레만(다른 가구에 가려지지 않게 깊이 검사 없음), 3D 뷰는 바닥 둘레와 윗면 둘레를 가늘게 그린다.
  */
 function FurnitureOutline({ size, plan, selected, warning }: FurnitureOutlineProps) {
   const [w, h, d] = size;
@@ -111,10 +111,10 @@ function FurnitureOutline({ size, plan, selected, warning }: FurnitureOutlinePro
     const y = h / 2;
     const c = (sx: number, sy: number, sz: number): [number, number, number] => [sx * x, sy * y, sz * z];
     const out: [number, number, number][] = [];
+    // 3D 뷰는 발자국 둘레와 윗면 둘레만 그린다(세로 모서리는 생략해 조용하게).
     for (const sy of [-1, 1]) for (const [a, b] of [[[-1, -1], [1, -1]], [[1, -1], [1, 1]], [[1, 1], [-1, 1]], [[-1, 1], [-1, -1]]] as const) {
       out.push(c(a[0], sy, a[1]), c(b[0], sy, b[1]));
     }
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) out.push(c(sx, -1, sz), c(sx, 1, sz));
     return out;
   }, [w, h, d, plan]);
   // 경고 테두리는 깊이 검사를 해서 더 높은 가구에 가려진다. 선택 테두리는 평면 뷰에서 항상 보인다.
@@ -124,8 +124,8 @@ function FurnitureOutline({ size, plan, selected, warning }: FurnitureOutlinePro
   }
   return (
     <>
-      <Line {...common} depthTest={!plan} color={warning ? WARNING_COLOR : INK_COLOR} lineWidth={6} renderOrder={20} />
-      <Line {...common} depthTest={!plan} color={SELECTED_EDGE_COLOR} lineWidth={3} renderOrder={21} />
+      <Line {...common} depthTest={!plan} color={warning ? WARNING_COLOR : INK_COLOR} lineWidth={plan ? 6 : 3.5} renderOrder={20} />
+      <Line {...common} depthTest={!plan} color={SELECTED_EDGE_COLOR} lineWidth={plan ? 3 : 2} renderOrder={21} />
     </>
   );
 }

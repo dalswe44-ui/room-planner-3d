@@ -185,12 +185,12 @@ function Lights({ viewMode, width, depth }: { viewMode: ViewMode; width: number;
 
   return (
     <>
-      <hemisphereLight args={['#ffffff', plan ? '#ffffff' : '#e6dfd2']} intensity={plan ? Math.PI : 2} />
+      <hemisphereLight args={['#ffffff', plan ? '#ffffff' : '#f3eee4']} intensity={plan ? Math.PI : 2.5} />
       <directionalLight
         ref={lightRef}
         position={[cx - 2.5, 6, cz + 3]}
         target={target}
-        intensity={plan ? 0 : 1.6}
+        intensity={plan ? 0 : 1.2}
         castShadow={!plan}
         shadow-mapSize={[1024, 1024]}
         shadow-bias={-0.0004}

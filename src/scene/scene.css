@@ -112,8 +112,8 @@
 
 .view-toggle {
   display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--r-md);
   overflow: hidden;
   background: var(--panel);
 }
@@ -121,22 +121,33 @@
 .view-toggle-btn {
   appearance: none;
   border: 0;
-  background: transparent;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
   min-height: 44px;
-  padding: 6px 14px;
+  padding: 0 14px;
   font: inherit;
+  font-size: 15px;
   color: var(--ink);
   cursor: pointer;
 }
 
+.view-toggle-btn:first-child {
+  border-left: 0;
+}
+
+.view-toggle-btn:hover:not([aria-pressed='true']) {
+  background: var(--paper);
+}
+
 .view-toggle-btn[aria-pressed='true'] {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 600;
 }
 
 .view-toggle-btn:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: -2px;
+  outline-offset: -4px;
 }
 
 /* 3D 첫 진입 안내. 포인터를 받지 않아 아래 장면 조작을 막지 않는다. */
