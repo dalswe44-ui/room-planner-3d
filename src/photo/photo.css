@@ -40,3 +40,5 @@
   border: 1.5px solid var(--line); border-radius: var(--r-md); background: var(--panel); cursor: pointer;
 }
 .photo-file::file-selector-button:hover { border-color: var(--ink); }
+.photo-details > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-size: 14px; font-weight: 600; }
+.photo-manual { display: grid; gap: 10px; }

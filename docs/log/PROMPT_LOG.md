@@ -283,3 +283,4 @@ T-001에서 하위 에이전트의 보고서 파일 쓰기가 막혔으므로 �
 - 헤드: 미리보기(draft) 계약과 store 구현·테스트 4개. T-029(scene-engine)·T-030(furniture-placement) 동시 위임. 배치도 자동 읽기는 앱에서 AI를 부를 방법(키 없음 원칙과 충돌)을 먼저 확인.
 - T-029·T-030 결과 저장. 헤드: App에 selectionOverlay={draft ? DraftToolbar : ItemToolbar}, CONTRACT에 draft testid. 통합 test 421개 통과.
 - 사용자 질문 (13:25): 자동 읽기를 Claude 화면 밖에서도 할 다른 방법 → 헤드가 4가지 선택지 제시(서버+API 키 추천, 개인 키, 브라우저 OCR, 현행). 사용자 질문 (13:26): "이 OCR를 학습시켜서 쓰는건?"
+- T-031 결과 저장(배치도 사진 자동 읽기, 아티팩트 sample 기능, 모의로만 검증). T-032(qa) 위임: draft 흐름과 자동 읽기 e2e.

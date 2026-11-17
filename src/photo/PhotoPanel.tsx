@@ -1,10 +1,11 @@
 // 사진·배치도 가져오기 패널. 사진은 참고용으로만 보이고, 치수는 AI가 만든 JSON에서만 온다.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { KIND_LABEL } from '../contracts/furniturePresets';
 import { LAYOUT_READER_PROMPT } from '../contracts/layoutImport';
 import { roomBounds } from '../contracts/room';
 import { formatLength, UNIT_LABEL } from '../contracts/units';
 import { useProjectStore } from '../store/projectStore';
+import { getSample, hasClaudeHost, readLayoutPhoto } from './layoutReader';
 import { parseLayoutImport } from './parseLayoutImport';
 import { usePhotoStore } from './photoStore';
 import './photo.css';
@@ -19,6 +20,9 @@ export function PhotoPanel() {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'fallback'>('idle');
   const [applyState, setApplyState] = useState<'idle' | 'confirming' | 'applied'>('idle');
   const [fileError, setFileError] = useState<string | null>(null);
+  const [auto, setAuto] = useState<'checking' | 'available' | 'unavailable'>(() => (hasClaudeHost() ? 'checking' : 'unavailable'));
+  const [read, setRead] = useState<{ kind: 'idle' | 'reading' | 'done' } | { kind: 'failed'; message: string }>({ kind: 'idle' });
+  const abortRef = useRef<AbortController | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
 
@@ -26,6 +30,16 @@ export function PhotoPanel() {
   useEffect(() => {
     if (applyState === 'confirming') confirmRef.current?.scrollIntoView({ block: 'nearest' });
   }, [applyState]);
+
+  useEffect(() => {
+    if (!hasClaudeHost()) return;
+    let alive = true;
+    void getSample().then((sample) => alive && setAuto(sample ? 'available' : 'unavailable'));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const result = useMemo(
     () => (text.trim() === '' ? null : parseLayoutImport(text, { displayUnit: unit, ceilingHeight })),
@@ -63,17 +77,127 @@ export function PhotoPanel() {
     }
   }
 
+  // 사용자 동작(사진 고르기, 버튼) 직후에만 부른다. 호출마다 새 AbortController.
+  async function startRead(blob: Blob) {
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+    changeText('');
+    setRead({ kind: 'reading' });
+    const r = await readLayoutPhoto(blob, ac.signal);
+    if (abortRef.current !== ac) return; // 중지했거나 다른 사진으로 바뀜
+    abortRef.current = null;
+    if (r.ok) {
+      changeText(r.json);
+      setRead({ kind: 'done' });
+    } else if (r.kind === 'unavailable') {
+      setAuto('unavailable');
+      setRead({ kind: 'idle' });
+    } else if (r.kind === 'cancelled') {
+      setRead({ kind: 'idle' });
+    } else {
+      setRead({ kind: 'failed', message: r.message });
+    }
+  }
+
+  function stopRead() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setRead({ kind: 'idle' });
+  }
+
+  async function pickPhoto(file: File) {
+    try {
+      await usePhotoStore.getState().setFile(file);
+      setFileError(null);
+    } catch {
+      setFileError('사진을 불러오지 못했습니다. 다른 사진을 골라 주세요.');
+      return;
+    }
+    const blob = usePhotoStore.getState().blob;
+    if (auto !== 'unavailable' && blob) await startRead(blob);
+  }
+
+  function readAgain() {
+    const blob = usePhotoStore.getState().blob;
+    if (blob) void startRead(blob);
+  }
+
   function apply() {
     if (!result || !result.ok) return;
     replaceProject(result.project);
     setApplyState('applied');
   }
 
+  const manual: ReactNode = (
+    <div className="photo-manual">
+      <p className="photo-hint">배치도 사진과 아래 문구를 다른 AI 도구에 보내고, 돌려받은 JSON을 붙여 넣으세요.</p>
+      <button type="button" className="btn" data-testid="layout-prompt-copy" onClick={copyPrompt}>
+        AI에게 줄 문구 복사
+      </button>
+      {copyState === 'copied' && <p className="photo-ok" role="status">복사했습니다.</p>}
+      {copyState === 'fallback' && (
+        <div>
+          <p className="photo-hint">자동 복사가 안 됩니다. 아래 문구를 길게 눌러 직접 복사하세요.</p>
+          <textarea
+            ref={promptRef}
+            className="photo-textarea"
+            readOnly
+            rows={6}
+            value={LAYOUT_READER_PROMPT}
+            data-testid="layout-prompt-text"
+            onFocus={(e) => e.currentTarget.select()}
+          />
+        </div>
+      )}
+
+      <label className="photo-label" htmlFor="layout-json">AI가 준 JSON</label>
+      <textarea
+        id="layout-json"
+        className="photo-textarea"
+        rows={8}
+        spellCheck={false}
+        autoComplete="off"
+        value={text}
+        data-testid="layout-json"
+        onChange={(e) => changeText(e.target.value)}
+      />
+      <label className="photo-label" htmlFor="layout-json-file">또는 .json 파일</label>
+      <input
+        id="layout-json-file"
+        type="file"
+        accept=".json,application/json"
+        className="photo-file"
+        data-testid="layout-json-file"
+        onChange={(e) => {
+          void readFile(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+    </div>
+  );
+
+  const retryable = read.kind === 'failed' || (read.kind === 'done' && result !== null && !result.ok);
+  const hasPhoto = photoUrl !== null;
+
+  let status: string | null = null;
+  if (auto === 'unavailable') status = '이 화면에서는 사진을 바로 읽을 수 없어요. 아래 방법으로 읽어 주세요.';
+  else if (read.kind === 'reading') status = '사진을 읽는 중이에요. 수십 초 걸릴 수 있어요.';
+  else if (read.kind === 'failed') status = read.message;
+  else if (read.kind === 'done' && result?.ok) status = '사진을 읽었어요. 아래 내용을 확인하세요.';
+  else if (read.kind === 'done') status = '읽은 내용에 문제가 있어요. 다시 읽어 보세요.';
+  else if (auto === 'checking') status = '사진 읽기를 쓸 수 있는지 확인하는 중이에요.';
+
   return (
     <div className="photo-panel">
       <section className="photo-section">
-        <h3 className="photo-title">방 사진 (참고용)</h3>
-        <p className="photo-hint">사진은 이 기기에서만 보이고 밖으로 보내지 않습니다. 긴 변 2048px 이하로 줄여 이 브라우저에 보관하므로 새로고침해도 남습니다.</p>
+        <h3 className="photo-title">배치도 사진</h3>
+        <p className="photo-hint">배치도 사진을 올리면 적힌 치수를 읽어 방과 가구를 만들어요. 확인한 뒤 적용하세요.</p>
+        <p className="photo-hint">
+          {auto === 'unavailable'
+            ? '사진은 이 기기에서만 보이고 밖으로 보내지 않습니다. 긴 변 2048px 이하로 줄여 이 브라우저에 보관하므로 새로고침해도 남습니다.'
+            : '사진은 긴 변 2048px 이하로 줄여 이 브라우저에 보관합니다. 읽을 때만 지금 쓰는 Claude 계정으로 보내고, 다른 곳으로는 보내지 않습니다.'}
+        </p>
         {storage === 'failed' && (
           <p className="photo-warn" role="status" data-testid="photo-storage-failed">
             이 브라우저가 보관을 막아 지금 탭에서만 보입니다. 새로고침하면 사라집니다.
@@ -84,72 +208,53 @@ export function PhotoPanel() {
           accept="image/*"
           className="photo-file"
           data-testid="photo-file"
-          aria-label="사진 고르기"
+          aria-label="배치도 사진 고르기"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) void usePhotoStore.getState().setFile(file);
+            if (file) void pickPhoto(file);
             e.target.value = '';
           }}
         />
-        {photoUrl && (
+        {hasPhoto && (
           <div className="photo-frame">
-            <img src={photoUrl} alt="첨부한 방 사진" className="photo-img" data-testid="photo-preview" />
-            <button type="button" className="btn" data-testid="photo-remove" onClick={() => usePhotoStore.getState().clear()}>
+            <img src={photoUrl} alt="첨부한 배치도 사진" className="photo-img" data-testid="photo-preview" />
+            <button
+              type="button"
+              className="btn"
+              data-testid="photo-remove"
+              onClick={() => {
+                stopRead();
+                usePhotoStore.getState().clear();
+              }}
+            >
               사진 지우기
             </button>
           </div>
         )}
+        {status && (
+          <p className={read.kind === 'failed' || (read.kind === 'done' && !result?.ok) ? 'photo-error' : 'photo-hint'} role="status" data-testid="photo-read-status">
+            {status}
+          </p>
+        )}
+        {read.kind === 'reading' && (
+          <button type="button" className="btn" data-testid="photo-read-stop" onClick={stopRead}>
+            읽기 중지
+          </button>
+        )}
+        {retryable && (
+          <button type="button" className="btn" data-testid="photo-read-retry" onClick={readAgain}>
+            다시 읽기
+          </button>
+        )}
+        {hasPhoto && auto === 'available' && read.kind === 'idle' && (
+          <button type="button" className="btn btn--primary" data-testid="photo-read-again" onClick={readAgain}>
+            이 사진 읽기
+          </button>
+        )}
       </section>
 
       <section className="photo-section">
-        <h3 className="photo-title">배치도로 방 만들기</h3>
-        <ol className="photo-steps">
-          <li>배치도에 치수를 적고 사진을 찍는다</li>
-          <li>사진과 이 문구를 AI에게 보낸다</li>
-          <li>AI가 준 JSON을 아래에 붙여 넣는다</li>
-        </ol>
-        <button type="button" className="btn" data-testid="layout-prompt-copy" onClick={copyPrompt}>
-          AI에게 줄 문구 복사
-        </button>
-        {copyState === 'copied' && <p className="photo-ok" role="status">복사했습니다.</p>}
-        {copyState === 'fallback' && (
-          <div>
-            <p className="photo-hint">자동 복사가 안 됩니다. 아래 문구를 길게 눌러 직접 복사하세요.</p>
-            <textarea
-              ref={promptRef}
-              className="photo-textarea"
-              readOnly
-              rows={6}
-              value={LAYOUT_READER_PROMPT}
-              data-testid="layout-prompt-text"
-              onFocus={(e) => e.currentTarget.select()}
-            />
-          </div>
-        )}
-
-        <label className="photo-label" htmlFor="layout-json">AI가 준 JSON</label>
-        <textarea
-          id="layout-json"
-          className="photo-textarea"
-          rows={8}
-          spellCheck={false}
-          autoComplete="off"
-          value={text}
-          data-testid="layout-json"
-          onChange={(e) => changeText(e.target.value)}
-        />
-        <label className="photo-label" htmlFor="layout-json-file">또는 .json 파일</label>
-        <input
-          id="layout-json-file"
-          type="file"
-          accept=".json,application/json"
-          className="photo-file"
-          data-testid="layout-json-file"
-          onChange={(e) => {
-            void readFile(e.target.files?.[0]);
-            e.target.value = '';
-          }}
-        />
+        {auto === 'unavailable' && manual}
 
         {fileError && (
           <p className="photo-error" role="alert" data-testid="layout-file-error">
@@ -245,6 +350,13 @@ export function PhotoPanel() {
           <p className="photo-ok" role="status" data-testid="layout-applied">
             방과 가구를 바꿨습니다.
           </p>
+        )}
+
+        {auto !== 'unavailable' && (
+          <details className="photo-details" data-testid="layout-manual">
+            <summary>다른 AI 도구로 읽기</summary>
+            {manual}
+          </details>
         )}
       </section>
     </div>

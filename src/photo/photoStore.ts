@@ -5,6 +5,8 @@ import { resizePhoto } from './resizePhoto';
 
 interface PhotoState {
   url: string | null;
+  /** 줄여 저장한 사진 그 자체. 자동 읽기에 보낸다. */
+  blob: Blob | null;
   /** 보관 상태. 'failed'면 이 탭에서만 보이고 새로고침하면 사라진다. */
   storage: 'none' | 'saving' | 'saved' | 'failed';
   setFile(file: File): Promise<void>;
@@ -17,10 +19,11 @@ export const usePhotoStore = create<PhotoState>()((set, get) => {
   const show = (blob: Blob, storage: 'saving' | 'saved') => {
     const old = get().url;
     if (old) URL.revokeObjectURL(old);
-    set({ url: URL.createObjectURL(blob), storage });
+    set({ url: URL.createObjectURL(blob), blob, storage });
   };
   return {
     url: null,
+    blob: null,
     storage: 'none',
     setFile: async (file) => {
       const { blob } = await resizePhoto(file);
@@ -37,7 +40,7 @@ export const usePhotoStore = create<PhotoState>()((set, get) => {
     clear: () => {
       const old = get().url;
       if (old) URL.revokeObjectURL(old);
-      set({ url: null, storage: 'none' });
+      set({ url: null, blob: null, storage: 'none' });
       void deletePhotoBlob();
     },
   };
