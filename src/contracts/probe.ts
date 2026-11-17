@@ -34,6 +34,11 @@ export interface SceneProbeSnapshot {
   labels: { id: string; name: string; at: { x: Mm; z: Mm } }[];
   /** 장면이 지금 받는 편집 모드 */
   editMode: 'furniture' | 'structure';
+  /**
+   * 사람 뷰에서 눈의 자리(방 좌표 mm)와 바라보는 방향. 다른 뷰에서는 null.
+   * headingDeg는 정수 도(0 이상 360 미만): 0이면 위쪽 벽(-z)을 보고, 위에서 볼 때 반시계가 양수(90이면 왼쪽 벽 -x).
+   */
+  eye: { x: Mm; z: Mm; height: Mm; headingDeg: number } | null;
 }
 
 export interface SceneProbe {

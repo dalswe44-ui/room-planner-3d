@@ -117,6 +117,7 @@ export function readSnapshot(scene: Object3D, camera: Camera, extras: SnapshotEx
     openings: openingOut,
     labels: readLabels(extras.labelRoot ?? (typeof document === 'undefined' ? null : document)),
     editMode: extras.editMode ?? 'furniture',
+    eye: null, // 사람 뷰는 T-042에서 채운다(헤드가 컴파일만 풀어 둠)
   };
 }
 

@@ -409,7 +409,9 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       ...commit(s, { ...s.project, room: { ...s.project.room, labels: s.project.room.labels.filter((l) => l.id !== id) } }),
       selectedStructure: s.selectedStructure && 'id' in s.selectedStructure && s.selectedStructure.id === id ? null : s.selectedStructure,
     })),
-  setViewMode: (mode) => set({ viewMode: mode }),
+  // 사람 뷰는 둘러보기 전용이라 들어갈 때 선택과 미리보기를 푼다.
+  setViewMode: (mode) =>
+    set(mode === 'walk' ? { viewMode: mode, selectedItemId: null, selectedStructure: null, draft: null, dragPreview: null, wallPreview: null } : { viewMode: mode }),
   setDragPreview: (preview) => set({ dragPreview: preview }),
 
   replaceProject: (project) =>

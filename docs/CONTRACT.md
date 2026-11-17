@@ -149,3 +149,8 @@ e2e 테스트가 화면 요소를 찾을 때 쓴다. 모듈은 아래 이름을 
 - store: `applyArrangement(moves)` — 한 번의 기록으로 여러 가구의 x, z, rotationDeg를 바꾼다.
 - 서버: `api/suggest-layout.ts`. GET → {available}. POST JSON {goal, room:{corners,walls,openings}, items:[{name,kind,w,d,h,x,z,rotationDeg}], repair?:{previous, problems}} → {text}. 서버가 같은 지시문을 만든다(앱이 보낸 글을 그대로 AI에 넘기지 않는다). 오류 코드는 read-layout과 같다(503 no_key, 429 rate_limited, 413 too_large, 400 bad_request, 403 bad_origin, 502 upstream).
 - 탭: `tab-suggest`("AI 추천"). 패널 testid: `suggest-panel`, `suggest-goal`, `suggest-example`(여러 개), `suggest-run`, `suggest-stop`, `suggest-retry`, `suggest-status`, `suggest-reasons`, `suggest-tips`, `suggest-warnings`, `suggest-revert`, `suggest-keep`, `suggest-manual`, `suggest-copy`, `suggest-paste`, `suggest-paste-apply`.
+
+### 2026-11-17 사람 뷰 (사용자 요청 16:35)
+- `ViewMode`에 'walk' 추가, `WALK_EYE_HEIGHT` 1500 mm. store `setViewMode('walk')`는 선택·미리보기를 푼다.
+- probe `eye`: 사람 뷰에서만 {x, z, height, headingDeg}, 다른 뷰는 null. headingDeg 0은 위쪽 벽(-z)을 봄, 반시계 양수.
+- 사람 뷰에서 장면은 PlacementHandlers와 StructureHandlers를 부르지 않는다. 뷰 전환 버튼 testid는 `view-walk`.

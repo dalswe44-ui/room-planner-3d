@@ -100,8 +100,14 @@ export interface Project {
   items: FurnitureItem[];
 }
 
-/** 화면 모드. 평면 뷰(위에서 본 화면)와 3D 뷰. */
-export type ViewMode = '2d' | '3d';
+/**
+ * 화면 모드. 평면 뷰(위에서 본 화면), 3D 뷰(밖에서 내려다봄), 사람 뷰(방 안에 서서 눈높이로 둘러봄, 2026-11-17 사용자 요청 16:35).
+ * 사람 뷰에서는 가구와 벽을 편집하지 않는다: 끌면 둘러보고, 바닥을 짧게 누르면 그 자리로 간다.
+ */
+export type ViewMode = '2d' | '3d' | 'walk';
+
+/** 사람 뷰의 눈높이(mm) */
+export const WALK_EYE_HEIGHT: Mm = 1500;
 
 /** 가구 하나의 배치 상태. 겹침과 방 이탈은 막지 않고 경고로만 표시한다. */
 export interface ItemStatus {
