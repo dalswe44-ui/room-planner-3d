@@ -49,12 +49,16 @@ export function readSnapshot(scene: Object3D, camera: Camera): SceneProbeSnapsho
   const floors: Mesh[] = [];
   const walls: BoxGeometry[] = [];
   const items: SceneProbeItem[] = [];
+  let draft: SceneProbeItem | null = null;
   scene.traverse((obj) => {
     if (!(obj instanceof Mesh)) return;
     const data = sceneDataOf(obj);
     if (data.kind === 'floor') floors.push(obj);
     else if (data.kind === 'wall' && obj.geometry instanceof BoxGeometry) walls.push(obj.geometry);
-    else if (data.kind === 'furniture' && obj.geometry instanceof BoxGeometry) items.push(readItem(obj, obj.geometry));
+    else if (data.kind === 'furniture' && obj.geometry instanceof BoxGeometry) {
+      if (data.draft === true) draft = readItem(obj, obj.geometry);
+      else items.push(readItem(obj, obj.geometry));
+    }
   });
 
   let width: Mm = 0;
@@ -70,6 +74,7 @@ export function readSnapshot(scene: Object3D, camera: Camera): SceneProbeSnapsho
     view: camera instanceof OrthographicCamera ? '2d' : '3d',
     room: { width, depth, ceilingHeight },
     items,
+    draft,
   };
 }
 

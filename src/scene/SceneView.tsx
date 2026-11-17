@@ -31,6 +31,7 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances 
   const viewMode = useProjectStore((s) => s.viewMode);
   const selectedItemId = useProjectStore((s) => s.selectedItemId);
   const dragPreview = useProjectStore((s) => s.dragPreview);
+  const draft = useProjectStore((s) => s.draft);
 
   const [hintDismissed, setHintDismissed] = useState(false);
   const [runtime] = useState<SceneRuntime>(() => ({ get: null, controlsRef: createRef<ControlsHandle>() }));
@@ -73,7 +74,7 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances 
     if (!s) return;
     const primary = event.pointerType !== 'mouse' || event.button === 0;
     const hit = primary
-      ? pickFurniture(s.scene, s.camera, screenRectOf(s.gl.domElement), event.clientX, event.clientY, useProjectStore.getState().selectedItemId)
+      ? pickFurniture(s.scene, s.camera, screenRectOf(s.gl.domElement), event.clientX, event.clientY, useProjectStore.getState().draft?.id ?? useProjectStore.getState().selectedItemId)
       : null;
     if (s && useProjectStore.getState().viewMode === '3d') setHintDismissed(true);
     router.pointerDown(event.pointerId, event.clientX, event.clientY, primary, hit);
@@ -134,6 +135,17 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances 
             plan={viewMode === '2d'}
           />
         ))}
+        {draft && (
+          <FurnitureBox
+            key={draft.id}
+            item={draft}
+            preview={dragPreview?.itemId === draft.id ? dragPreview : null}
+            warning={isWarning(draft.id)}
+            selected={false}
+            draft
+            plan={viewMode === '2d'}
+          />
+        )}
         <CameraRig
           viewMode={viewMode}
           width={bounds.width}

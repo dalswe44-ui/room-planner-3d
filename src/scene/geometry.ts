@@ -34,6 +34,8 @@ export interface SceneUserData {
   baseColor?: string;
   warning?: boolean;
   selected?: boolean;
+  /** 가구: 확정 전 미리보기(store.draft)이면 true */
+  draft?: boolean;
   /** 벽: 안쪽 면 가운데(m, 장면 x·z) */
   edgeMid?: { x: number; z: number };
   /** 벽: 바깥쪽 단위 방향(장면 x·z) */

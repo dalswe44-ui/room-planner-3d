@@ -148,3 +148,22 @@ describe('스냅샷의 가구 순서', () => {
     expect(readSnapshot(scene, new OrthographicCamera()).items.map((i) => i.id)).toEqual(['first', 'second']);
   });
 });
+
+describe('미리보기(draft) 가구', () => {
+  it('draft 표식이 있는 가구는 snapshot.draft에 들어가고 items에는 없다', () => {
+    const scene = buildScene(3600, 3000, 2400);
+    addFurniture(scene, 'A', { x: 1000, z: 1000, w: 1000, d: 600, h: 500, rotationDeg: 0 });
+    addFurniture(scene, 'D', { x: 2000, z: 1200, w: 1800, d: 900, h: 800, rotationDeg: 90 });
+    (scene.children[scene.children.length - 1] as Mesh).userData.draft = true;
+    const snap = readSnapshot(scene, new OrthographicCamera());
+    expect(snap.items.map((i) => i.id)).toEqual(['A']);
+    expect(snap.draft?.id).toBe('D');
+    expect(snap.draft?.center).toEqual({ x: 2000, y: 400, z: 1200 });
+    expect(snap.draft?.size).toEqual({ w: 1800, h: 800, d: 900 });
+    expect(snap.draft?.rotationDeg).toBe(90);
+  });
+
+  it('미리보기가 없으면 draft는 null이다', () => {
+    expect(readSnapshot(buildScene(3600, 3000, 2400), new OrthographicCamera()).draft).toBeNull();
+  });
+});

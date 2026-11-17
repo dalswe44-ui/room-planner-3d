@@ -25,15 +25,20 @@ interface FurnitureBoxProps {
   preview: DragPreview | null;
   warning: boolean;
   selected: boolean;
+  /** 확정 전 미리보기이면 true. 반투명으로 그리고 바닥 둘레에 노랑 점선을 두른다. */
+  draft?: boolean;
   /** 평면 뷰이면 true. 상자 위에 이름을 글자로 보이고, 선택·경고 테두리를 윗면 둘레로 그린다. 3D 뷰에서는 상자의 12개 모서리로 그린다. */
   plan: boolean;
 }
+
+/** 미리보기 불투명도 */
+const DRAFT_OPACITY = 0.55;
 
 /** 부품 가장자리용 옅은 먹선. 단위 상자 하나를 모든 부품이 크기만 달리해 공유한다. */
 const UNIT_BOX_EDGES = new EdgesGeometry(new BoxGeometry(1, 1, 1));
 const PART_EDGE_MATERIAL = new LineBasicMaterial({ color: INK_COLOR, transparent: true, opacity: 0.32 });
 
-export function FurnitureBox({ item, preview, warning, selected, plan }: FurnitureBoxProps) {
+export function FurnitureBox({ item, preview, warning, selected, draft = false, plan }: FurnitureBoxProps) {
   const t = furnitureTransform(item, preview ? { x: preview.x, z: preview.z } : undefined);
   const userData: SceneUserData = {
     kind: 'furniture',
@@ -42,20 +47,23 @@ export function FurnitureBox({ item, preview, warning, selected, plan }: Furnitu
     shape: item.kind ?? 'box',
     warning,
     selected,
+    draft,
   };
   const parts = useMemo(() => partsForKind(item.kind, item.w, item.d, item.h), [item.kind, item.w, item.d, item.h]);
   const shaped = parts.length > 0;
   // 경고여도 가구 고유색을 남기고 경고색을 섞는다(무슨 가구인지 보이도록).
   const color = warning ? mixHex(item.color, WARNING_COLOR, WARNING_MIX) : item.color;
   const tones = useMemo(() => toneColors(color), [color]);
+  // 미리보기는 반투명. 깊이를 쓰지 않아 부품끼리 겹쳐도 한 겹으로 보인다.
+  const ghost = draft ? { transparent: true, opacity: DRAFT_OPACITY, depthWrite: false } : {};
   return (
-    <mesh position={t.position} rotation={[0, t.rotationY, 0]} castShadow={!shaped} receiveShadow={!shaped} userData={userData}>
+    <mesh position={t.position} rotation={[0, t.rotationY, 0]} castShadow={!shaped && !draft} receiveShadow={!shaped && !draft} userData={userData}>
       <boxGeometry args={t.size} />
       {shaped ? (
         // 모양이 있는 가구의 상자는 보이지 않는 히트 박스다. 그려지지 않지만 레이캐스트에는 맞는다.
         <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
       ) : (
-        <meshStandardMaterial color={color} roughness={0.7} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
+        <meshStandardMaterial color={color} roughness={0.7} {...ghost} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
       )}
       {!shaped && <lineSegments geometry={UNIT_BOX_EDGES} material={PART_EDGE_MATERIAL} scale={t.size} dispose={null} />}
       {shaped &&
@@ -63,12 +71,12 @@ export function FurnitureBox({ item, preview, warning, selected, plan }: Furnitu
           // 부품 위치는 바닥면 기준 높이(mm). 상자 중심(= 높이의 절반)에서 잰 값으로 바꾸는 보정은 여기 한 곳이다.
           <mesh
             key={i}
-            castShadow
-            receiveShadow
+            castShadow={!draft}
+            receiveShadow={!draft}
             position={[mmToWorld(p.position[0]), mmToWorld(p.position[1] - item.h / 2), mmToWorld(p.position[2])]}
           >
             <boxGeometry args={[mmToWorld(p.size[0]), mmToWorld(p.size[1]), mmToWorld(p.size[2])]} />
-            <meshStandardMaterial color={tones[p.tone]} roughness={0.7} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
+            <meshStandardMaterial color={tones[p.tone]} roughness={0.7} {...ghost} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
             <lineSegments
               geometry={UNIT_BOX_EDGES}
               material={PART_EDGE_MATERIAL}
@@ -77,6 +85,7 @@ export function FurnitureBox({ item, preview, warning, selected, plan }: Furnitu
             />
           </mesh>
         ))}
+      {draft && <DraftOutline size={t.size} plan={plan} />}
       {(selected || warning) && <FurnitureOutline size={t.size} plan={plan} selected={selected} warning={warning} />}
       {plan && <FurnitureLabel name={item.name} size={t.size} rotationY={t.rotationY} />}
     </mesh>
@@ -127,6 +136,20 @@ function FurnitureOutline({ size, plan, selected, warning }: FurnitureOutlinePro
       <Line {...common} depthTest={!plan} color={warning ? WARNING_COLOR : INK_COLOR} lineWidth={plan ? 6 : 3.5} renderOrder={20} />
       <Line {...common} depthTest={!plan} color={SELECTED_EDGE_COLOR} lineWidth={plan ? 3 : 2} renderOrder={21} />
     </>
+  );
+}
+
+/** 확정 전 표시: 바닥 둘레(평면 뷰는 윗면 둘레)에 먹색 바탕 위 노랑 점선. */
+function DraftOutline({ size, plan }: { size: [number, number, number]; plan: boolean }) {
+  const [w, h, d] = size;
+  const points = useMemo(() => {
+    const x = w / 2;
+    const z = d / 2;
+    const y = plan ? h / 2 + OUTLINE_LIFT : -h / 2 + OUTLINE_LIFT;
+    return [[-x, y, -z], [x, y, -z], [x, y, z], [-x, y, z], [-x, y, -z]] as [number, number, number][];
+  }, [w, h, d, plan]);
+  return (
+    <Line points={points} depthTest={false} color={SELECTED_EDGE_COLOR} lineWidth={3} dashed dashSize={0.08} gapSize={0.05} renderOrder={22} />
   );
 }
 

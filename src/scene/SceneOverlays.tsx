@@ -41,9 +41,10 @@ export function SceneOverlays({ runtime, selectionOverlay, wallDistances }: Scen
   const viewMode = useProjectStore((s) => s.viewMode);
   const selectedItemId = useProjectStore((s) => s.selectedItemId);
   const dragPreview = useProjectStore((s) => s.dragPreview);
+  const draft = useProjectStore((s) => s.draft);
   const plan = viewMode === '2d';
   const unit = project.displayUnit;
-  const selected = project.items.find((i) => i.id === selectedItemId) ?? null;
+  const selected = draft ?? project.items.find((i) => i.id === selectedItemId) ?? null;
   const showToolbar = selectionOverlay != null && selected !== null && !dragPreview;
   const showDists = plan && selected !== null && wallDistances != null;
 
@@ -71,7 +72,7 @@ export function SceneOverlays({ runtime, selectionOverlay, wallDistances }: Scen
     if ((camera instanceof OrthographicCamera) !== cur.plan) return;
     camera.updateMatrixWorld();
     const st = useProjectStore.getState();
-    const item = st.project.items.find((i) => i.id === st.selectedItemId);
+    const item = st.draft ?? st.project.items.find((i) => i.id === st.selectedItemId);
     const at = item && st.dragPreview?.itemId === item.id ? { ...item, x: st.dragPreview.x, z: st.dragPreview.z } : item;
 
     let holderRect: { left: number; top: number; right: number; bottom: number } | null = null;
