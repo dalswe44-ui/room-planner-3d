@@ -124,14 +124,24 @@ describe('벽 이동·선택', () => {
     expect(store().past.length).toBe(before);
   });
 
-  it('바깥 벽은 선택만 되고 움직이지 않는다', () => {
+  it('바깥 벽: 짧게 누르면 선택만, 벽은 움직이지 않는다', () => {
     const before = store().project.room.corners;
     h.onTargetPointerDown({ kind: 'outerWall', index: 1 }, { x: 3600, z: 1000 });
-    h.onPointerMove({ x: 3000, z: 1000 });
     h.onPointerUp();
     expect(store().selectedStructure).toEqual({ kind: 'outerWall', index: 1 });
     expect(store().project.room.corners).toEqual(before);
     expect(walls()).toHaveLength(0);
+  });
+
+  it('바깥 벽을 누른 채 끌면 안쪽 면에서 칸막이를 그린다 (D-T037-01)', () => {
+    const before = store().project.room.corners;
+    // 벽 두께 위(z = -40)를 눌러도 안쪽 면 z = 0에서 시작한다
+    h.onTargetPointerDown({ kind: 'outerWall', index: 0 }, { x: 1800, z: -40 });
+    h.onPointerMove({ x: 1810, z: 2000 });
+    h.onPointerUp();
+    expect(walls()).toHaveLength(1);
+    expect(walls()[0]).toMatchObject({ a: { x: 1800, z: 0 }, b: { x: 1800, z: 2000 } });
+    expect(store().project.room.corners).toEqual(before);
   });
 });
 

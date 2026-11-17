@@ -97,7 +97,9 @@ export function pickFurniture(
   const candidates: Object3D[] = [];
   scene.traverse((obj) => {
     const kind = sceneDataOf(obj).kind;
-    if (kind === 'furniture' || ((kind === 'wall' || kind === 'partition') && obj.visible)) candidates.push(obj);
+    // 평면 뷰(직교 카메라)에서는 칸막이가 가구를 가리지 않는다. 칸막이와 겹친 가구를 끌어서 빼낼 수 있어야 한다.
+    const partitionBlocks = !(camera as { isOrthographicCamera?: boolean }).isOrthographicCamera;
+    if (kind === 'furniture' || ((kind === 'wall' || (kind === 'partition' && partitionBlocks)) && obj.visible)) candidates.push(obj);
   });
   const raycaster = new Raycaster();
   raycaster.setFromCamera(ndcOf(clientX, clientY, rect), camera);

@@ -116,6 +116,17 @@ describe('pickFurniture', () => {
     expect(pickFurniture(scene, cam, rect, c.x, c.y)?.itemId).toBe('sofa-1');
   });
 
+  it('평면 뷰에서는 칸막이 벽이 가구를 가리지 않는다(칸막이와 겹친 가구를 끌어 뺄 수 있게)', () => {
+    const scene = sceneWithFurniture();
+    const partition = new Mesh(new BoxGeometry(0.1, 2.4, 2), new MeshBasicMaterial());
+    partition.position.set(1.8, 1.2, 1.5);
+    partition.userData = { kind: 'partition' };
+    scene.add(partition);
+    const cam = orthoFor(rect);
+    const c = floorToClient(cam, rect, { x: 1800, z: 1500 });
+    expect(pickFurniture(scene, cam, rect, c.x, c.y)?.itemId).toBe('sofa-1');
+  });
+
   function overlapped(): Group {
     const scene = new Group();
     // 같은 자리에 겹친 두 가구. b가 더 높아 위에서 보면 b가 가까운 쪽(맨 위)이다.

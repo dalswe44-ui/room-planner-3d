@@ -63,7 +63,15 @@ export function createStructureHandlers(getState: () => ProjectState): Structure
       const l = room.labels.find((x) => x.id === target.id);
       if (l) drag = { kind: 'label', id: l.id, down: floor, at: l.at, applied: l.at };
     } else {
-      drag = null; // 바깥 벽은 선택만
+      // 바깥 벽: 누르면 선택, 그대로 끌면 벽 안쪽 면에서 칸막이를 그리기 시작한다(D-T037-01).
+      // 벽 두께 위를 눌렀을 수 있으므로 방 범위 안으로 당긴 뒤 맞춘다.
+      const xs = room.corners.map((c) => c.x);
+      const zs = room.corners.map((c) => c.z);
+      const inside = {
+        x: Math.min(Math.max(floor.x, Math.min(...xs)), Math.max(...xs)),
+        z: Math.min(Math.max(floor.z, Math.min(...zs)), Math.max(...zs)),
+      };
+      drag = { kind: 'draw', a: snapPoint(s, inside), end: null };
     }
   };
 
