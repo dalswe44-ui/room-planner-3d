@@ -3,7 +3,7 @@
 import { LAYOUT_READER_PROMPT } from '../contracts/layoutImport';
 
 interface Sample {
-  json(prompt: string, options: { images: Blob[]; modelTier: 'default'; signal: AbortSignal }): Promise<unknown>;
+  json(prompt: string, options: { images: Blob[]; modelTier: 'complex'; signal: AbortSignal }): Promise<unknown>;
   limits(): Promise<{ images?: unknown } | null | undefined>;
 }
 
@@ -126,7 +126,7 @@ async function readViaSample(sample: Sample, photo: Blob, signal: AbortSignal): 
   try {
     const limits = await sample.limits();
     if (!limits || !limits.images) return { ok: false, kind: 'unavailable' };
-    const answer = await sample.json(LAYOUT_READER_PROMPT, { images: [photo], modelTier: 'default', signal });
+    const answer = await sample.json(LAYOUT_READER_PROMPT, { images: [photo], modelTier: 'complex', signal });
     if (signal.aborted) return { ok: false, kind: 'cancelled' };
     return { ok: true, json: JSON.stringify(answer) };
   } catch (e) {

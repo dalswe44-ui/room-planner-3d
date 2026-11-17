@@ -73,7 +73,7 @@ export async function handle(request: Request, env: Env, fetchImpl: typeof fetch
     headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: env.ANTHROPIC_MODEL?.trim() || DEFAULT_MODEL,
-      max_tokens: 2000,
+      max_tokens: 4000,
       messages: [
         {
           role: 'user',

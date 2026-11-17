@@ -106,6 +106,26 @@ describe('parseLayoutImport 정상 입력', () => {
     expect(r.project.items[0]).toMatchObject({ w: 1100, d: 2000, h: 450, x: 1050, z: 1000 });
   });
 
+  it('readings가 있어도 받고, 사용자의 손그림(7.5 m × 5.7 m)을 읽은 결과가 경고 없이 제자리에 놓인다', () => {
+    const items = [
+      { name: '침대', w: 2, d: 2, h: 0.45, left: 0, top: 0, rotationDeg: 0 },
+      { name: 'TV', w: 0.6, d: 0.24, h: 0.5, left: 0, top: 5.46, rotationDeg: 0 },
+      { name: '화장대', w: 1, d: 0.5, h: 0.7, left: 3.1, top: 5.2, rotationDeg: 0 },
+      { name: '붙박이장', w: 0.3, d: 1.2, h: 2, left: 7.2, top: 2.1, rotationDeg: 0 },
+    ];
+    const r = okOf(parseLayoutImport(doc({ unit: 'm', readings: ['위쪽 7.5M → 방 가로'], room: { width: 7.5, depth: 5.7, height: 2.4 }, items }), base));
+    expect(r.project.room.corners[2]).toEqual({ x: 7500, z: 5700 });
+    expect(r.warnings).toEqual([]);
+    const at = (i: number) => {
+      const it = r.project.items[i];
+      return [it.x - it.w / 2, it.z - it.d / 2, it.x + it.w / 2, it.z + it.d / 2];
+    };
+    expect(at(0)).toEqual([0, 0, 2000, 2000]); // 왼쪽 위 모서리
+    expect(at(1)).toEqual([0, 5460, 600, 5700]); // 왼쪽 아래 모서리
+    expect(at(2)).toEqual([3100, 5200, 4100, 5700]); // 아래쪽 벽
+    expect(at(3)).toEqual([7200, 2100, 7500, 3300]); // 오른쪽 벽
+  });
+
   it('결과에 JSON의 단위를 담는다', () => {
     expect(okOf(parseLayoutImport(doc(), base)).unit).toBe('cm');
   });
