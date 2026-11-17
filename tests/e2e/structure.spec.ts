@@ -232,7 +232,12 @@ for (const vp of VIEWPORTS) {
       await page.reload();
       await openApp(page);
       const after = await snapshot(page);
-      const strip = <T extends { selected?: boolean }>(xs: T[]) => xs.map(({ selected: _s, ...r }) => r);
+      const strip = <T extends { selected?: boolean }>(xs: T[]) =>
+        xs.map((x) => {
+          const r = { ...x };
+          delete r.selected;
+          return r;
+        });
       expect(strip(after.walls)).toEqual(strip(before.walls));
       expect(strip(after.openings)).toEqual(strip(before.openings));
       expect(after.labels).toEqual(before.labels);
