@@ -16,7 +16,7 @@ const mainTab = async (page: Page) => {
 
 /**
  * 구조 탭에서 (1800,z0)→(1810,2000)을 끌어 세로 칸막이 벽을 만든다.
- * SPEC은 z0=0이지만 그 자리에서 시작하면 바깥 벽 0이 눌려 벽이 안 생긴다(defects.md D-T037-1). 다른 항목은 z0=100으로 우회한다.
+ * 기본 z0=100(방 안쪽에서 시작). SPEC 그대로의 z0=0은 WL-1이 따로 확인한다(D-T037-01은 597c652에서 수정됨).
  */
 async function drawPartition(page: Page, z0 = 100): Promise<void> {
   await structureTab(page);
@@ -47,7 +47,7 @@ for (const vp of VIEWPORTS) {
       await openApp(page);
     });
 
-    test('WL-1b (우회) z=100에서 시작하면 칸막이가 생기고 되돌리기 한 번에 사라진다', async ({ page }) => {
+    test('WL-1b z=100(방 안쪽)에서 시작해도 칸막이가 생기고 되돌리기 한 번에 사라진다', async ({ page }) => {
       await drawPartition(page);
       const w = (await snapshot(page)).walls[0]!;
       await expectNear(page, w.a, { x: 1800, z: 100 });
@@ -74,9 +74,12 @@ for (const vp of VIEWPORTS) {
       await dragItemTo(page, a, { x: 1800, z: 1000 });
       await expect.poll(async () => (await itemById(page, a)).warning).toBe(true);
       await expect(page.getByTestId('item-status')).toContainText('벽');
+      expect((await snapshot(page)).view).toBe('2d');
+      const grabbed = await itemById(page, a);
+      expect(grabbed.center.x, '칸막이 정중앙에 걸쳐 있다').toBe(1800);
       // 왼쪽 면(x 1750)에 오른쪽 변이 닿는 자리
-      // 가구 중심은 칸막이 위라 눌러도 벽이 잡힌다(관찰: 아래 보고서). 벽에서 떨어진 왼쪽 부분을 잡아 끈다.
-      await dragFloor(page, { x: 1400, z: 1000 }, { x: 850, z: 1000 }, 20);
+      // 평면 뷰에서는 칸막이가 가구를 가리지 않으므로 칸막이 위에 걸친 가구의 중심을 잡아 끌 수 있다(597c652).
+      await dragItemTo(page, a, { x: 1250, z: 1000 });
       const it = await itemById(page, a);
       expect(it.center.x + it.size.w / 2).toBe(1750);
       expect(it.warning).toBe(false);
