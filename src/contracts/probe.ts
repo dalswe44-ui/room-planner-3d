@@ -24,6 +24,8 @@ export interface SceneProbeSnapshot {
   /** 그려진 방 바닥의 크기(mm)와 천장 높이 */
   room: { width: Mm; depth: Mm; ceilingHeight: Mm };
   items: SceneProbeItem[];
+  /** 확정하지 않은 미리보기 가구(store.draft). 없으면 null. items에는 들어 있지 않다. */
+  draft: SceneProbeItem | null;
 }
 
 export interface SceneProbe {

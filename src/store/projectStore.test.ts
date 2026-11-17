@@ -119,3 +119,47 @@ describe('되돌리기', () => {
     expect(st().past).toHaveLength(0);
   });
 });
+
+describe('미리보기 가구 (draft)', () => {
+  const st = () => useProjectStore.getState();
+  beforeEach(() => {
+    useProjectStore.setState({ project: createDefaultProject(), selectedItemId: null, dragPreview: null, draft: null, past: [], future: [] });
+  });
+
+  it('미리보기는 프로젝트와 기록에 들어가지 않고, 새 미리보기가 이전 것을 바꾼다', () => {
+    st().startDraft({ name: '소파', w: 1800, d: 850, h: 800, kind: 'sofa' });
+    expect(st().draft).toMatchObject({ name: '소파', kind: 'sofa', x: 1800, z: 1500 });
+    st().startDraft({ name: '침대', w: 1100, d: 2000, h: 450, kind: 'bed' });
+    expect(st().draft).toMatchObject({ name: '침대', kind: 'bed' });
+    expect(st().project.items).toHaveLength(0);
+    expect(st().past).toHaveLength(0);
+  });
+
+  it('확정하면 한 단계로 들어가 선택되고, 되돌리면 사라진다', () => {
+    st().startDraft({ name: '침대', w: 1100, d: 2000, h: 450, kind: 'bed' });
+    st().updateDraft({ x: 600, rotationDeg: 90 });
+    const id = st().commitDraft();
+    expect(st().draft).toBeNull();
+    expect(st().project.items).toEqual([expect.objectContaining({ id, x: 600, rotationDeg: 90, kind: 'bed' })]);
+    expect(st().selectedItemId).toBe(id);
+    expect(st().past).toHaveLength(1);
+    st().undo();
+    expect(st().project.items).toHaveLength(0);
+  });
+
+  it('취소하면 아무것도 남지 않는다. 미리보기가 없으면 확정은 null', () => {
+    st().startDraft({ name: '의자', w: 450, d: 500, h: 850 });
+    st().cancelDraft();
+    expect(st().draft).toBeNull();
+    expect(st().project.items).toHaveLength(0);
+    expect(st().commitDraft()).toBeNull();
+  });
+
+  it('다른 가구를 고르면 미리보기는 버려지고, 미리보기를 만들면 선택이 풀린다', () => {
+    const a = st().addItem({ name: 'A', w: 100, d: 100, h: 100 });
+    st().startDraft({ name: '의자', w: 450, d: 500, h: 850 });
+    expect(st().selectedItemId).toBeNull();
+    st().selectItem(a);
+    expect(st().draft).toBeNull();
+  });
+});

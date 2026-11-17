@@ -1,6 +1,6 @@
 // 앱 전체가 함께 쓰는 상태. 모듈은 이 store의 값과 액션만으로 서로 연결된다. 이 파일은 헤드만 고친다.
 import { create } from 'zustand';
-import { rectCorners } from '../contracts/room';
+import { rectCorners, roomBounds } from '../contracts/room';
 import type {
   DisplayUnit,
   DragPreview,
@@ -36,6 +36,20 @@ export interface ProjectState {
   updateItem(id: string, patch: FurniturePatch): void;
   removeItem(id: string): void;
   selectItem(id: string | null): void;
+
+  /**
+   * 아직 확정하지 않은 가구(기본 가구 버튼으로 고른 미리보기, 2026-11-17 사용자 요청).
+   * 프로젝트에 들어 있지 않다: 저장·되돌리기·겹침 대상 목록에 없다. ✓(commitDraft)로 확정하거나 ✗(cancelDraft)로 버린다.
+   * 미리보기가 있는 동안 selectedItemId는 null이다.
+   */
+  draft: FurnitureItem | null;
+  /** 미리보기를 새로 만든다(이미 있으면 바꾼다). 선택은 풀린다. 만든 미리보기의 id를 돌려준다. */
+  startDraft(input: NewFurnitureInput): string;
+  /** 미리보기의 위치·회전·치수·이름·색·종류를 고친다. 기록하지 않는다. */
+  updateDraft(patch: Partial<Omit<FurnitureItem, 'id'>>): void;
+  /** 미리보기를 프로젝트에 넣는다(되돌리기 한 단계). 넣은 가구가 선택된다. 넣은 id, 미리보기가 없으면 null. */
+  commitDraft(): string | null;
+  cancelDraft(): void;
   setViewMode(mode: ViewMode): void;
   setDragPreview(preview: DragPreview | null): void;
   /** 불러오기용. 프로젝트 전체를 바꾸고 선택과 끌기 상태를 지운다. */
@@ -111,6 +125,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   selectedItemId: null,
   viewMode: '2d',
   dragPreview: null,
+  draft: null,
   past: [],
   future: [],
 
@@ -169,7 +184,46 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       dragPreview: s.dragPreview?.itemId === id ? null : s.dragPreview,
     })),
 
-  selectItem: (id) => set({ selectedItemId: id }),
+  // 다른 가구를 고르면 확정하지 않은 미리보기는 버린다.
+  selectItem: (id) => set((s) => ({ selectedItemId: id, draft: id !== null ? null : s.draft })),
+
+  startDraft: (input) => {
+    const id = newId();
+    const { project } = get();
+    const b = roomBounds(project.room);
+    const draft = normalizeItem({
+      id,
+      name: input.name,
+      w: input.w,
+      d: input.d,
+      h: input.h,
+      x: input.x ?? (b.minX + b.maxX) / 2,
+      z: input.z ?? (b.minZ + b.maxZ) / 2,
+      rotationDeg: input.rotationDeg ?? 0,
+      elevation: input.elevation ?? 0,
+      color: input.color ?? DEFAULT_COLORS[project.items.length % DEFAULT_COLORS.length],
+      ...(input.kind && input.kind !== 'box' ? { kind: input.kind } : {}),
+    });
+    set({ draft, selectedItemId: null, dragPreview: null });
+    return id;
+  },
+
+  updateDraft: (patch) =>
+    set((s) => (s.draft ? { draft: normalizeItem({ ...s.draft, ...patch, id: s.draft.id }) } : {})),
+
+  commitDraft: () => {
+    const d = get().draft;
+    if (!d) return null;
+    set((s) => ({
+      ...commit(s, { ...s.project, items: [...s.project.items, d] }),
+      selectedItemId: d.id,
+      draft: null,
+      dragPreview: null,
+    }));
+    return d.id;
+  },
+
+  cancelDraft: () => set((s) => ({ draft: null, dragPreview: s.dragPreview && s.draft && s.dragPreview.itemId === s.draft.id ? null : s.dragPreview })),
   setViewMode: (mode) => set({ viewMode: mode }),
   setDragPreview: (preview) => set({ dragPreview: preview }),
 
@@ -178,6 +232,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       ...commit(s, { ...project, items: project.items.map(normalizeItem) }),
       selectedItemId: null,
       dragPreview: null,
+      draft: null,
     })),
 
   undo: () =>

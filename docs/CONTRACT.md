@@ -116,3 +116,11 @@ e2e 테스트가 화면 요소를 찾을 때 쓴다. 모듈은 아래 이름을 
 | `item-duplicate`, `item-rotate-right` | 패널의 선택한 가구 칸 | 복제, 시계 90도(−90). 기존 `item-rotate`는 반시계 90도(+90, SPEC P-4와 같음)로 그대로, `item-delete`도 그대로. (처음에 헤드가 `item-rotate`를 시계 방향이라고 잘못 적었고 T-024 에이전트가 SPEC·테스트와 어긋남을 찾아 바로잡음) |
 | `room-dim-width`, `room-dim-depth` | 평면 뷰 | 방 폭·깊이 치수 글자(현재 단위의 숫자와 단위) |
 | `scene-dist-0` ~ `scene-dist-3` | 평면 뷰 | 선택한 가구에서 벽 0 ~ 3까지 거리 글자. 선택이 없으면 없다 |
+
+
+### 2026-11-17 미리보기 가구 (draft) — 사용자 요청 13:21
+기본 가구 버튼을 누르면 바로 추가하지 않고 미리보기를 만든다. ✓로 확정, ✗로 취소, 다른 기본 가구 버튼은 미리보기를 바꾼다.
+- store: `draft: FurnitureItem | null`, `startDraft(input)`, `updateDraft(patch)`, `commitDraft()`, `cancelDraft()`. 미리보기는 project에 없다(저장·되돌리기·겹침 대상 목록 밖). 미리보기가 있는 동안 `selectedItemId`는 null. 다른 가구를 고르면(`selectItem(id)`) 미리보기는 버려진다. 빈 곳 탭은 미리보기를 버리지 않는다.
+- 장면: draft를 반투명으로 그리고, 누르고 끌 수 있다(`onItemPointerDown(draft.id, …)`, 끄는 중 위치는 `dragPreview.itemId === draft.id`). 도구 막대 자리(`selectionOverlay`)는 draft가 있으면 draft 위에 띄운다. probe: `snapshot().draft`(items와 같은 모양, 없으면 null).
+- 가구 쪽: `usePlacement`가 draft 끌기를 처리(놓으면 `updateDraft({x, z})`, 자석·격자 규칙은 가구와 같다), `useItemStatuses`는 draft의 겹침·방 밖도 계산(키 draft.id), `useKeyboardNudge`는 draft도 움직인다. `DraftToolbar()`: ✓ 추가(`draft-confirm`), 왼쪽·오른쪽 90도(`draft-rotate-left`, `draft-rotate-right`), ✗ 취소(`draft-cancel`). 패널에는 미리보기 카드(`draft-card`, 이름과 치수 편집 가능, 같은 ✓ ✗ 버튼).
+- App: `selectionOverlay={draft ? <DraftToolbar /> : <ItemToolbar />}`.
