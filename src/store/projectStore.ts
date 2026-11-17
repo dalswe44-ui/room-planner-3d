@@ -119,7 +119,8 @@ function commit(s: ProjectState, next: Project, mergeKey: string | null = null):
   return { project: next, past: [...s.past, s.project].slice(-HISTORY_LIMIT), future: [] };
 }
 
-export const DEFAULT_COLORS = ['#7aa2d6', '#e0a458', '#8fbf8f', '#c98bb9', '#d97c6c', '#9c9ad6'];
+// 2026-11-17 사용자 요청(꾸민 평면 뷰): 밝은 바닥·흰 벽과 어울리는 차분한 색. 경고 빨강(#d9482b)과 헷갈리지 않게 붉은 계열은 뺐다.
+export const DEFAULT_COLORS = ['#e8e1d5', '#cdb693', '#b9c7cf', '#b7c2a8', '#d8c7bd', '#a9b0b8'];
 
 export function createDefaultProject(): Project {
   return {
