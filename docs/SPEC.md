@@ -90,16 +90,31 @@
 
 ### 4-4. 2026-11-17 벽·문·구역 (사용자 요청 13:34, 헤드 작성)
 기준 방 3600 / 3000. 왼쪽 탭 "벽·문"에서 편집한다.
-- **WL-1** 평면 뷰에서 (1800, 0)부터 (1810, 2000)까지 끌면 세로 칸막이 벽이 생긴다: probe.walls에 a (1800, 0), b (1800, 2000) 근처(끝점 맞춤 허용), 두께 100. 되돌리기 한 번에 사라진다.
+- **WL-1** 평면 뷰에서 (1800, 0)부터 (1810, 2000)까지 끌면 세로 칸막이 벽이 생긴다: probe.walls에 a (1800, 0), b (1800, 2000) 근처(끝점 맞춤 허용), 두께 100. 되돌리기 한 번에 사라진다. 바깥 벽 위(벽 두께 안)에서 눌러 끌기 시작해도 칸막이는 벽 안쪽 면에서 시작한다. 바깥 벽을 짧게 누르기만 하면 그 바깥 벽이 선택될 뿐 벽은 생기지 않는다.
 - **WL-2** 칸막이 벽과 겹치게 가구를 놓으면 그 가구 warning, 문구에 "벽"이 들어간다. 벽 면에 맞닿으면 경고 없음.
 - **WL-3** 가구를 끌어 칸막이 벽 면에 가까이 가면 자석처럼 붙는다(가구 자석 맞춤과 같은 규칙).
 - **WL-4** 선택한 가구의 벽까지 거리는 그 방향의 가장 가까운 벽 면(칸막이 포함)까지다.
 - **DR-W1** 바깥 벽 0을 고르고 "문 추가" → 문이 생기고(폭 900), 평면 뷰에 문짝 선과 열림 호가 보인다. 문을 벽 따라 끌면 offset이 바뀌고 벽 밖으로 나가지 않는다.
-- **DR-W2** 문이 열리는 자리에 가구를 놓으면 그 가구 warning, 문구에 "문"이 들어간다. 문의 열리는 방향을 바꾸면(경첩 쪽, 안·밖) 경고가 따라 바뀐다.
+- **DR-W2** 문이 열리는 자리에 가구를 놓으면 그 가구 warning, 문구에 "문"이 들어간다. 경첩 쪽(`opening-flip-hinge`)을 바꾸면 문 그림(문짝 선·호)만 바뀌고, 문이 쓰는 자리는 폭×폭 정사각형으로 같아 가구 경고는 바뀌지 않는다. 안·밖(`opening-flip-swing`)을 바꾸면 문이 쓰는 자리가 벽의 반대쪽으로 옮겨 가므로 경고가 따라 바뀐다.
 - **DR-W3** 칸막이 벽에도 문을 넣을 수 있다. 칸막이 벽을 지우면 그 벽의 문도 지워진다.
 - **WN-1** 창문 추가 → 3D 뷰에서 벽에 창 구멍(문턱 900, 높이 1200)이 보인다. 창문은 가구 경고를 만들지 않는다.
 - **LB-1** "거실" 이름표를 넣으면 평면 뷰에 글자가 보이고 끌어 옮길 수 있다.
 - **ST-1** 새로 고침 뒤에도 칸막이 벽·문·창문·이름표가 그대로 있다.
+### 4-5. 미리보기 가구와 배치도 사진 읽기 (tests/e2e/draft-photo.spec.ts, photo-server.spec.ts의 단언을 옮겨 적음, T-038)
+칩 = `preset-<종류>` 버튼. 미리보기 = 확정 전의 가구(probe.draft). 데스크톱·모바일 폭 모두에서 돈다. 사진 읽기는 시험에서 `window.claude`(AR)나 `/api/read-layout` 응답(SV)을 흉내 낸 것으로 확인했다.
+- **DR-1** 칩을 누름 → 가구는 0개이고 probe.draft는 그 종류(책상이면 w 1200 / h 720 / d 600), `draft-toolbar`가 보이고 `item-toolbar`·`item-row`는 없다. 다른 칩(침대)을 누르면 draft의 종류만 바뀌고 가구는 여전히 0개.
+- **DR-2** 미리보기를 (1200, 2000) 근처로 끌어 놓음 → 가구는 아직 0개. `draft-confirm` → 가구 1개가 그 위치(draft 중심과 같음)에 추가되어 선택되고 draft는 null, `item-toolbar`가 보이고 `draft-toolbar`는 없다. `undo` 한 번 → 가구 0개.
+- **DR-3** `draft-cancel` → draft null, 가구 0개, `draft-toolbar` 없음. 칩을 누르고 포커스를 치운 뒤 Escape → draft null, 가구 0개. 다른 칩 뒤 포커스를 치우고 Enter → 가구 1개(그 종류)가 추가되어 선택되고 draft는 null.
+- **DR-3b** 칩을 누른 직후 포커스가 칩에 있는 채로 Escape → draft null, 가구 0개. 다시 칩 뒤 Enter → 가구 1개, draft null.
+- **DR-4** 확정 가구 1개가 있고 칩으로 미리보기를 만든 뒤 가구도 미리보기도 없는 빈 곳(3300, 2700)을 짧게 누름 → 미리보기가 유지되고 `draft-toolbar`가 보인다. 미리보기를 멀리 끌어 놓고 확정 가구를 짧게 누름 → draft null, 가구는 1개이고 선택됨, `item-toolbar`가 보이고 `draft-toolbar`는 없다.
+- **DR-5** 칩 → `draft-card`가 보인다. `draft-w`에 1500 입력 → draft 폭 1500. `draft-card-confirm` → 가구 1개, size w 1500 / h 720 / d 600, 선택됨, draft null.
+- **AR-1** (`window.claude`가 있을 때) 사진 탭에서 `photo-file`에 샘플 사진을 고름 → 바로 읽기 시작해 `photo-read-status`에 "읽는 중"과 `photo-read-stop`이 보이고, 직접 붙여 넣는 칸 `layout-json`은 숨겨진 채 접힌 `layout-manual`만 보인다. 읽기가 끝나면 `layout-preview`가 보이고 `photo-read-stop`은 없으며 이때까지 probe.room은 그대로이고 가구는 0개. `layout-apply`와 `layout-apply-confirm` → `layout-applied`가 보이고 probe.room 3400 / 2800 / 2400, 가구 3개. 읽기 호출은 정확히 1번, 사진은 1장(Blob).
+- **AR-2** 첫 읽기가 `rate_limited`로 실패 → `photo-read-retry`가 보이고 `photo-read-status`에 "너무 많아", `layout-preview`는 없다. 3초 기다려도 호출은 1번 그대로(자동 재시도 없음). `photo-read-retry`를 누름 → 다시 읽어 `layout-preview`가 보이고 호출은 2번이며 가구는 아직 0개.
+- **AR-3** `window.claude`가 없음 → 사진 탭에 `photo-read-status`의 "바로 읽을 수 없어요"와 `layout-json`이 바로 보이고 `layout-manual`은 없다. 사진을 올리면 `photo-preview`가 보이지만 `photo-read-stop`은 없고(읽기 시작 안 함) `layout-json`은 계속 보인다.
+- **AR-4** 읽기가 `not_granted`로 실패 → 처음에 숨겨져 있던 `layout-json`이 보이고 `layout-manual`은 없으며 `photo-read-status`에 "바로 읽을 수 없어요", `photo-read-retry`는 없다. 호출은 1번. `layout-json`에 샘플 JSON을 넣으면 `layout-preview`가 보인다.
+- **SV-1** (서버 GET이 `available: true`) 사진 탭에서 `layout-json`은 숨겨져 있다. 사진을 고름 → POST 1번(content-type이 `image/`로 시작), `layout-preview`가 보이고 "이 앱의 서버를 거쳐" 문구가 보인다. 이때 probe.room은 그대로, 가구는 0개. `layout-apply` 뒤와 `layout-apply-cancel` 뒤에도 방은 그대로. 다시 `layout-apply`와 `layout-apply-confirm` → probe.room 3400 / 2800 / 2400, 가구 3개, POST는 계속 1번.
+- **SV-2** (POST가 503 `no_key`) 사진을 고름 → `layout-json`이 보이고 `photo-read-status`에 "바로 읽을 수 없어요", POST 1번, `layout-preview` 없음, probe.room 그대로. `layout-json`에 샘플 JSON을 넣으면 `layout-preview`가 보이지만 방은 아직 그대로.
+- **SV-3** (서버 GET이 `available: false`) 처음부터 `layout-json`이 보인다. 사진을 올리면 `photo-preview`가 보이고 800 ms 뒤에도 POST는 0번, `layout-preview` 없음.
 
 ## 5. 다음 작업 (T-006 이후)
 1차 버전 검증 뒤에 만든다: 자동 저장, 예시 방 불러오기, 참고 사진 1장 첨부, JSON 내보내기. 식별자는 헤드가 정한다.
