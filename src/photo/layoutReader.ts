@@ -36,8 +36,11 @@ const ERROR_MESSAGE: Record<string, string> = {
   upstream_error: 'Claude 쪽에서 오류가 났어요. 다시 읽어 주세요.',
 };
 
+// 실제 sample은 호출할 수 있는 함수에 json·limits가 붙은 꼴이다(typeof가 'function'). 객체 꼴도 받는다.
 const isSample = (v: unknown): v is Sample =>
-  typeof v === 'object' && v !== null && typeof (v as Sample).json === 'function' && typeof (v as Sample).limits === 'function';
+  (typeof v === 'function' || (typeof v === 'object' && v !== null)) &&
+  typeof (v as Sample).json === 'function' &&
+  typeof (v as Sample).limits === 'function';
 
 let samplePromise: Promise<Sample | null> | null = null;
 

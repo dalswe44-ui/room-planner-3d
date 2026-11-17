@@ -175,7 +175,8 @@ async function installClaudeMock(page: Page, opts: MockOpts): Promise<void> {
     const log = { json: 0, limits: 0, imageCounts: [] as number[], imageAreBlobs: [] as boolean[] };
     w.__claudeCalls = log;
     w.claude = {
-      use: async () => ({
+      // 실제 sample과 같은 꼴: 호출할 수 있는 함수에 json·limits가 붙어 있다.
+      use: async () => Object.assign(async () => ({ text: '', truncated: false }), {
         limits: async () => {
           log.limits++;
           return { images: { maxCount: 1, maxInputBytes: 20e6, mediaTypes: ['image/jpeg', 'image/png'] } };

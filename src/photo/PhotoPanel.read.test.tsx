@@ -18,7 +18,8 @@ const RESULT = {
 type Json = (prompt: string, opts: { images: Blob[]; modelTier: string; signal: AbortSignal }) => Promise<unknown>;
 
 function mockClaude(json: Json, limits: () => Promise<unknown> = async () => ({ images: { max: 1 } })) {
-  const sample = { json: vi.fn(json), limits: vi.fn(limits) };
+  // 실제 sample과 같은 꼴: 호출할 수 있는 함수에 json·limits가 붙어 있다.
+  const sample = Object.assign(vi.fn(), { json: vi.fn(json), limits: vi.fn(limits) });
   window.claude = { use: vi.fn(async () => sample) };
   return sample;
 }
