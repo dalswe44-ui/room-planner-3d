@@ -72,11 +72,55 @@ describe('partsForKind', () => {
 
   it('의자 등받이는 -z 쪽 변에, 좌판은 높이의 절반에 있다', () => {
     const parts = partsForKind('chair', 450, 500, 850);
-    const back = parts.reduce((a, b) => (a.position[1] > b.position[1] ? a : b));
+    const back = parts.reduce((a, b) => (a.position[1] + a.size[1] / 2 > b.position[1] + b.size[1] / 2 ? a : b));
     expect(back.position[2]).toBeLessThan(-200);
     expect(back.position[1] + back.size[1] / 2).toBe(850);
-    const seat = parts.find((p) => p.size[0] === 450 && p.position[2] === 0)!;
+    const seat = parts.find((p) => p.size[0] === 450 && p.tone === 'light')!;
     expect(seat.position[1] + seat.size[1] / 2).toBe(425);
+    // 좌판은 등받이 앞에서 시작해 위에서 보면 둘이 겹치지 않는다.
+    expect(seat.position[2] - seat.size[2] / 2).toBeGreaterThanOrEqual(back.position[2] + back.size[2] / 2 - 1e-6);
+  });
+
+  it('침대: 폭이 넓으면 베개 2개, 좁으면 1개, 이불은 매트리스와 다른 톤', () => {
+    const pillows = (w: number) => partsForKind('bed', w, 2000, 450).filter((p) => p.tone === 'pillow').length;
+    expect(pillows(1500)).toBe(2);
+    expect(pillows(1100)).toBe(2);
+    expect(pillows(900)).toBe(1);
+    const tones = new Set(partsForKind('bed', 1500, 2000, 450).map((p) => p.tone));
+    expect(tones.has('blanket') && tones.has('cream')).toBe(true);
+  });
+
+  it('소파: 폭에 따라 좌석 쿠션 2~3개, 양쪽 팔걸이', () => {
+    const cushions = (w: number) => partsForKind('sofa', w, 850, 800).filter((p) => p.tone === 'light').length;
+    expect(cushions(1200)).toBe(2);
+    expect(cushions(1600)).toBe(2);
+    expect(cushions(1800)).toBe(3);
+    expect(cushions(2200)).toBe(3);
+    const arms = partsForKind('sofa', 1800, 850, 800).filter((p) => p.size[0] < 200 && p.size[1] > 400);
+    expect(arms).toHaveLength(2);
+  });
+
+  it('옷장: 문이 2개 이상으로 나뉘고 손잡이가 문마다 있다', () => {
+    const narrow = partsForKind('wardrobe', 900, 600, 2000);
+    const wide = partsForKind('wardrobe', 1800, 600, 2000);
+    expect(narrow.filter((p) => p.tone === 'handle')).toHaveLength(2);
+    expect(wide.filter((p) => p.tone === 'handle')).toHaveLength(4);
+    // 손잡이는 문 앞면 밖으로 나와 상자 앞면(d/2)에서 끝난다.
+    for (const hd of wide.filter((p) => p.tone === 'handle')) expect(hd.position[2] + hd.size[2] / 2).toBeCloseTo(300, 6);
+  });
+
+  it('책장: 뒤판(dark)은 -z 쪽 변, 윗판은 윗면에 붙는다', () => {
+    const parts = partsForKind('shelf', 800, 300, 1800);
+    const back = parts.find((p) => p.tone === 'dark')!;
+    expect(back.position[2] - back.size[2] / 2).toBeCloseTo(-150, 6);
+    expect(Math.max(...parts.filter((p) => p.tone === 'light').map((p) => p.position[1] + p.size[1] / 2))).toBe(1800);
+  });
+
+  it('책상·식탁 상판은 위에서 본 모서리가 둥글다', () => {
+    for (const kind of ['desk', 'table'] as const) {
+      const top = partsForKind(kind, 1200, 600, 720).find((p) => p.size[0] === 1200)!;
+      expect(top.corner).toBeGreaterThan(0);
+    }
   });
 
   it('침대 머리판은 -z 쪽 변에서 가장 높고 높이는 h를 넘지 않는다', () => {

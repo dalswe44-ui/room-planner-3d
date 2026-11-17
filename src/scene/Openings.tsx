@@ -5,7 +5,8 @@ import { MeshBasicMaterial, MeshStandardMaterial } from 'three';
 import { Line } from '@react-three/drei';
 import { mmToWorld, roomToWorld } from '../contracts/coords';
 import type { Opening, PointMm, Room, StructureTarget } from '../contracts/types';
-import { DOOR_COLOR, GLASS_COLOR, INK_COLOR, WINDOW_LINE_COLOR, wallSegments, type SceneUserData } from './geometry';
+import { DOOR_COLOR, GLASS_COLOR, INK_COLOR, wallSegments, type SceneUserData } from './geometry';
+import { PLAN_WINDOW_LINE_COLOR } from './wallVisual';
 import { RectOutline } from './Outlines';
 import { doorPlan, openingBox, windowPlanLines, wallRectCorners } from './structureGeometry';
 
@@ -108,7 +109,7 @@ function OpeningShape({ room, o, plan, selected, outer, mats }: ShapeProps) {
           <Line points={toPts(door.arc)} color={INK_COLOR} lineWidth={1} dashed dashSize={0.05} gapSize={0.04} renderOrder={5} />
         </>
       )}
-      {plan && winLines && winLines.map((l, i) => <Line key={i} points={toPts(l)} color={WINDOW_LINE_COLOR} lineWidth={2} renderOrder={5} />)}
+      {plan && winLines && winLines.map((l, i) => <Line key={i} points={toPts(l)} color={PLAN_WINDOW_LINE_COLOR} lineWidth={2} renderOrder={5} />)}
 
       {!plan && door && (
         <mesh
