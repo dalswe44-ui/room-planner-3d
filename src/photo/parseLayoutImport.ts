@@ -17,6 +17,8 @@ import { DEFAULT_COLORS } from '../store/projectStore';
 
 /** 높이가 없고 종류 기본 높이도 없을 때(상자) 쓰는 높이 */
 const BOX_DEFAULT_HEIGHT: Mm = 600;
+/** 가로·세로가 적혀 있지 않고 종류 기본 크기도 없을 때(상자) 쓰는 길이 */
+const BOX_DEFAULT_SIZE: Mm = 600;
 
 export interface ParseBase {
   /** 현재 표시 단위. 결과 project에 그대로 유지한다. */
@@ -108,8 +110,19 @@ export function parseLayoutImport(text: string, base: ParseBase): ParseResult {
       }
       const name = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name.trim() : DEFAULT_ITEM_NAME;
       const label = `${tag}(${name})`;
-      const w = toMm(entry.w);
-      const d = toMm(entry.d);
+      const kind = guessKindFromName(name);
+      const preset = presetFor(kind);
+      // 그림에 적혀 있지 않은 가로·세로(null)는 오류가 아니다. 기본 크기로 두고 알린다. 사용자가 적용 뒤 고친다.
+      const missing = (v: unknown) => v === null || v === undefined;
+      const sizeOf = (v: unknown, key: 'w' | 'd', word: string): Mm | null => {
+        if (!missing(v)) return toMm(v);
+        const fallback = preset?.[key] ?? BOX_DEFAULT_SIZE;
+        const why = preset ? `${KIND_LABEL[kind]} 기본 크기` : '기본값';
+        warnings.push(`${label}: ${word} 길이가 적혀 있지 않아 ${why} ${fallback} mm로 둠. 적용한 뒤 가구에서 고쳐 주세요.`);
+        return fallback;
+      };
+      const w = sizeOf(entry.w, 'w', '가로');
+      const d = sizeOf(entry.d, 'd', '세로');
       let ok = true;
       if (w === null || w < ITEM_SIZE_MIN || w > ITEM_SIZE_MAX) {
         errors.push(`${label}.w: ${rangeMsg('값', ITEM_SIZE_MIN, ITEM_SIZE_MAX)} 단위(${u})를 확인하세요.`);
@@ -119,8 +132,7 @@ export function parseLayoutImport(text: string, base: ParseBase): ParseResult {
         errors.push(`${label}.d: ${rangeMsg('값', ITEM_SIZE_MIN, ITEM_SIZE_MAX)} 단위(${u})를 확인하세요.`);
         ok = false;
       }
-      const kind = guessKindFromName(name);
-      let h: Mm = presetFor(kind)?.h ?? BOX_DEFAULT_HEIGHT;
+      let h: Mm = preset?.h ?? BOX_DEFAULT_HEIGHT;
       if (entry.h === null || entry.h === undefined) {
         const why = kind === 'box' ? '기본값' : `${KIND_LABEL[kind]} 기본 높이`;
         warnings.push(`${label}: 높이가 없어 ${why} ${h} mm로 둠`);

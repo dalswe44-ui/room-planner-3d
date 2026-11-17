@@ -85,6 +85,27 @@ describe('parseLayoutImport 정상 입력', () => {
     expect(box.warnings.some((w) => w.includes('기본값 600 mm'))).toBe(true);
   });
 
+  it('가로·세로가 null이면 오류가 아니라 기본 크기와 경고 (사용자 보고 2026-11-17: TV의 d, 세탁기의 w)', () => {
+    const items = [
+      { name: 'TV', w: 1.2, d: null, h: null, left: 0, top: 0, rotationDeg: 0 },
+      { name: '소파', w: null, d: 0.85, h: null, left: 1, top: 2, rotationDeg: 0 },
+    ];
+    const r = okOf(parseLayoutImport(doc({ unit: 'm', room: { width: 3.6, depth: 3, height: null }, items }), base));
+    const [tv, sofa] = r.project.items;
+    expect([tv.w, tv.d]).toEqual([1200, 600]); // 상자 기본 600
+    expect([sofa.w, sofa.d]).toEqual([1800, 850]); // 소파 기본 가로 1800
+    expect(r.warnings.some((w) => w.includes('1번 가구(TV)') && w.includes('세로') && w.includes('600 mm'))).toBe(true);
+    expect(r.warnings.some((w) => w.includes('2번 가구(소파)') && w.includes('가로') && w.includes('소파 기본 크기 1800 mm'))).toBe(true);
+  });
+
+  it('단위가 m이면 모든 길이를 mm로 바꾼다', () => {
+    const items = [{ name: '침대', w: 1.1, d: 2, h: 0.45, left: 0.5, top: 0, rotationDeg: 0 }];
+    const r = okOf(parseLayoutImport(doc({ unit: 'm', room: { width: 3.6, depth: 3, height: 2.4 }, items }), base));
+    expect(r.project.room.corners[2]).toEqual({ x: 3600, z: 3000 });
+    expect(r.project.room.ceilingHeight).toBe(2400);
+    expect(r.project.items[0]).toMatchObject({ w: 1100, d: 2000, h: 450, x: 1050, z: 1000 });
+  });
+
   it('결과에 JSON의 단위를 담는다', () => {
     expect(okOf(parseLayoutImport(doc(), base)).unit).toBe('cm');
   });
