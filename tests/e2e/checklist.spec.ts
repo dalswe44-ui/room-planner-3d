@@ -8,6 +8,7 @@ import {
   addOverlappingB,
   distances,
   dragFloor,
+  detachedTargetRightOf,
   dragItemTo,
   enter,
   expectNear,
@@ -332,10 +333,12 @@ for (const vp of VIEWPORTS) {
     });
 
     test('W-2 떼어 놓으면 해제, 다시 겹쳐도 막지 않음', async ({ page }) => {
-      const { second } = await addOverlappingB(page);
-      // 목표 (650, 650): 1000×1000 상자의 변이 벽과 다른 상자에서 150 mm라 자석 맞춤(20 mm)에 걸리지 않고 겹치지도 않는다(T-008)
-      await dragItemTo(page, second, { x: 650, z: 650 });
-      await expectNear(page, (await itemById(page, second)).center, { x: 650, z: 650 });
+      const { first, second } = await addOverlappingB(page);
+      // 자석 거리는 화면 12 px이라 360 폭 화면에서는 약 180 mm다. 고정 mm 목표는 벽에 붙으므로,
+      // 방을 넓힌 뒤 첫째 상자·벽에서 자석 거리의 2배 넘게 떨어진 목표를 화면에서 잰 값으로 계산한다(T-027).
+      const target = await detachedTargetRightOf(page, first, 1000, 1000);
+      await dragItemTo(page, second, target);
+      await expectNear(page, (await itemById(page, second)).center, target);
       await expect.poll(async () => (await snapshot(page)).items.map((it) => it.warning)).toEqual([false, false]);
       await expect(page.getByTestId('item-status')).toHaveCount(0);
       await dragItemTo(page, second, { x: 1800, z: 1500 });
@@ -423,8 +426,9 @@ for (const vp of VIEWPORTS) {
       expect(await distances(page)).toEqual(['0', '0', '0', '0']);
       await enter(page, 'item-w', '3700');
       await expect.poll(() => distances(page)).toEqual(['0', '-50', '0', '-50']);
-      // 큰 상자가 바닥을 덮으므로 위쪽 벽(z -100 ~ 0) 위를 짧게 누른다
-      await tapFloor(page, { x: 1800, z: -50 });
+      // 큰 상자가 바닥을 덮으므로 위쪽 벽(z -100 ~ 0) 위를 짧게 누른다.
+      // 가운데(x 1800)는 가구 위에 뜨는 도구 막대가 덮으므로(T-024) 막대 밖인 오른쪽 끝 쪽을 누른다(T-027).
+      await tapFloor(page, { x: 3300, z: -50 });
       await expect(page.locator('[data-testid^="item-dist-"]')).toHaveCount(0);
     });
 

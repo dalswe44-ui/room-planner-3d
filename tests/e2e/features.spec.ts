@@ -6,6 +6,7 @@ import {
   addA,
   addB,
   addItem,
+  detachedTargetRightOf,
   dragItemTo,
   enter,
   expectNear,
@@ -13,7 +14,9 @@ import {
   itemById,
   mmPerPixel,
   openApp,
+  snapMm,
   snapshot,
+  tapFloor,
   VIEWPORTS,
 } from './helpers';
 
@@ -41,13 +44,6 @@ for (const vp of VIEWPORTS) {
 
     // ---------- 자석 맞춤 ----------
     // 자석 거리는 화면 12 px에 해당하는 바닥 거리(2026-11-17 사용자 결정). 뷰포트마다 배율이 달라 화면에서 직접 잰다.
-    async function snapMm(page: Page): Promise<number> {
-      const p0 = await floorToClient(page, { x: 0, z: 1500 });
-      const p1 = await floorToClient(page, { x: 1000, z: 1500 });
-      const mmPerPx = 1000 / Math.hypot(p1.x - p0.x, p1.y - p0.y);
-      return 12 * mmPerPx;
-    }
-
     test('M-1 벽에서 자석 거리의 절반 앞에 놓으면 벽에 붙는다(옛 기준 20 mm보다 먼 거리)', async ({ page }) => {
       const a = await addA(page);
       const off = Math.round((await snapMm(page)) / 2);
@@ -259,6 +255,142 @@ for (const vp of VIEWPORTS) {
       await addA(page);
     });
 
+    // ---------- 가구 도구 막대 (SPEC 4-3절) ----------
+    const toolbar = (page: Page) => page.getByTestId('item-toolbar');
+    const rowTexts = (page: Page) => page.getByTestId('item-row').allTextContents();
+
+    test('TB-1 도구 막대 복제: 복제본 선택, 값 동일, 경고 없음, 되돌리기 한 번에 사라짐', async ({ page }) => {
+      const id = await addItem(page, '책장', '1000', '600', '700');
+      await page.getByTestId('item-rotate').click(); // 회전 90인 가구로 복제를 확인한다
+      await expect.poll(async () => (await itemById(page, id)).rotationDeg).toBe(90);
+      await expect(toolbar(page)).toBeVisible();
+      const orig = await itemById(page, id);
+      await page.getByTestId('tool-duplicate').click();
+      await expect.poll(() => itemCount(page)).toBe(2);
+      const snap = await snapshot(page);
+      const copy = snap.items.find((it) => it.id !== id)!;
+      expect(copy.selected).toBe(true);
+      expect(snap.items.find((it) => it.id === id)!.selected).toBe(false);
+      expect(copy.size).toEqual(orig.size);
+      expect(copy.rotationDeg).toBe(orig.rotationDeg);
+      expect(copy.kind).toBe(orig.kind);
+      expect(snap.items.map((it) => it.warning)).toEqual([false, false]);
+      // 이름·치수는 선택된 복제본의 수정 칸과 목록 줄로 확인한다
+      await expect(page.getByTestId('item-name')).toHaveValue('책장');
+      await expect(page.getByTestId('item-w')).toHaveValue('1000');
+      await expect(page.getByTestId('item-d')).toHaveValue('600');
+      await expect(page.getByTestId('item-h')).toHaveValue('700');
+      const rows = await rowTexts(page);
+      expect(rows[1]).toBe(rows[0]);
+      await page.getByTestId('undo').click();
+      await expect.poll(() => itemCount(page)).toBe(1);
+      expect((await snapshot(page)).items[0]!.id).toBe(id);
+    });
+
+    test('TB-2 도구 막대 회전: 왼쪽 90, 오른쪽 두 번 270, 크기·중심 그대로', async ({ page }) => {
+      const id = await addA(page);
+      const before = await itemById(page, id);
+      await page.getByTestId('tool-rotate-left').click();
+      await expect.poll(async () => (await itemById(page, id)).rotationDeg).toBe(90);
+      await page.getByTestId('tool-rotate-right').click();
+      await page.getByTestId('tool-rotate-right').click();
+      await expect.poll(async () => (await itemById(page, id)).rotationDeg).toBe(270);
+      const after = await itemById(page, id);
+      expect(after.size).toEqual(before.size);
+      expect(after.center).toEqual(before.center);
+    });
+
+    test('TB-3 도구 막대 삭제, 빈 바닥을 짧게 누르면 막대가 사라진다', async ({ page }) => {
+      const id = await addA(page);
+      await expect(toolbar(page)).toBeVisible();
+      await tapFloor(page, { x: 300, z: 2700 });
+      await expect.poll(async () => (await itemById(page, id)).selected).toBe(false);
+      await expect(toolbar(page)).toHaveCount(0);
+      await page.locator(`[data-testid="item-row"][data-item-id="${id}"]`).click();
+      await expect(toolbar(page)).toBeVisible();
+      await page.getByTestId('tool-delete').click();
+      await expect.poll(() => itemCount(page)).toBe(0);
+      await expect(page.getByTestId('item-row')).toHaveCount(0);
+      await expect(toolbar(page)).toHaveCount(0);
+    });
+
+    test('TB-4 도구 막대 버튼을 눌러도 선택이 유지되고 중심이 움직이지 않는다', async ({ page }) => {
+      const id = await addA(page);
+      const before = await itemById(page, id);
+      expect(before.selected).toBe(true);
+      for (const t of ['tool-rotate-left', 'tool-rotate-right', 'tool-rotate-left']) {
+        const c0 = (await itemById(page, id)).center;
+        await page.getByTestId(t).click();
+        await page.waitForTimeout(150);
+        const it = await itemById(page, id);
+        expect(it.selected, `${t} 뒤 선택`).toBe(true);
+        expect(it.center, `${t} 뒤 중심`).toEqual(c0);
+        await expect(toolbar(page)).toBeVisible();
+      }
+      expect((await itemById(page, id)).center).toEqual(before.center);
+    });
+
+    test('TB-5 끄는 동안 도구 막대가 사라졌다가 놓으면 다시 보인다', async ({ page }) => {
+      const id = await addA(page);
+      await expect(toolbar(page)).toHaveCount(1);
+      const it = await itemById(page, id);
+      const a = await floorToClient(page, { x: it.center.x, z: it.center.z });
+      const b = await floorToClient(page, { x: 1000, z: 800 });
+      await page.mouse.move(a.x, a.y);
+      await page.mouse.down();
+      await page.mouse.move((a.x + b.x) / 2, (a.y + b.y) / 2, { steps: 6 });
+      await page.mouse.move(b.x, b.y, { steps: 6 });
+      await expect(toolbar(page)).toHaveCount(0);
+      await page.mouse.up();
+      await expect(toolbar(page)).toHaveCount(1);
+      await expectNear(page, (await itemById(page, id)).center, { x: 1000, z: 800 });
+    });
+
+    // ---------- 도면 치수 (SPEC 4-3절) ----------
+    test('DM-1 평면 뷰의 방 치수 글자: 단위 따라 바뀌고 3D에서는 없다', async ({ page }) => {
+      await expect(page.getByTestId('room-dim-width')).toHaveText(/^\s*3600\s*mm\s*$/);
+      await expect(page.getByTestId('room-dim-depth')).toHaveText(/^\s*3000\s*mm\s*$/);
+      await page.getByTestId('unit-cm').click();
+      await expect(page.getByTestId('room-dim-width')).toHaveText(/^\s*360\.0\s*cm\s*$/);
+      await expect(page.getByTestId('room-dim-depth')).toHaveText(/^\s*300\.0\s*cm\s*$/);
+      await page.getByTestId('unit-mm').click();
+      await enter(page, 'room-width', '4200');
+      await expect.poll(async () => (await snapshot(page)).room.width).toBe(4200);
+      await expect(page.getByTestId('room-dim-width')).toHaveText(/^\s*4200\s*mm\s*$/);
+      await expect(page.getByTestId('room-dim-depth')).toHaveText(/^\s*3000\s*mm\s*$/);
+      await page.getByTestId('view-3d').click();
+      await expect.poll(async () => (await snapshot(page)).view).toBe('3d');
+      await expect(page.getByTestId('room-dim-width')).toHaveCount(0);
+      await expect(page.getByTestId('room-dim-depth')).toHaveCount(0);
+    });
+
+    test('DM-2 선택한 가구의 도면 거리 글자가 패널 거리와 같고 선택을 풀면 없다', async ({ page }) => {
+      const id = await addItem(page, '책상', '1200', '600', '720');
+      const num = (t: string | null) => (t ?? '').match(/-?\d+(?:\.\d+)?/)?.[0];
+      const same = async () => {
+        for (let i = 0; i < 4; i++) {
+          const scene = num(await page.getByTestId(`scene-dist-${i}`).textContent());
+          const panel = num(await page.getByTestId(`item-dist-${i}`).textContent());
+          expect(scene, `scene-dist-${i}`).toBeDefined();
+          expect(scene, `scene-dist-${i}와 item-dist-${i}`).toBe(panel);
+        }
+      };
+      await same();
+      expect(await page.getByTestId('scene-dist-0').textContent()).toContain('1200'); // 중심 (1800, 1500), 폭 1200 → 벽 0까지 1200
+      await page.getByTestId('unit-cm').click();
+      await expect.poll(async () => num(await page.getByTestId('scene-dist-0').textContent())).toBe('120.0');
+      await same();
+      await page.getByTestId('unit-mm').click();
+      await dragItemTo(page, id, { x: 1000, z: 800 });
+      await same();
+      await tapFloor(page, { x: 300, z: 2700 });
+      await expect.poll(async () => (await itemById(page, id)).selected).toBe(false);
+      for (let i = 0; i < 4; i++) {
+        await expect(page.getByTestId(`scene-dist-${i}`)).toHaveCount(0);
+        await expect(page.getByTestId(`item-dist-${i}`)).toHaveCount(0);
+      }
+    });
+
     // ---------- 그려진 색 ----------
     test('C-1 겹치면 평면 뷰의 실제 픽셀이 경고 빨강, 떼면 원래 색', async ({ page }) => {
       const first = await addB(page);
@@ -302,12 +434,17 @@ for (const vp of VIEWPORTS) {
       await expect.poll(async () => (await itemById(page, second)).warning).toBe(true);
       const over = await sampleColor(second);
       expect(isWarningRed(over), `겹친 색 ${over}`).toBe(true);
+      expect(dist(over, base), `겹치기 전 ${base}, 겹친 뒤 ${over}는 뚜렷이 달라야 한다`).toBeGreaterThan(80);
 
-      await dragItemTo(page, second, { x: 650, z: 650 });
+      // 고정 mm 목표는 작은 화면에서 자석에 붙는다. 자석 거리의 2배 넘게 떨어진 곳으로 계산한다(T-027)
+      const target = await detachedTargetRightOf(page, first, 1000, 1000);
+      await dragItemTo(page, second, target);
+      await expectNear(page, (await itemById(page, second)).center, target);
       await expect.poll(async () => (await itemById(page, second)).warning).toBe(false);
       const after = await sampleColor(second);
       expect(isWarningRed(after), `뗀 뒤 색 ${after}`).toBe(false);
       expect(dist(after, base), `원래 색 ${base}, 뗀 뒤 ${after}`).toBeLessThan(45);
+      expect(dist(after, over), `겹친 색 ${over}과 뗀 뒤 ${after}는 달라야 한다`).toBeGreaterThan(80);
       expect(await mmPerPixel(page)).toBeGreaterThan(0);
     });
   });

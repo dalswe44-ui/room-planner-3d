@@ -138,3 +138,27 @@ export async function addOverlappingB(page: Page): Promise<{ first: string; seco
   await expectNear(page, (await itemById(page, second)).center, { x: f.center.x, z: f.center.z });
   return { first, second };
 }
+
+/** 자석 거리(mm): 화면 12 px에 해당하는 바닥 거리. 뷰포트·방 크기마다 달라 화면에서 직접 잰다. */
+export async function snapMm(page: Page): Promise<number> {
+  const room = (await snapshot(page)).room;
+  const p0 = await floorToClient(page, { x: 0, z: room.depth / 2 });
+  const p1 = await floorToClient(page, { x: 1000, z: room.depth / 2 });
+  return 12 * (1000 / Math.hypot(p1.x - p0.x, p1.y - p0.y));
+}
+
+/**
+ * 방 폭을 6000으로 넓힌 뒤, other 가구의 오른쪽에서 자석 거리의 2.2배 떨어지고 오른쪽 벽에서도 2배 넘게 떨어진
+ * 곳에 w×d 가구가 놓이는 중심을 돌려준다(자석에 붙지 않고 겹치지도 않는 목표. 화면이 작으면 자석 거리가 mm로 커져서 고정 mm 목표는 붙는다).
+ */
+export async function detachedTargetRightOf(page: Page, otherId: string, w: number, d: number): Promise<Pt> {
+  await enter(page, 'room-width', '6000');
+  await expect.poll(async () => (await snapshot(page)).room.width).toBe(6000);
+  const snap = await snapMm(page);
+  const other = await itemById(page, otherId);
+  const left = other.center.x + other.size.w / 2 + Math.ceil((snap * 2.2) / 10) * 10;
+  const room = (await snapshot(page)).room;
+  expect(room.width - (left + w), `오른쪽 벽과의 간격이 자석 거리 ${snap.toFixed(0)} mm의 2배 이상이어야 한다`).toBeGreaterThanOrEqual(snap * 2);
+  expect(Math.min(other.center.z - d / 2, room.depth - (other.center.z + d / 2)), '위·아래 벽과의 간격').toBeGreaterThanOrEqual(snap * 2);
+  return { x: left + w / 2, z: other.center.z };
+}
