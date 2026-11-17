@@ -7,8 +7,11 @@ import type { DisplayUnit, FurnitureItem, FurnitureKind, ItemStatus, Mm } from '
 import { formatLength, UNIT_LABEL } from '../contracts/units';
 import { useProjectStore } from '../store/projectStore';
 import { LengthInput } from '../ui/LengthInput';
-import { currentFootprint, findFreeSpot, footprint, nextRotation, wallDistances } from './placement';
+import { IconDuplicate, IconPlus, IconRotateLeft, IconRotateRight, IconTrash } from '../ui/icons';
+import { duplicateItem } from './duplicateItem';
+import { findFreeSpot, footprint, nextRotation, ROTATE_STEP_DEG } from './placement';
 import { useItemStatuses } from './useItemStatuses';
+import { useSelectedWallDistances } from './useSelectedWallDistances';
 import './furniture.css';
 
 type SizeKey = 'w' | 'd' | 'h';
@@ -34,6 +37,11 @@ function freeSpotFor(size: Pick<FurnitureItem, 'w' | 'd'>) {
     roomBounds(project.room),
     project.items.map((it) => footprint(it)),
   );
+}
+
+/** "1200 × 600 × 720 mm" */
+function sizeSummary(it: Pick<FurnitureItem, 'w' | 'd' | 'h'>, unit: DisplayUnit): string {
+  return `${formatLength(it.w, unit)} × ${formatLength(it.d, unit)} × ${formatLength(it.h, unit)} ${UNIT_LABEL[unit]}`;
 }
 
 function nameOrDefault(text: string): string {
@@ -121,7 +129,7 @@ function AddForm({ unit, addedIdRef }: { unit: DisplayUnit; addedIdRef: MutableR
           <button
             key={p.kind}
             type="button"
-            className="furniture-button furniture-presets__button"
+            className="chip furniture-presets__button"
             data-testid={`preset-${p.kind}`}
             onClick={() => addPreset(p)}
           >
@@ -162,10 +170,11 @@ function AddForm({ unit, addedIdRef }: { unit: DisplayUnit; addedIdRef: MutableR
         ))}
         <button
           type="submit"
-          className="furniture-button furniture-button--primary"
+          className="btn btn--primary furniture-add__submit"
           data-testid="furniture-add"
           disabled={anyInvalid}
         >
+          <IconPlus size={18} />
           추가
         </button>
       </form>
@@ -183,7 +192,6 @@ interface ItemListProps {
 function ItemList({ items, selectedItemId, statuses, unit }: ItemListProps) {
   const selectItem = useProjectStore((s) => s.selectItem);
   if (items.length === 0) return <p className="furniture-panel__empty">아직 가구가 없습니다.</p>;
-  const u = UNIT_LABEL[unit];
   return (
     <ul className="furniture-list" aria-label="가구 목록">
       {items.map((it) => {
@@ -207,9 +215,7 @@ function ItemList({ items, selectedItemId, statuses, unit }: ItemListProps) {
                   <small className="furniture-list__kind"> {KIND_LABEL[it.kind]}</small>
                 )}
               </span>
-              <span className="furniture-list__size">
-                {formatLength(it.w, unit)} × {formatLength(it.d, unit)} × {formatLength(it.h, unit)} {u}
-              </span>
+              <span className="furniture-list__size num">{sizeSummary(it, unit)}</span>
               {warn && <span className="furniture-list__warn">경고</span>}
             </button>
           </li>
@@ -228,8 +234,6 @@ interface ItemEditorProps {
 function ItemEditor({ item, unit, status }: ItemEditorProps) {
   const updateItem = useProjectStore((s) => s.updateItem);
   const removeItem = useProjectStore((s) => s.removeItem);
-  const corners = useProjectStore((s) => s.project.room.corners);
-  const preview = useProjectStore((s) => s.dragPreview);
   const [nameText, setNameText] = useState(item.name);
 
   const commitName = () => {
@@ -238,75 +242,53 @@ function ItemEditor({ item, unit, status }: ItemEditorProps) {
     if (next !== item.name) updateItem(item.id, { name: next });
   };
 
-  const distances = wallDistances(currentFootprint(item, preview), roomBounds({ corners }));
+  const distances = useSelectedWallDistances() ?? [0, 0, 0, 0];
   const u = UNIT_LABEL[unit];
 
   return (
-    <section className="furniture-editor" aria-label="선택한 가구">
-      <h3 className="furniture-panel__title">선택한 가구</h3>
-      <div className="furniture-field">
-        <label className="furniture-field__label" htmlFor="item-name">
-          이름
-        </label>
-        <input
-          id="item-name"
-          className="furniture-field__input"
-          type="text"
-          autoComplete="off"
-          enterKeyHint="done"
-          value={nameText}
-          data-testid="item-name"
-          onChange={(e) => setNameText(e.target.value)}
-          onBlur={commitName}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') commitName();
-          }}
-        />
-      </div>
-      <div className="furniture-field">
-        <label className="furniture-field__label" htmlFor="item-kind">
-          종류
-        </label>
-        <select
-          id="item-kind"
-          className="furniture-field__input"
-          value={item.kind ?? 'box'}
-          data-testid="item-kind"
-          onChange={(e) => updateItem(item.id, { kind: e.target.value as FurnitureKind })}
+    <section className="furniture-editor card" aria-label="선택한 가구">
+      <header className="furniture-editor__head">
+        <span className="furniture-editor__swatch" style={{ background: item.color }} aria-hidden="true" />
+        <div className="furniture-editor__headtext">
+          <h3 className="furniture-editor__name">{item.name}</h3>
+          <p className="furniture-editor__size num">{sizeSummary(item, unit)}</p>
+        </div>
+      </header>
+
+      <div className="furniture-editor__actions">
+        <button type="button" className="icon-btn" data-testid="item-duplicate" aria-label="복제" title="복제" onClick={() => duplicateItem(item)}>
+          <IconDuplicate />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          data-testid="item-rotate"
+          aria-label="왼쪽으로 90° 돌리기"
+          title="왼쪽으로 90° 돌리기"
+          onClick={() => updateItem(item.id, { rotationDeg: nextRotation(item.rotationDeg) })}
         >
-          <option value="box">{KIND_LABEL.box}</option>
-          {FURNITURE_PRESETS.map((p) => (
-            <option key={p.kind} value={p.kind}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      {/* 선택이 바뀌면 사라지는 칸이므로 onValidityChange를 넘기지 않는다(T-002b) */}
-      {SIZE_FIELDS.map(({ key, label }) => (
-        <LengthInput
-          key={key}
-          label={label}
-          valueMm={item[key]}
-          unit={unit}
-          min={ITEM_SIZE_MIN}
-          max={ITEM_SIZE_MAX}
-          testId={`item-${key}`}
-          onCommit={(mm) => updateItem(item.id, { [key]: mm })}
-        />
-      ))}
-      <div className="furniture-field">
-        <label className="furniture-field__label" htmlFor="item-color">
-          색
-        </label>
-        <input
-          id="item-color"
-          className="furniture-field__color"
-          type="color"
-          value={item.color}
-          data-testid="item-color"
-          onChange={(e) => updateItem(item.id, { color: e.target.value })}
-        />
+          <IconRotateLeft />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          data-testid="item-rotate-right"
+          aria-label="오른쪽으로 90° 돌리기"
+          title="오른쪽으로 90° 돌리기"
+          onClick={() => updateItem(item.id, { rotationDeg: item.rotationDeg - ROTATE_STEP_DEG })}
+        >
+          <IconRotateRight />
+        </button>
+        <button
+          type="button"
+          className="icon-btn icon-btn--danger furniture-editor__delete"
+          data-testid="item-delete"
+          aria-label="삭제"
+          title="삭제"
+          onClick={() => removeItem(item.id)}
+        >
+          <IconTrash />
+        </button>
       </div>
 
       {status && (status.overlap || status.outside) && (
@@ -316,40 +298,88 @@ function ItemEditor({ item, unit, status }: ItemEditorProps) {
         </p>
       )}
 
-      <p className="furniture-editor__hint" data-testid="item-nudge-hint">
-        방향키로 1 cm, Shift+방향키로 1 mm 이동
-      </p>
+      <div className="furniture-editor__fields">
+        <div className="furniture-field">
+          <label className="furniture-field__label" htmlFor="item-name">
+            이름
+          </label>
+          <input
+            id="item-name"
+            className="furniture-field__input"
+            type="text"
+            autoComplete="off"
+            enterKeyHint="done"
+            value={nameText}
+            data-testid="item-name"
+            onChange={(e) => setNameText(e.target.value)}
+            onBlur={commitName}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitName();
+            }}
+          />
+        </div>
+        <div className="furniture-field">
+          <label className="furniture-field__label" htmlFor="item-kind">
+            종류
+          </label>
+          <select
+            id="item-kind"
+            className="furniture-field__input"
+            value={item.kind ?? 'box'}
+            data-testid="item-kind"
+            onChange={(e) => updateItem(item.id, { kind: e.target.value as FurnitureKind })}
+          >
+            <option value="box">{KIND_LABEL.box}</option>
+            {FURNITURE_PRESETS.map((p) => (
+              <option key={p.kind} value={p.kind}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {/* 선택이 바뀌면 사라지는 칸이므로 onValidityChange를 넘기지 않는다(T-002b) */}
+        {SIZE_FIELDS.map(({ key, label }) => (
+          <LengthInput
+            key={key}
+            label={label}
+            valueMm={item[key]}
+            unit={unit}
+            min={ITEM_SIZE_MIN}
+            max={ITEM_SIZE_MAX}
+            testId={`item-${key}`}
+            onCommit={(mm) => updateItem(item.id, { [key]: mm })}
+          />
+        ))}
+        <div className="furniture-field">
+          <label className="furniture-field__label" htmlFor="item-color">
+            색
+          </label>
+          <input
+            id="item-color"
+            className="furniture-field__color"
+            type="color"
+            value={item.color}
+            data-testid="item-color"
+            onChange={(e) => updateItem(item.id, { color: e.target.value })}
+          />
+        </div>
+      </div>
 
-      <h4 className="furniture-editor__subtitle">벽까지 거리 (평면 뷰 기준)</h4>
+      <h4 className="furniture-editor__subtitle">벽까지 거리</h4>
       <dl className="furniture-distances">
         {distances.map((mm, i) => (
           <div key={i} className="furniture-distances__row">
             <dt>{WALL_LABELS[i]}</dt>
-            <dd>
+            <dd className="num">
               <span data-testid={`item-dist-${i}`}>{formatLength(mm, unit)}</span> {u}
             </dd>
           </div>
         ))}
       </dl>
 
-      <div className="furniture-editor__actions">
-        <button
-          type="button"
-          className="furniture-button"
-          data-testid="item-rotate"
-          onClick={() => updateItem(item.id, { rotationDeg: nextRotation(item.rotationDeg) })}
-        >
-          90° 회전
-        </button>
-        <button
-          type="button"
-          className="furniture-button furniture-button--danger"
-          data-testid="item-delete"
-          onClick={() => removeItem(item.id)}
-        >
-          삭제
-        </button>
-      </div>
+      <p className="furniture-editor__hint" data-testid="item-nudge-hint">
+        방향키로 1 cm, Shift+방향키로 1 mm 이동
+      </p>
     </section>
   );
 }

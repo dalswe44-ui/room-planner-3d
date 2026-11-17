@@ -1,0 +1,17 @@
+// 선택한 가구에서 벽 0 ~ 3까지의 거리. 끄는 중이면 임시 위치로 잰다. 패널과 장면의 치수선이 같은 값을 쓴다.
+import { useMemo } from 'react';
+import { roomBounds } from '../contracts/room';
+import type { Mm } from '../contracts/types';
+import { useProjectStore } from '../store/projectStore';
+import { currentFootprint, wallDistances } from './placement';
+
+export function useSelectedWallDistances(): readonly [Mm, Mm, Mm, Mm] | null {
+  const items = useProjectStore((s) => s.project.items);
+  const selectedItemId = useProjectStore((s) => s.selectedItemId);
+  const corners = useProjectStore((s) => s.project.room.corners);
+  const preview = useProjectStore((s) => s.dragPreview);
+  return useMemo(() => {
+    const item = items.find((it) => it.id === selectedItemId);
+    return item ? wallDistances(currentFootprint(item, preview), roomBounds({ corners })) : null;
+  }, [items, selectedItemId, corners, preview]);
+}

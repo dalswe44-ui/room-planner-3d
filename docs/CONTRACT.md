@@ -113,6 +113,6 @@ e2e 테스트가 화면 요소를 찾을 때 쓴다. 모듈은 아래 이름을 
 |---|---|---|
 | `item-toolbar` | 장면 위 | 선택한 가구의 도구 막대. 선택이 없거나 끄는 중이면 없다 |
 | `tool-duplicate`, `tool-rotate-left`, `tool-rotate-right`, `tool-delete` | 도구 막대 | 복제(복제본이 선택됨), 반시계 90도, 시계 90도, 삭제 |
-| `item-duplicate`, `item-rotate-left` | 패널의 선택한 가구 칸 | 위와 같은 동작. 기존 `item-rotate`(시계 90도), `item-delete`는 그대로 |
+| `item-duplicate`, `item-rotate-right` | 패널의 선택한 가구 칸 | 복제, 시계 90도(−90). 기존 `item-rotate`는 반시계 90도(+90, SPEC P-4와 같음)로 그대로, `item-delete`도 그대로. (처음에 헤드가 `item-rotate`를 시계 방향이라고 잘못 적었고 T-024 에이전트가 SPEC·테스트와 어긋남을 찾아 바로잡음) |
 | `room-dim-width`, `room-dim-depth` | 평면 뷰 | 방 폭·깊이 치수 글자(현재 단위의 숫자와 단위) |
 | `scene-dist-0` ~ `scene-dist-3` | 평면 뷰 | 선택한 가구에서 벽 0 ~ 3까지 거리 글자. 선택이 없으면 없다 |

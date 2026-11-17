@@ -441,3 +441,28 @@ describe('화면 기준 자석 거리', () => {
     expect(settleCenter(box, at, ROOM, []).x).toBe(560); // 거리 인자 없음(20 mm): 안 붙고 격자
   });
 });
+
+describe('findFreeSpot 시작점', () => {
+  const room = { minX: 0, maxX: 3600, minZ: 0, maxZ: 3000, width: 3600, depth: 3000 };
+
+  it('시작점이 비어 있으면 그 자리(10 mm 격자)', () => {
+    expect(findFreeSpot({ w: 600, d: 600 }, room, [], { x: 700, z: 500 })).toEqual({ x: 700, z: 500 });
+  });
+
+  it('시작점이 막히면 방 가운데가 아니라 시작점에서 가장 가까운 빈 자리', () => {
+    const blocker = { minX: 400, maxX: 1000, minZ: 200, maxZ: 800 };
+    const at = findFreeSpot({ w: 600, d: 600 }, room, [blocker], { x: 700, z: 500 });
+    const f = footprint({ ...at, w: 600, d: 600, rotationDeg: 0 });
+    expect(footprintsOverlap(f, blocker)).toBe(false);
+    expect(Math.hypot(at.x - 700, at.z - 500)).toBeLessThanOrEqual(700);
+  });
+
+  it('시작점을 주지 않으면 방 가운데(기존 동작)', () => {
+    expect(findFreeSpot({ w: 600, d: 600 }, room, [])).toEqual({ x: 1800, z: 1500 });
+  });
+
+  it('시작점이 방 구석이어도 방 안의 빈 자리를 찾는다', () => {
+    const at = findFreeSpot({ w: 600, d: 600 }, room, [], { x: 0, z: 0 });
+    expect(isOutsideRoom(footprint({ ...at, w: 600, d: 600, rotationDeg: 0 }), room)).toBe(false);
+  });
+});

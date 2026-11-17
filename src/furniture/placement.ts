@@ -190,16 +190,24 @@ const FREE_SPOT_STEP_MM = 100;
 /**
  * 새 가구(회전 0)를 놓을 빈 자리의 중심. 방 가운데에서 100 mm 격자로 바깥으로 훑어,
  * 다른 가구와 겹치지 않고 방 안에 들어가는 가장 가까운 자리를 고른다. 왼쪽·위쪽 변은 10 mm 격자에 맞춘다.
- * 같은 거리면 위쪽, 그다음 왼쪽을 먼저 고른다. 빈 자리가 없으면 방 가운데(겹침·이탈은 경고로 보인다).
+ * 같은 거리면 위쪽, 그다음 왼쪽을 먼저 고른다. 빈 자리가 없으면 시작점(겹침·이탈은 경고로 보인다).
+ * from을 주면 방 가운데 대신 그 점에서 훑는다(복제본을 원본 옆에 놓을 때). 기본값은 방 가운데.
  */
-export function findFreeSpot(size: Pick<FurnitureItem, 'w' | 'd'>, room: RoomBounds, others: Footprint[]): PointMm {
-  const cx = Math.round((room.minX + room.maxX) / 2);
-  const cz = Math.round((room.minZ + room.maxZ) / 2);
+export function findFreeSpot(
+  size: Pick<FurnitureItem, 'w' | 'd'>,
+  room: RoomBounds,
+  others: Footprint[],
+  from?: PointMm,
+): PointMm {
+  const cx = Math.round(from?.x ?? (room.minX + room.maxX) / 2);
+  const cz = Math.round(from?.z ?? (room.minZ + room.maxZ) / 2);
   const shape = { w: size.w, d: size.d, rotationDeg: 0, x: 0, z: 0 };
   if (size.w > room.width || size.d > room.depth) return { x: cx, z: cz };
   // 가운데 자리가 가능하려면 가구 절반이 방 안이므로, 더 멀리 가야 할 일은 방 크기의 절반을 넘지 않는다.
-  const stepsX = Math.ceil(room.width / 2 / FREE_SPOT_STEP_MM);
-  const stepsZ = Math.ceil(room.depth / 2 / FREE_SPOT_STEP_MM);
+  // 시작점이 가운데가 아니면 방 끝까지 가야 할 수 있으므로 방 크기 전체를 훑는다.
+  const span = from ? 1 : 2;
+  const stepsX = Math.ceil(room.width / span / FREE_SPOT_STEP_MM);
+  const stepsZ = Math.ceil(room.depth / span / FREE_SPOT_STEP_MM);
   const offsets: { i: number; j: number }[] = [];
   for (let j = -stepsZ; j <= stepsZ; j++) for (let i = -stepsX; i <= stepsX; i++) offsets.push({ i, j });
   const dist = (o: { i: number; j: number }) => o.i * o.i + o.j * o.j;
