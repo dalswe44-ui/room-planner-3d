@@ -4,5 +4,6 @@
 |---|---|---|---|---|---|---|---|---|---|
 | D-T005-01 | 2026-11-17 | T-003 위임 지시 4번 (SPEC 체크리스트에는 없음) | 이름 "책상"으로 가구 추가, 평면 뷰를 봄 | 상자 위에 이름이 DOM 글자로 보임 | `scene-canvas` 안에 이름 글자가 없음. `src/scene`에 `Html` 사용 없음 | 낮음~중간 | scene-engine | e2e `T003-4`, `T-005_F-1_plan_*.png` | 고침(T-006, scene-engine. e2e T003-4 두 뷰포트 통과) |
 | D-T005-02 | 2026-11-17 | SPEC 2절 "처음에 방 전체가 보인다" (V-3 보조) | 기본 상태에서 평면 뷰. 360×740, 1280×800 | 뷰 전환 버튼이 방 바닥을 가리지 않음 | 모바일 135×17 px(약 1551×198 mm), 데스크톱 71×9 px 가림. 가려진 곳의 가구는 잡을 수 없음 | 중간(모바일), 낮음(데스크톱) | 헤드(app.css) | e2e `V-3 보조`, `T-005_R-1_default_mobile.png` | 고침(헤드, app.css: 버튼 줄을 캔버스 위로 분리. e2e V-3 보조 두 뷰포트 통과) |
+| D-T032-01 | 2026-11-17 | 위임 T-032 DR-3 (칩 → Escape → 취소, 칩 → Enter → 확정) | 기본 가구 칩(예: preset-table)을 마우스로 누른 직후 Escape 또는 Enter를 누름 | Escape는 미리보기가 사라지고, Enter는 가구 1개 추가 | 둘 다 반응 없음(draft 유지, items 0개). `keyboardNudge.ts handleDraftKey`가 버튼 포커스면 무시하는데 칩 클릭 후 포커스가 칩에 남음. 포커스를 치우면 정상 | 중간 | furniture-placement | e2e `DR-3b`(데스크톱·모바일 실패), `DR-3`(포커스 해제 후 통과) | 헤드 수정: src/furniture/keyboardNudge.ts handleDraftKey — Escape는 버튼 포커스에서도 취소, Enter는 preset- 칩에서만 확정. 재실행 E2E_PORT=4391 npx playwright test -g DR-3 → 4 passed |
 
 관찰(결함 아님): 같은 자리에 겹친 두 상자를 누르면 선택된 가구가 아니라 먼저 추가한 가구가 잡힌다. SPEC W-2는 "하나를"이라고만 한다.
