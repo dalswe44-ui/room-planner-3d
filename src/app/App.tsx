@@ -1,6 +1,8 @@
 // 앱의 조립 지점. 각 모듈이 내보낸 컴포넌트를 여기서 한 화면으로 묶는다. 이 파일은 헤드만 고친다.
 import { useState } from 'react';
 import { FurniturePanel } from '../furniture/FurniturePanel';
+import { ItemToolbar } from '../furniture/ItemToolbar';
+import { useSelectedWallDistances } from '../furniture/useSelectedWallDistances';
 import { useItemStatuses } from '../furniture/useItemStatuses';
 import { useKeyboardNudge } from '../furniture/keyboardNudge';
 import { usePlacement } from '../furniture/usePlacement';
@@ -25,6 +27,7 @@ export function App() {
   const undo = useProjectStore((s) => s.undo);
   const redo = useProjectStore((s) => s.redo);
   const statuses = useItemStatuses();
+  const wallDistances = useSelectedWallDistances();
   const [tab, setTab] = useState<'main' | 'photo'>('main');
   return (
     <div className="app">
@@ -88,7 +91,7 @@ export function App() {
       </aside>
       <main className="app-scene" data-testid="scene">
         <ViewToggle />
-        <SceneView handlers={handlers} statuses={statuses} />
+        <SceneView handlers={handlers} statuses={statuses} selectionOverlay={<ItemToolbar />} wallDistances={wallDistances} />
       </main>
     </div>
   );

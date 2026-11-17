@@ -5,11 +5,24 @@ import { mmToWorld } from '../contracts/coords';
 import type { FurnitureItem, FurnitureKind, Mm, PointMm } from '../contracts/types';
 
 export const WALL_THICKNESS_MM = 100;
-export const WARNING_COLOR = '#e5484d';
-export const SELECTED_EDGE_COLOR = '#1f6feb';
-export const FLOOR_COLOR = '#fbfaf6';
-export const WALL_COLOR = '#d9d4c7';
-export const SCENE_BACKGROUND = '#eceae4';
+/** 색은 docs/DESIGN-SYSTEM.md와 src/app/app.css의 변수와 같은 값이다. */
+export const WARNING_COLOR = '#d9482b';
+/** 경고일 때 가구 고유색에 섞는 경고색의 비율. 무슨 가구인지 보이면서 붉은 계열임이 분명한 값 */
+export const WARNING_MIX = 0.65;
+export const SELECTED_EDGE_COLOR = '#f2b90f';
+export const INK_COLOR = '#1c2b39';
+export const FLOOR_COLOR = '#e2cfae';
+export const WALL_INNER_COLOR = '#f4f2ec';
+export const WALL_OUTER_COLOR = '#e4e0d6';
+export const WALL_TOP_COLOR = INK_COLOR;
+export const SCENE_BACKGROUND = '#eef1f0';
+
+/** "#rrggbb" 두 색을 sRGB 값 그대로 섞는다(t = b의 비율). 눈에 보이는 색 그대로 섞이도록 선형 변환을 거치지 않는다. */
+export function mixHex(a: string, b: string, t: number): string {
+  const ch = (hex: string, i: number): number => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  const out = [0, 1, 2].map((i) => Math.round(ch(a, i) * (1 - t) + ch(b, i) * t));
+  return `#${out.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
 
 /** 그려진 three.js 객체에 붙여 두는 표식. 검증 조회와 카메라 처리가 이 값을 읽는다. */
 export interface SceneUserData {

@@ -1,13 +1,16 @@
 // 평면 뷰와 3D 뷰를 한 캔버스에 그린다. 포인터는 방 좌표로 바꿔 PlacementHandlers로 넘기기만 한다.
-import { useEffect, useMemo, useRef, useState, createRef, type PointerEvent as ReactPointerEvent } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, createRef, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Object3D, type DirectionalLight } from 'three';
 import { roomBounds } from '../contracts/room';
-import type { ItemStatus, PlacementHandlers } from '../contracts/types';
+import { mmToWorld } from '../contracts/coords';
+import type { ItemStatus, Mm, PlacementHandlers, ViewMode } from '../contracts/types';
 import { useProjectStore } from '../store/projectStore';
 import { CameraRig } from './CameraRig';
 import { FOV_DEG } from './camera';
 import { FurnitureBox } from './Furniture';
 import { Room } from './Room';
+import { SceneOverlays } from './SceneOverlays';
 import { SCENE_BACKGROUND } from './geometry';
 import { PlacementRouter } from './gestures';
 import { pickFurniture, clientToFloor, mmPerPxAt, screenRectOf } from './pointer';
@@ -17,9 +20,13 @@ import './scene.css';
 export interface SceneViewProps {
   handlers: PlacementHandlers;
   statuses: Record<string, ItemStatus>;
+  /** 선택한 가구의 화면 위치 바로 위(자리가 없으면 아래)에 띄우는 DOM(가구 도구 막대). 끄는 중에는 숨긴다. */
+  selectionOverlay?: ReactNode;
+  /** 선택한 가구에서 벽 0 ~ 3까지의 거리(mm). 평면 뷰에서 치수선과 글자로 그린다. 음수는 방 밖. */
+  wallDistances?: readonly [Mm, Mm, Mm, Mm] | null;
 }
 
-export function SceneView({ handlers, statuses }: SceneViewProps) {
+export function SceneView({ handlers, statuses, selectionOverlay, wallDistances }: SceneViewProps) {
   const project = useProjectStore((s) => s.project);
   const viewMode = useProjectStore((s) => s.viewMode);
   const selectedItemId = useProjectStore((s) => s.selectedItemId);
@@ -60,6 +67,8 @@ export function SceneView({ handlers, statuses }: SceneViewProps) {
 
   // 캡처 단계에서 먼저 받아야 카메라 조작(OrbitControls)이 같은 누름을 가져가기 전에 끌 수 있다.
   const onPointerDownCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    // 도구 막대 같은 겹침 DOM 위에서 누른 것은 장면 조작(끌기, 빈 곳 탭)이 아니다.
+    if (event.target instanceof Element && event.target.closest('[data-scene-overlay]')) return;
     const s = runtime.get?.();
     if (!s) return;
     const primary = event.pointerType !== 'mouse' || event.button === 0;
@@ -96,22 +105,24 @@ export function SceneView({ handlers, statuses }: SceneViewProps) {
     <div
       className="scene-root"
       data-testid="scene-canvas"
-      role="img"
-      aria-label="방과 가구의 3D 또는 평면 장면"
       onPointerDownCapture={onPointerDownCapture}
       onWheel={() => setHintDismissed(true)}
       onContextMenu={(e) => e.preventDefault()}
     >
+      <div className="scene-canvas-layer" role="img" aria-label="방과 가구의 3D 또는 평면 장면">
+      {/* flat: 톤 매핑 없이 정해 둔 색 그대로 그린다(도면의 종이색·먹색·참나무색이 화면에서 달라지지 않게). */}
       <Canvas
+        flat
+        shadows="percentage"
         frameloop="demand"
         dpr={[1, 2]}
         gl={{ antialias: true }}
         camera={{ fov: FOV_DEG, near: 0.05, far: 200, position: [3, 3, 4] }}
       >
         <SceneBridge runtime={runtime} />
+        <OverlaySync runtime={runtime} />
         <color attach="background" args={[SCENE_BACKGROUND]} />
-        <ambientLight intensity={0.8} />
-        <directionalLight position={[3, 6, 4]} intensity={1.2} />
+        <Lights viewMode={viewMode} width={bounds.width} depth={bounds.depth} />
         <Room corners={project.room.corners} ceilingHeight={project.room.ceilingHeight} />
         {project.items.map((item) => (
           <FurnitureBox
@@ -120,7 +131,7 @@ export function SceneView({ handlers, statuses }: SceneViewProps) {
             preview={dragPreview?.itemId === item.id ? dragPreview : null}
             warning={isWarning(item.id)}
             selected={selectedItemId === item.id}
-            showLabel={viewMode === '2d'}
+            plan={viewMode === '2d'}
           />
         ))}
         <CameraRig
@@ -131,13 +142,70 @@ export function SceneView({ handlers, statuses }: SceneViewProps) {
           runtime={runtime}
         />
       </Canvas>
+      </div>
+      <SceneOverlays runtime={runtime} selectionOverlay={selectionOverlay} wallDistances={wallDistances} />
       {viewMode === '3d' && !hintDismissed && (
         <p className="scene-hint" data-testid="scene-hint">
-          빈 곳을 끌어 돌리기 · 휠·두 손가락으로 확대 · 가구를 끌어 옮기기
+          빈 곳을 끌면 화면이 돌아가요. 휠이나 두 손가락으로 확대해요.
         </p>
       )}
     </div>
   );
+}
+
+/**
+ * 조명. 평면 뷰는 바닥·가구 색이 그대로 보이도록 고르게 비추고(그림자 없음), 3D 뷰는 반구광과 주광으로 입체감을 주며
+ * 가구 그림자만 만든다(그림자 지도 1024, 장면은 demand로 그려 움직일 때만 다시 그린다).
+ * 광원 개수는 뷰와 상관없이 같게 두어 뷰를 바꿀 때 셰이더를 다시 만들지 않는다. 세기 1 = 반사율 1인 면이 1/π 밝기이므로 π를 쓴다.
+ */
+function Lights({ viewMode, width, depth }: { viewMode: ViewMode; width: number; depth: number }) {
+  const plan = viewMode === '2d';
+  const target = useMemo(() => new Object3D(), []);
+  const lightRef = useRef<DirectionalLight>(null);
+  const invalidate = useThree((s) => s.invalidate);
+  const cx = mmToWorld(width) / 2;
+  const cz = mmToWorld(depth) / 2;
+  const reach = Math.hypot(cx, cz) * 1.15 + 0.5;
+
+  // 그림자 카메라가 방 전체를 덮도록 맞춘다.
+  useLayoutEffect(() => {
+    target.position.set(cx, 0, cz);
+    const light = lightRef.current;
+    if (!light) return;
+    const cam = light.shadow.camera;
+    cam.left = -reach;
+    cam.right = reach;
+    cam.top = reach;
+    cam.bottom = -reach;
+    cam.near = 0.5;
+    cam.far = reach * 2 + 12;
+    cam.updateProjectionMatrix();
+    invalidate();
+  }, [target, cx, cz, reach, invalidate]);
+
+  return (
+    <>
+      <hemisphereLight args={['#ffffff', plan ? '#ffffff' : '#e6dfd2']} intensity={plan ? Math.PI : 2} />
+      <directionalLight
+        ref={lightRef}
+        position={[cx - 2.5, 6, cz + 3]}
+        target={target}
+        intensity={plan ? 0 : 1.6}
+        castShadow={!plan}
+        shadow-mapSize={[1024, 1024]}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.02}
+        shadow-radius={4}
+      />
+      <primitive object={target} />
+    </>
+  );
+}
+
+/** 장면을 그릴 때마다 DOM 겹침(도구 막대, 치수선)의 위치를 맞춘다. 카메라 이동·확대·회전이 모두 여기를 지난다. */
+function OverlaySync({ runtime }: { runtime: SceneRuntime }) {
+  useFrame(() => runtime.syncOverlays?.());
+  return null;
 }
 
 /** Canvas 안의 상태를 바깥(런타임, 검증 조회)에 연결하고, 컨텍스트 복구 뒤에 다시 그리게 한다. */

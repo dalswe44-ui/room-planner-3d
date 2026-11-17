@@ -4,7 +4,7 @@ import { OrbitControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { MOUSE, OrthographicCamera, PerspectiveCamera, TOUCH, Vector3 } from 'three';
 import type { ViewMode } from '../contracts/types';
-import { FOV_DEG, applyWallVisibility, orthoView, orthoZoomToFit, perspectiveView } from './camera';
+import { FOV_DEG, applyWallVisibility, orthoFitShift, orthoView, orthoZoomToFit, perspectiveView } from './camera';
 import type { SceneRuntime } from './sceneProbe';
 
 // 평면 뷰: 회전 없이 이동과 확대만. 한 손가락 끌기도 이동이다.
@@ -61,9 +61,10 @@ export function CameraRig({ viewMode, width, depth, ceilingHeight, runtime }: Ca
     const extent = { width, depth, ceilingHeight };
     const { width: w, height: h } = get().size;
     if (viewMode === '2d') {
-      const view = orthoView(extent);
+      const zoom = orthoZoomToFit(w, h, extent);
+      const view = orthoView(extent, orthoFitShift(zoom));
       ortho.up.copy(view.up);
-      ortho.zoom = orthoZoomToFit(w, h, extent);
+      ortho.zoom = zoom;
       ortho.position.copy(view.position);
       ortho.lookAt(view.target);
       ortho.updateProjectionMatrix();

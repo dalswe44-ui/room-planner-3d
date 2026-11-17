@@ -1,12 +1,20 @@
 // 가구 하나를 그린다. 상자 메시는 항상 w×d×h 히트 박스(레이캐스트·검증 조회용)이고, 종류가 있으면 그 안에 단순 도형 부품을 그린다. 위치와 크기 계산은 geometry.ts의 furnitureTransform만 쓴다.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Color } from 'three';
-import { Edges, Html } from '@react-three/drei';
+import { BoxGeometry, Color, EdgesGeometry, LineBasicMaterial } from 'three';
+import { Html, Line } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { mmToWorld } from '../contracts/coords';
 import type { DragPreview, FurnitureItem } from '../contracts/types';
 import { partsForKind, type PartTone } from './furnitureParts';
-import { SELECTED_EDGE_COLOR, WARNING_COLOR, furnitureTransform, type SceneUserData } from './geometry';
+import {
+  INK_COLOR,
+  SELECTED_EDGE_COLOR,
+  WARNING_COLOR,
+  WARNING_MIX,
+  furnitureTransform,
+  mixHex,
+  type SceneUserData,
+} from './geometry';
 
 /** 작은 가구라도 이름표는 이 너비(px)까지는 쓴다. 상자보다 커져도 읽을 수 있게 한다. */
 const LABEL_MIN_WIDTH_PX = 56;
@@ -17,11 +25,15 @@ interface FurnitureBoxProps {
   preview: DragPreview | null;
   warning: boolean;
   selected: boolean;
-  /** 평면 뷰에서만 상자 위에 이름을 글자로 보인다. */
-  showLabel: boolean;
+  /** 평면 뷰이면 true. 상자 위에 이름을 글자로 보이고, 선택·경고 테두리를 윗면 둘레로 그린다. 3D 뷰에서는 상자의 12개 모서리로 그린다. */
+  plan: boolean;
 }
 
-export function FurnitureBox({ item, preview, warning, selected, showLabel }: FurnitureBoxProps) {
+/** 부품 가장자리용 옅은 먹선. 단위 상자 하나를 모든 부품이 크기만 달리해 공유한다. */
+const UNIT_BOX_EDGES = new EdgesGeometry(new BoxGeometry(1, 1, 1));
+const PART_EDGE_MATERIAL = new LineBasicMaterial({ color: INK_COLOR, transparent: true, opacity: 0.32 });
+
+export function FurnitureBox({ item, preview, warning, selected, plan }: FurnitureBoxProps) {
   const t = furnitureTransform(item, preview ? { x: preview.x, z: preview.z } : undefined);
   const userData: SceneUserData = {
     kind: 'furniture',
@@ -33,33 +45,88 @@ export function FurnitureBox({ item, preview, warning, selected, showLabel }: Fu
   };
   const parts = useMemo(() => partsForKind(item.kind, item.w, item.d, item.h), [item.kind, item.w, item.d, item.h]);
   const shaped = parts.length > 0;
-  const color = warning ? WARNING_COLOR : item.color;
+  // 경고여도 가구 고유색을 남기고 경고색을 섞는다(무슨 가구인지 보이도록).
+  const color = warning ? mixHex(item.color, WARNING_COLOR, WARNING_MIX) : item.color;
   const tones = useMemo(() => toneColors(color), [color]);
   return (
-    <mesh position={t.position} rotation={[0, t.rotationY, 0]} userData={userData}>
+    <mesh position={t.position} rotation={[0, t.rotationY, 0]} castShadow={!shaped} receiveShadow={!shaped} userData={userData}>
       <boxGeometry args={t.size} />
       {shaped ? (
         // 모양이 있는 가구의 상자는 보이지 않는 히트 박스다. 그려지지 않지만 레이캐스트에는 맞는다.
         <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
       ) : (
-        <meshStandardMaterial color={color} roughness={0.7} />
+        <meshStandardMaterial color={color} roughness={0.7} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
       )}
+      {!shaped && <lineSegments geometry={UNIT_BOX_EDGES} material={PART_EDGE_MATERIAL} scale={t.size} dispose={null} />}
       {shaped &&
         parts.map((p, i) => (
           // 부품 위치는 바닥면 기준 높이(mm). 상자 중심(= 높이의 절반)에서 잰 값으로 바꾸는 보정은 여기 한 곳이다.
           <mesh
             key={i}
+            castShadow
+            receiveShadow
             position={[mmToWorld(p.position[0]), mmToWorld(p.position[1] - item.h / 2), mmToWorld(p.position[2])]}
           >
             <boxGeometry args={[mmToWorld(p.size[0]), mmToWorld(p.size[1]), mmToWorld(p.size[2])]} />
-            <meshStandardMaterial color={tones[p.tone]} roughness={0.7} />
+            <meshStandardMaterial color={tones[p.tone]} roughness={0.7} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
+            <lineSegments
+              geometry={UNIT_BOX_EDGES}
+              material={PART_EDGE_MATERIAL}
+              scale={[mmToWorld(p.size[0]), mmToWorld(p.size[1]), mmToWorld(p.size[2])]}
+              dispose={null}
+            />
           </mesh>
         ))}
-      {selected && <Edges color={SELECTED_EDGE_COLOR} lineWidth={2} />}
-      {showLabel && (
-        <FurnitureLabel name={item.name} size={t.size} rotationY={t.rotationY} />
-      )}
+      {(selected || warning) && <FurnitureOutline size={t.size} plan={plan} selected={selected} warning={warning} />}
+      {plan && <FurnitureLabel name={item.name} size={t.size} rotationY={t.rotationY} />}
     </mesh>
+  );
+}
+
+interface FurnitureOutlineProps {
+  /** 회전 전 상자 크기(m): w, h, d */
+  size: [number, number, number];
+  plan: boolean;
+  selected: boolean;
+  warning: boolean;
+}
+
+/** 윗면 둘레 위로 살짝 띄우는 높이(m) */
+const OUTLINE_LIFT = 0.004;
+
+/**
+ * 선택(줄자 노랑)과 경고(빨강) 테두리. 화면 픽셀 굵기의 선이라 확대해도 굵기가 같다.
+ * 선택은 노랑 선 아래에 먹색 선을 한 겹 더 깔아 밝은 바닥과 가구 위에서 모두 보이게 한다.
+ * 평면 뷰는 윗면 둘레만(다른 가구에 가려지지 않게 깊이 검사 없음), 3D 뷰는 상자의 12개 모서리를 그린다.
+ */
+function FurnitureOutline({ size, plan, selected, warning }: FurnitureOutlineProps) {
+  const [w, h, d] = size;
+  const points = useMemo(() => {
+    const x = w / 2;
+    const z = d / 2;
+    if (plan) {
+      const y = h / 2 + OUTLINE_LIFT;
+      return [[-x, y, -z], [x, y, -z], [x, y, z], [-x, y, z], [-x, y, -z]] as [number, number, number][];
+    }
+    const y = h / 2;
+    const c = (sx: number, sy: number, sz: number): [number, number, number] => [sx * x, sy * y, sz * z];
+    const out: [number, number, number][] = [];
+    for (const sy of [-1, 1]) for (const [a, b] of [[[-1, -1], [1, -1]], [[1, -1], [1, 1]], [[1, 1], [-1, 1]], [[-1, 1], [-1, -1]]] as const) {
+      out.push(c(a[0], sy, a[1]), c(b[0], sy, b[1]));
+    }
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) out.push(c(sx, -1, sz), c(sx, 1, sz));
+    return out;
+  }, [w, h, d, plan]);
+  // 경고 테두리는 깊이 검사를 해서 더 높은 가구에 가려진다. 선택 테두리는 평면 뷰에서 항상 보인다.
+  const common = { points, segments: !plan } as const;
+  if (!selected) {
+    return <Line {...common} color={WARNING_COLOR} lineWidth={2.5} renderOrder={20} />;
+  }
+  return (
+    <>
+      <Line {...common} depthTest={!plan} color={warning ? WARNING_COLOR : INK_COLOR} lineWidth={6} renderOrder={20} />
+      <Line {...common} depthTest={!plan} color={SELECTED_EDGE_COLOR} lineWidth={3} renderOrder={21} />
+    </>
   );
 }
 

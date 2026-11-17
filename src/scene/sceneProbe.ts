@@ -16,6 +16,8 @@ export interface SceneRuntime {
   /** Canvas 안의 SceneBridge가 채운다. 아직 준비되지 않았으면 null. */
   get: (() => RootState) | null;
   controlsRef: RefObject<ControlsHandle | null>;
+  /** 장면을 그릴 때마다 DOM 겹침(도구 막대, 치수선)의 위치를 다시 잡는 함수. SceneOverlays가 채운다. */
+  syncOverlays?: (() => void) | null;
 }
 
 function normalizeDeg(value: number): number {

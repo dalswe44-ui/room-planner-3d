@@ -2,13 +2,15 @@
 import { Camera, MathUtils, Object3D, Vector3 } from 'three';
 import { mmToWorld } from '../contracts/coords';
 import type { Mm, ViewMode } from '../contracts/types';
-import { sceneDataOf } from './geometry';
+import { WALL_THICKNESS_MM, sceneDataOf } from './geometry';
 
 export const FOV_DEG = 45;
 /** 평면 뷰의 카메라 높이(m). 방 위에 떠 있을 뿐이고 근·원 평면 안에 들어가면 된다. */
 const ORTHO_HEIGHT_M = 20;
-/** 방이 화면을 가득 채우지 않도록 두는 여백 배율 */
-const FIT_MARGIN = 1.15;
+/** 평면 뷰에서 화면 가장자리에 남기는 여백(px). 위쪽은 폭 치수선, 왼쪽은 깊이 치수선이 들어갈 자리다. */
+export const PLAN_MARGIN_PX = { left: 60, top: 52, right: 16, bottom: 16 } as const;
+/** 벽 두께(m)는 방 바깥으로 덧붙으므로 맞춤 범위에 양쪽 두께를 더한다. */
+const WALL_EXTRA_M = mmToWorld(WALL_THICKNESS_MM) * 2;
 /** 3D 뷰의 처음 시선 방향(카메라 쪽은 +x, +z, 위). 이 쪽의 벽은 가려진다. */
 const PERSP_DIRECTION = new Vector3(0.55, 0.75, 0.85).normalize();
 
@@ -19,9 +21,12 @@ export interface RoomExtent {
 }
 
 /** 평면 뷰: 방 중심 위에서 내려다본다. 위쪽이 -z(벽 0 쪽), 오른쪽이 +x다. */
-export function orthoView(extent: RoomExtent): { target: Vector3; position: Vector3; up: Vector3 } {
-  const cx = mmToWorld(extent.width) / 2;
-  const cz = mmToWorld(extent.depth) / 2;
+export function orthoView(
+  extent: RoomExtent,
+  shift: { x: number; z: number } = { x: 0, z: 0 },
+): { target: Vector3; position: Vector3; up: Vector3 } {
+  const cx = mmToWorld(extent.width) / 2 + shift.x;
+  const cz = mmToWorld(extent.depth) / 2 + shift.z;
   return {
     target: new Vector3(cx, 0, cz),
     position: new Vector3(cx, ORTHO_HEIGHT_M, cz),
@@ -29,11 +34,24 @@ export function orthoView(extent: RoomExtent): { target: Vector3; position: Vect
   };
 }
 
-/** 평면 뷰의 확대율(px/m). 프러스텀을 캔버스 픽셀 크기로 잡았을 때 방이 여백과 함께 들어가는 값이다. */
+/** 평면 뷰의 확대율(px/m). 벽과 치수선이 들어갈 여백을 뺀 영역에 방이 들어가는 값이다. */
 export function orthoZoomToFit(viewportW: number, viewportH: number, extent: RoomExtent): number {
-  const w = Math.max(mmToWorld(extent.width), 0.5) * FIT_MARGIN;
-  const d = Math.max(mmToWorld(extent.depth), 0.5) * FIT_MARGIN;
-  return Math.max(1, Math.min(viewportW / w, viewportH / d));
+  const w = Math.max(mmToWorld(extent.width), 0.5) + WALL_EXTRA_M;
+  const d = Math.max(mmToWorld(extent.depth), 0.5) + WALL_EXTRA_M;
+  const availW = viewportW - PLAN_MARGIN_PX.left - PLAN_MARGIN_PX.right;
+  const availH = viewportH - PLAN_MARGIN_PX.top - PLAN_MARGIN_PX.bottom;
+  return Math.max(1, Math.min(availW / w, availH / d));
+}
+
+/**
+ * 방을 여백 영역의 가운데에 놓기 위한 카메라 목표의 이동량(m). 위·왼쪽 여백이 더 커서 방이 오른쪽 아래로 밀려 보이도록
+ * 카메라 목표를 반대로 옮긴다(화면 오른쪽 = +x, 아래 = +z).
+ */
+export function orthoFitShift(zoom: number): { x: number; z: number } {
+  return {
+    x: -(PLAN_MARGIN_PX.left - PLAN_MARGIN_PX.right) / 2 / zoom,
+    z: -(PLAN_MARGIN_PX.top - PLAN_MARGIN_PX.bottom) / 2 / zoom,
+  };
 }
 
 /**

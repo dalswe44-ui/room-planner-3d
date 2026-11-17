@@ -18,7 +18,13 @@
   outline: none;
 }
 
-/* 평면 뷰의 가구 이름표. 포인터를 받지 않아 아래 상자 끌기가 그대로 동작한다. */
+/* Canvas를 담는 층. 도구 막대 같은 겹침 DOM은 이 층 밖에 있어서 카메라 조작이 그 위의 누름을 받지 않는다. */
+.scene-canvas-layer {
+  position: absolute;
+  inset: 0;
+}
+
+/* 평면 뷰의 가구 이름표. 포인터를 받지 않아 아래 상자 끌기가 그대로 동작한다. 조용하게: 반투명 종이색 바탕에 먹색 굵은 글자. */
 .furniture-label-wrap,
 .furniture-label {
   pointer-events: none;
@@ -26,15 +32,82 @@
 
 .furniture-label {
   box-sizing: border-box;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.82);
-  color: #1d1d1b;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(238, 241, 240, 0.72);
+  color: var(--ink);
   font-size: 12px;
+  font-weight: 700;
   line-height: 16px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 장면 위에 얹는 층: 도구 막대, 벽까지 거리, 방 치수선. 층 자체는 포인터를 받지 않고, 도구 막대의 내용만 받는다. */
+.scene-overlay-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.scene-overlay-holder {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: max-content;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.scene-overlay-holder > * {
+  pointer-events: auto;
+}
+
+.scene-dim-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.scene-dim-path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-linecap: butt;
+}
+
+.scene-dim-path--warn {
+  stroke: var(--warn);
+  stroke-width: 1.5;
+}
+
+.scene-dim-chip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 0 5px;
+  border-radius: var(--r-pill);
+  background: rgba(238, 241, 240, 0.9);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.scene-dim-chip--room {
+  font-weight: 700;
+}
+
+.scene-dim-chip--warn {
+  color: var(--warn);
+  font-weight: 700;
 }
 
 .view-toggle {
@@ -58,7 +131,7 @@
 
 .view-toggle-btn[aria-pressed='true'] {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .view-toggle-btn:focus-visible {
@@ -72,12 +145,13 @@
   left: 50%;
   bottom: 12px;
   transform: translateX(-50%);
+  width: max-content;
   max-width: calc(100% - 24px);
   margin: 0;
-  padding: 6px 12px;
-  border-radius: 6px;
-  background: rgba(29, 29, 27, 0.78);
-  color: #fff;
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--on-ink);
   font-size: 13px;
   line-height: 18px;
   text-align: center;

@@ -1,0 +1,171 @@
+// 장면 위에 DOM으로 얹는 것(도구 막대, 벽까지 거리, 방 치수선)의 화면 위치 계산. three.js 장면을 만들지 않는 순수 계산이다.
+// 방 좌표(mm)와 장면 좌표의 변환은 coords.ts 함수만 쓴다. 화면 좌표는 장면 영역 왼쪽 위가 원점인 CSS px.
+import { Camera, Vector3 } from 'three';
+import { mmToWorld } from '../contracts/coords';
+import type { FurnitureItem, Mm, PointMm } from '../contracts/types';
+
+export interface PxSize {
+  width: number;
+  height: number;
+}
+
+export interface PxPoint {
+  x: number;
+  y: number;
+}
+
+export interface PxRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** 방 좌표(mm) 한 점(높이 yMm)이 화면의 어디에 그려지는지 */
+export function projectToPx(camera: Camera, size: PxSize, point: PointMm, yMm: Mm = 0): PxPoint {
+  const ndc = new Vector3(mmToWorld(point.x), mmToWorld(yMm), mmToWorld(point.z)).project(camera);
+  return { x: ((ndc.x + 1) / 2) * size.width, y: ((1 - ndc.y) / 2) * size.height };
+}
+
+type Footprint = Pick<FurnitureItem, 'x' | 'z' | 'w' | 'd' | 'h' | 'elevation' | 'rotationDeg'>;
+
+/** 가구 발자국의 네 모서리(방 좌표). 회전은 three.js의 rotation.y와 같은 부호(위에서 볼 때 반시계가 양수)다. */
+export function footprintCorners(item: Pick<Footprint, 'x' | 'z' | 'w' | 'd' | 'rotationDeg'>): PointMm[] {
+  const rad = (item.rotationDeg * Math.PI) / 180;
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  return [
+    [-1, -1],
+    [1, -1],
+    [1, 1],
+    [-1, 1],
+  ].map(([sx, sz]) => {
+    const lx = (sx! * item.w) / 2;
+    const lz = (sz! * item.d) / 2;
+    return { x: item.x + lx * c + lz * s, z: item.z - lx * s + lz * c };
+  });
+}
+
+/** 가구 상자(발자국 x 높이)가 화면에서 차지하는 경계 사각형 */
+export function itemScreenRect(camera: Camera, size: PxSize, item: Footprint): PxRect {
+  const rect: PxRect = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+  for (const corner of footprintCorners(item)) {
+    for (const y of [item.elevation, item.elevation + item.h]) {
+      const p = projectToPx(camera, size, corner, y);
+      rect.left = Math.min(rect.left, p.x);
+      rect.right = Math.max(rect.right, p.x);
+      rect.top = Math.min(rect.top, p.y);
+      rect.bottom = Math.max(rect.bottom, p.y);
+    }
+  }
+  return rect;
+}
+
+export interface OverlayPlacement {
+  /** 도구 막대 왼쪽 위(px) */
+  x: number;
+  y: number;
+  /** 가구 아래쪽에 놓았는지 */
+  below: boolean;
+}
+
+/**
+ * 도구 막대를 가구 경계 위 가운데(gap 띄움)에 놓는다. 위에 자리가 없으면 아래에 놓고, 장면 영역 안으로 가둔다.
+ * 장면 영역보다 막대가 크면 왼쪽·위쪽을 우선한다.
+ */
+export function placeOverlay(rect: PxRect, box: PxSize, view: PxSize, gap = 8, pad = 4): OverlayPlacement {
+  const above = rect.top - gap - box.height;
+  const below = above < pad;
+  const rawY = below ? rect.bottom + gap : above;
+  const rawX = (rect.left + rect.right) / 2 - box.width / 2;
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
+  return {
+    x: clamp(rawX, pad, view.width - box.width - pad),
+    y: clamp(rawY, pad, view.height - box.height - pad),
+    below,
+  };
+}
+
+/** 한 방향의 치수선: 화면 선분(from → to), 가운데, 화면 단위 방향 */
+export interface DimLine {
+  from: PxPoint;
+  to: PxPoint;
+  mid: PxPoint;
+  /** 화면에서 from → to 방향의 단위 벡터. 길이 0이면 벽 바깥 방향을 쓴다. */
+  dir: PxPoint;
+  /** 화면 길이(px) */
+  length: number;
+}
+
+function dimLine(from: PxPoint, to: PxPoint, fallbackDir: PxPoint): DimLine {
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  return {
+    from,
+    to,
+    mid: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
+    dir: length > 0.001 ? { x: (to.x - from.x) / length, y: (to.y - from.y) / length } : fallbackDir,
+    length,
+  };
+}
+
+/**
+ * 선택한 가구에서 각 벽까지의 치수선. 벽 i의 바깥 방향 outward[i](방 좌표 단위 벡터)로, 가구 경계에서 distances[i]만큼 간다.
+ * 음수(방 밖으로 나감)는 반대로(가구 안쪽으로) 그어진다.
+ */
+export function wallDistanceLines(
+  camera: Camera,
+  size: PxSize,
+  item: Pick<Footprint, 'x' | 'z' | 'w' | 'd' | 'rotationDeg'>,
+  outward: readonly { x: number; z: number }[],
+  distances: readonly Mm[],
+): DimLine[] {
+  const rad = (item.rotationDeg * Math.PI) / 180;
+  const ux = { x: Math.cos(rad), z: -Math.sin(rad) };
+  const uz = { x: Math.sin(rad), z: Math.cos(rad) };
+  return outward.map((n, i) => {
+    // 가구 발자국이 n 방향으로 뻗은 반폭
+    const reach = Math.abs(n.x * ux.x + n.z * ux.z) * (item.w / 2) + Math.abs(n.x * uz.x + n.z * uz.z) * (item.d / 2);
+    const start = { x: item.x + n.x * reach, z: item.z + n.z * reach };
+    const end = { x: start.x + n.x * (distances[i] ?? 0), z: start.z + n.z * (distances[i] ?? 0) };
+    const a = projectToPx(camera, size, start);
+    const b = projectToPx(camera, size, end);
+    const o = projectToPx(camera, size, { x: start.x + n.x, z: start.z + n.z });
+    const oLen = Math.hypot(o.x - a.x, o.y - a.y) || 1;
+    return dimLine(a, b, { x: (o.x - a.x) / oLen, y: (o.y - a.y) / oLen });
+  });
+}
+
+export interface RoomDimLines {
+  /** 폭 치수선(방 위쪽 바깥, 왼쪽 → 오른쪽) */
+  width: DimLine;
+  /** 깊이 치수선(방 왼쪽 바깥, 위 → 아래) */
+  depth: DimLine;
+  /** 치수선을 벽 바깥 면에서 띄우는 거리(px) */
+  offsetPx: number;
+  /** 방의 안쪽 모서리(왼쪽 위)의 화면 위치와 벽 바깥 면까지의 화면 거리 */
+  wallOuterTop: number;
+  wallOuterLeft: number;
+}
+
+/** 방 바깥 위쪽의 폭 치수선과 왼쪽의 깊이 치수선. 위쪽이 -z, 왼쪽이 -x인 평면 뷰 기준이다. */
+export function roomDimLines(
+  camera: Camera,
+  size: PxSize,
+  bounds: { minX: Mm; maxX: Mm; minZ: Mm; maxZ: Mm },
+  wallThickness: Mm,
+  offsetPx: number,
+): RoomDimLines {
+  const tl = projectToPx(camera, size, { x: bounds.minX, z: bounds.minZ });
+  const tr = projectToPx(camera, size, { x: bounds.maxX, z: bounds.minZ });
+  const bl = projectToPx(camera, size, { x: bounds.minX, z: bounds.maxZ });
+  const outer = projectToPx(camera, size, { x: bounds.minX - wallThickness, z: bounds.minZ - wallThickness });
+  const lineY = outer.y - offsetPx;
+  const lineX = outer.x - offsetPx;
+  return {
+    width: dimLine({ x: tl.x, y: lineY }, { x: tr.x, y: lineY }, { x: 1, y: 0 }),
+    depth: dimLine({ x: lineX, y: tl.y }, { x: lineX, y: bl.y }, { x: 0, y: 1 }),
+    offsetPx,
+    wallOuterTop: outer.y,
+    wallOuterLeft: outer.x,
+  };
+}
