@@ -1,5 +1,5 @@
 // window.__sceneProbe 구현. store 값이 아니라 장면에 실제로 그려진 three.js 객체에서 읽는다.
-import { Box3, BoxGeometry, Camera, MathUtils, Mesh, Object3D, OrthographicCamera } from 'three';
+import { Box3, BoxGeometry, Camera, MathUtils, Mesh, Object3D, OrthographicCamera, Vector3 } from 'three';
 import type { OrbitControls } from '@react-three/drei';
 import type { RootState } from '@react-three/fiber';
 import type { ComponentRef, RefObject } from 'react';
@@ -9,6 +9,7 @@ import type { Mm } from '../contracts/types';
 import { useProjectStore } from '../store/projectStore';
 import { sceneDataOf } from './geometry';
 import { floorToClient, screenRectOf } from './pointer';
+import { headingDegOf, isWalkCamera } from './walk';
 
 export type ControlsHandle = ComponentRef<typeof OrbitControls>;
 
@@ -109,7 +110,7 @@ export function readSnapshot(scene: Object3D, camera: Camera, extras: SnapshotEx
   const ceilingHeight: Mm = walls.length > 0 ? Math.max(...walls.map((g) => worldToMm(g.parameters.height))) : 0;
 
   return {
-    view: camera instanceof OrthographicCamera ? '2d' : '3d',
+    view: camera instanceof OrthographicCamera ? '2d' : isWalkCamera(camera) ? 'walk' : '3d',
     room: { width, depth, ceilingHeight },
     items,
     draft,
@@ -117,7 +118,19 @@ export function readSnapshot(scene: Object3D, camera: Camera, extras: SnapshotEx
     openings: openingOut,
     labels: readLabels(extras.labelRoot ?? (typeof document === 'undefined' ? null : document)),
     editMode: extras.editMode ?? 'furniture',
-    eye: null, // 사람 뷰는 T-042에서 채운다(헤드가 컴파일만 풀어 둠)
+    eye: isWalkCamera(camera) ? readEye(camera) : null,
+  };
+}
+
+/** 사람 뷰의 눈: 실제 카메라의 위치와 바라보는 방향에서 읽는다. */
+function readEye(camera: Camera): NonNullable<SceneProbeSnapshot['eye']> {
+  camera.updateMatrixWorld();
+  const forward = camera.getWorldDirection(new Vector3());
+  return {
+    x: worldToMm(camera.position.x),
+    z: worldToMm(camera.position.z),
+    height: worldToMm(camera.position.y),
+    headingDeg: headingDegOf(forward.x, forward.z),
   };
 }
 

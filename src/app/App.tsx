@@ -91,7 +91,7 @@ export function App() {
             aria-selected={tab === 'photo'}
             onClick={() => setTab('photo')}
           >
-            사진·배치도
+            사진
           </button>
           <button
             type="button"

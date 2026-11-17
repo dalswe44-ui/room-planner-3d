@@ -34,4 +34,13 @@ describe('ViewToggle', () => {
     await userEvent.click(screen.getByTestId('view-2d'));
     expect(useProjectStore.getState().viewMode).toBe('2d');
   });
+
+  it('사람 뷰 버튼을 누르면 viewMode가 walk가 되고 세 버튼 중 하나만 눌린 표시다', async () => {
+    render(<ViewToggle />);
+    await userEvent.click(screen.getByTestId('view-walk'));
+    expect(useProjectStore.getState().viewMode).toBe('walk');
+    expect(screen.getByTestId('view-walk').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('view-2d').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByTestId('view-3d').getAttribute('aria-pressed')).toBe('false');
+  });
 });

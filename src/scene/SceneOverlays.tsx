@@ -58,9 +58,11 @@ export function SceneOverlays({ runtime, selectionOverlay, wallDistances, onLabe
   const selectedStructure = useProjectStore((s) => s.selectedStructure);
   const wallPreview = useProjectStore((s) => s.wallPreview);
   const plan = viewMode === '2d';
+  // 사람 뷰는 편집하지 않는다: 도구 막대, 벽 치수선, 그리는 중인 벽 치수는 없다.
+  const walk = viewMode === 'walk';
   const unit = project.displayUnit;
   const selected = draft ?? project.items.find((i) => i.id === selectedItemId) ?? null;
-  const showToolbar = selectionOverlay != null && selected !== null && !dragPreview;
+  const showToolbar = !walk && selectionOverlay != null && selected !== null && !dragPreview;
   const showDists = plan && selected !== null && wallDistances != null;
 
   const bounds = useMemo(() => roomBounds(project.room), [project.room]);
@@ -78,9 +80,10 @@ export function SceneOverlays({ runtime, selectionOverlay, wallDistances, onLabe
   const previewDimRef = useRef<HTMLSpanElement>(null);
   const labelRefs = useRef(new Map<string, HTMLElement>());
   const structure = editMode === 'structure';
-  const selectedWallKey =
-    selectedStructure?.kind === 'outerWall' ? selectedStructure.index : selectedStructure?.kind === 'wall' ? selectedStructure.id : null;
-  const hasPreview = wallPreview !== null && (wallPreview.a.x !== wallPreview.b.x || wallPreview.a.z !== wallPreview.b.z);
+  const selectedWallKey = walk
+    ? null
+    : selectedStructure?.kind === 'outerWall' ? selectedStructure.index : selectedStructure?.kind === 'wall' ? selectedStructure.id : null;
+  const hasPreview = !walk && wallPreview !== null && (wallPreview.a.x !== wallPreview.b.x || wallPreview.a.z !== wallPreview.b.z);
 
   // 렌더마다 최신 값을 담아 두고, 카메라가 바뀔 때도 같은 값으로 위치만 다시 잡는다.
   const latest = useRef({ plan, bounds, outward, wallDistances, showToolbar, showDists });

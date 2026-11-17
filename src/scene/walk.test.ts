@@ -1,0 +1,109 @@
+import { describe, expect, it } from 'vitest';
+import { Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Group, BoxGeometry } from 'three';
+import { rectCorners } from '../contracts/room';
+import { mmToWorld } from '../contracts/coords';
+import { pickWalkFloor } from './pointer';
+import { headingDegOf, pointInPolygon, pullInside, walkFovDeg, walkStart, WALK_WALL_MARGIN_MM } from './walk';
+
+describe('headingDegOf: 0은 -z(위쪽 벽), 반시계가 양수', () => {
+  it('네 방향', () => {
+    expect(headingDegOf(0, -1)).toBe(0);
+    expect(headingDegOf(-1, 0)).toBe(90);
+    expect(headingDegOf(0, 1)).toBe(180);
+    expect(headingDegOf(1, 0)).toBe(270);
+  });
+  it('카메라 rotation.y(YXZ)와 같은 값이다', () => {
+    const cam = new PerspectiveCamera();
+    cam.rotation.order = 'YXZ';
+    for (const deg of [0, 30, 90, 200, 359]) {
+      cam.rotation.set(0.4, (deg * Math.PI) / 180, 0); // 위아래를 봐도 같다
+      cam.updateMatrixWorld();
+      const f = cam.getWorldDirection(cam.position.clone());
+      expect(headingDegOf(f.x, f.z)).toBe(deg);
+    }
+  });
+});
+
+describe('pullInside', () => {
+  const room = rectCorners(5000, 4000);
+  it('안쪽 점은 그대로', () => {
+    expect(pullInside({ x: 2500, z: 2000 }, room)).toEqual({ x: 2500, z: 2000 });
+  });
+  it('벽에 붙은 점은 margin만큼 띄운다', () => {
+    expect(pullInside({ x: 50, z: 2000 }, room)).toEqual({ x: WALK_WALL_MARGIN_MM, z: 2000 });
+    expect(pullInside({ x: 4990, z: 3990 }, room)).toEqual({ x: 4600, z: 3600 });
+  });
+  it('방 밖은 null', () => {
+    expect(pullInside({ x: -10, z: 100 }, room)).toBeNull();
+    expect(pullInside({ x: 5001, z: 100 }, room)).toBeNull();
+  });
+  it('ㄱ자 방에서도 방 안에 남는다', () => {
+    const L = [
+      { x: 0, z: 0 }, { x: 4000, z: 0 }, { x: 4000, z: 2000 }, { x: 2000, z: 2000 }, { x: 2000, z: 4000 }, { x: 0, z: 4000 },
+    ];
+    const out = pullInside({ x: 1900, z: 1900 }, L);
+    expect(out).not.toBeNull();
+    expect(pointInPolygon(out!, L)).toBe(true);
+  });
+});
+
+describe('walkStart', () => {
+  it('방 가운데에서 긴 쪽을 본다', () => {
+    expect(walkStart(rectCorners(5000, 4000))).toEqual({ x: 2500, z: 2000, headingDeg: 270 });
+    expect(walkStart(rectCorners(3000, 4000))).toEqual({ x: 1500, z: 2000, headingDeg: 0 });
+  });
+});
+
+describe('walkFovDeg', () => {
+  it('가로 화면은 70도, 세로 화면은 가로가 70도가 되게 키우되 100도까지', () => {
+    expect(walkFovDeg(1.6)).toBe(70);
+    expect(walkFovDeg(0.8)).toBeCloseTo(2 * Math.atan(Math.tan((35 * Math.PI) / 180) / 0.8) * (180 / Math.PI), 5);
+    expect(walkFovDeg(0.1)).toBe(100);
+  });
+});
+
+describe('pickWalkFloor', () => {
+  const rect = { left: 0, top: 0, width: 800, height: 600 };
+  function setup(withFurniture: boolean) {
+    const scene = new Group();
+    const floor = new Mesh(new PlaneGeometry(10, 10), new MeshBasicMaterial());
+    floor.rotation.x = -Math.PI / 2;
+    floor.userData = { kind: 'floor' };
+    scene.add(floor);
+    if (withFurniture) {
+      const box = new Mesh(new BoxGeometry(2, 1, 2), new MeshBasicMaterial());
+      box.position.set(0, 0.5, -3);
+      box.userData = { kind: 'furniture', furnitureId: 'a' };
+      scene.add(box);
+    }
+    const cam = new PerspectiveCamera(70, 800 / 600, 0.05, 200);
+    cam.position.set(0, 1.5, 0);
+    cam.rotation.order = 'YXZ';
+    cam.updateMatrixWorld();
+    return { scene, cam };
+  }
+  it('바닥을 누르면 그 자리의 mm 좌표', () => {
+    const { scene, cam } = setup(false);
+    // 화면 아래쪽 가운데 = 카메라 앞(-z)의 바닥
+    const p = pickWalkFloor(scene, cam, rect, 400, 500);
+    expect(p).not.toBeNull();
+    expect(p!.x).toBe(0);
+    expect(p!.z).toBeLessThan(0);
+  });
+  it('가구가 먼저 맞으면 null', () => {
+    const { scene, cam } = setup(true);
+    // 가구(z=-3, 높이 1)를 향한 시선: 카메라 높이 1.5에서 윗면(1.0)이 보이는 방향
+    const ray = pickWalkFloor(scene, cam, rect, 400, 330);
+    expect(ray).toBeNull();
+  });
+  it('하늘(바닥과 만나지 않음)은 null', () => {
+    const { scene, cam } = setup(false);
+    expect(pickWalkFloor(scene, cam, rect, 400, 100)).toBeNull();
+  });
+  it('화면 맨 아래 가운데는 카메라 앞 -z 쪽 바닥(눈높이 1.5 m, 아래 시야 반각 35도)', () => {
+    const { scene, cam } = setup(false);
+    const p = pickWalkFloor(scene, cam, rect, 400, 599.9)!;
+    expect(p.x).toBe(0);
+    expect(mmToWorld(-p.z)).toBeCloseTo(1.5 / Math.tan((35 * Math.PI) / 180), 1);
+  });
+});

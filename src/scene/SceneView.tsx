@@ -42,6 +42,8 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances,
   const wallPreview = useProjectStore((s) => s.wallPreview);
 
   const [hintDismissed, setHintDismissed] = useState(false);
+  const [walkHintDismissed, setWalkHintDismissed] = useState(false);
+  const walk = viewMode === 'walk';
   const [runtime] = useState<SceneRuntime>(() => ({ get: null, controlsRef: createRef<ControlsHandle>() }));
 
   // 핸들러는 렌더마다 새 객체일 수 있으므로 최신 것을 ref로 읽는다.
@@ -107,6 +109,11 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances,
   const onPointerDownCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
     // 도구 막대 같은 겹침 DOM 위에서 누른 것은 장면 조작(끌기, 빈 곳 탭)이 아니다.
     if (event.target instanceof Element && event.target.closest('[data-scene-overlay]')) return;
+    // 사람 뷰는 편집하지 않는다. 가구 끌기·선택·벽 그리기 핸들러를 부르지 않고 WalkControls가 카메라를 움직인다.
+    if (useProjectStore.getState().viewMode === 'walk') {
+      setWalkHintDismissed(true);
+      return;
+    }
     const s = runtime.get?.();
     if (!s) return;
     const primary = event.pointerType !== 'mouse' || event.button === 0;
@@ -166,7 +173,7 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances,
       className="scene-root"
       data-testid="scene-canvas"
       onPointerDownCapture={onPointerDownCapture}
-      onWheel={() => setHintDismissed(true)}
+      onWheel={() => (walk ? setWalkHintDismissed(true) : setHintDismissed(true))}
       onContextMenu={(e) => e.preventDefault()}
     >
       <div className="scene-canvas-layer" role="img" aria-label="방과 가구의 3D 또는 평면 장면">
@@ -183,9 +190,9 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances,
         <OverlaySync runtime={runtime} />
         <color attach="background" args={[SCENE_BACKGROUND]} />
         <Lights viewMode={viewMode} width={bounds.width} depth={bounds.depth} />
-        <Room room={project.room} plan={viewMode === '2d'} selected={selectedStructure} />
-        <Openings room={project.room} plan={viewMode === '2d'} selected={selectedStructure} />
-        {structureMode && preview && <WallPreviewOutline a={preview.a} b={preview.b} thickness={WALL_THICKNESS_MM} />}
+        <Room room={project.room} plan={viewMode === '2d'} selected={walk ? null : selectedStructure} />
+        <Openings room={project.room} plan={viewMode === '2d'} selected={walk ? null : selectedStructure} />
+        {structureMode && !walk && preview && <WallPreviewOutline a={preview.a} b={preview.b} thickness={WALL_THICKNESS_MM} />}
         {project.items.map((item) => (
           <FurnitureBox
             key={item.id}
@@ -212,12 +219,13 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances,
           width={bounds.width}
           depth={bounds.depth}
           ceilingHeight={project.room.ceilingHeight}
+          corners={project.room.corners}
           runtime={runtime}
         />
       </Canvas>
       </div>
       <SceneOverlays runtime={runtime} selectionOverlay={selectionOverlay} wallDistances={wallDistances} onLabelPointerDown={onLabelPointerDown} />
-      {structureMode && (
+      {structureMode && !walk && (
         <p className="scene-mode-badge" data-testid="structure-mode-badge">
           벽·문 편집 중
         </p>
@@ -225,6 +233,11 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances,
       {viewMode === '3d' && !hintDismissed && (
         <p className="scene-hint" data-testid="scene-hint">
           빈 곳을 끌면 화면이 돌아가요. 휠이나 두 손가락으로 확대해요.
+        </p>
+      )}
+      {walk && !walkHintDismissed && (
+        <p className="scene-hint" data-testid="scene-hint">
+          끌면 둘러봐요. 바닥을 누르면 그 자리로 가요.
         </p>
       )}
     </div>

@@ -211,3 +211,37 @@ describe('readSnapshot: 칸막이 벽, 개구부, 이름표, 편집 모드', () 
     expect(snap.labels).toEqual([{ id: 'a', name: '거실', at: { x: 1500, z: 1500 } }]);
   });
 });
+
+describe('readSnapshot: 사람 뷰의 eye는 실제 카메라에서 읽는다', () => {
+  function walkCamera(): PerspectiveCamera {
+    const cam = new PerspectiveCamera(70, 1.5, 0.05, 200);
+    cam.userData = { walk: true };
+    cam.rotation.order = 'YXZ';
+    return cam;
+  }
+  it('평면 뷰·3D 뷰에서는 eye가 null이고 view는 각각 2d, 3d다', () => {
+    const scene = buildScene(5000, 4000, 2400);
+    expect(readSnapshot(scene, new OrthographicCamera()).eye).toBeNull();
+    const s3 = readSnapshot(scene, new PerspectiveCamera());
+    expect(s3.view).toBe('3d');
+    expect(s3.eye).toBeNull();
+  });
+  it('사람 뷰: 위치(mm)·눈높이·방향(도)을 카메라에서 읽는다', () => {
+    const cam = walkCamera();
+    cam.position.set(2.5, 1.5, 2);
+    cam.rotation.set(0, (270 * Math.PI) / 180, 0);
+    const snap = readSnapshot(buildScene(5000, 4000, 2400), cam);
+    expect(snap.view).toBe('walk');
+    expect(snap.eye).toEqual({ x: 2500, z: 2000, height: 1500, headingDeg: 270 });
+  });
+  it('카메라를 돌리거나 옮기면 값이 따라 바뀐다(위아래만 보면 방향은 그대로)', () => {
+    const cam = walkCamera();
+    cam.position.set(1, 1.5, 1);
+    const scene = buildScene(5000, 4000, 2400);
+    cam.rotation.set(0.5, 0, 0);
+    expect(readSnapshot(scene, cam).eye).toEqual({ x: 1000, z: 1000, height: 1500, headingDeg: 0 });
+    cam.rotation.y = Math.PI / 2;
+    cam.position.x = 3;
+    expect(readSnapshot(scene, cam).eye).toEqual({ x: 3000, z: 1000, height: 1500, headingDeg: 90 });
+  });
+});

@@ -157,3 +157,24 @@ export function pickStructure(
   const hits = raycaster.intersectObjects(candidates, false).map((h) => ({ distance: h.distance, target: sceneDataOf(h.object).structure }));
   return chooseStructureHit(hits);
 }
+
+/**
+ * 사람 뷰에서 화면의 한 점을 눌렀을 때 옮겨 갈 바닥 자리(방 좌표 mm). 가장 가까이 맞은 것이 바닥일 때만 값이 있다.
+ * 가구, 벽, 칸막이, 문·창문이 앞을 가리면 null이다(보이지 않는 벽은 제외).
+ */
+export function pickWalkFloor(scene: Object3D, camera: Camera, rect: ScreenRect, clientX: number, clientY: number): PointMm | null {
+  scene.updateMatrixWorld();
+  camera.updateMatrixWorld();
+  const candidates: Object3D[] = [];
+  scene.traverse((obj) => {
+    const kind = sceneDataOf(obj).kind;
+    if (obj.visible && (kind === 'floor' || kind === 'furniture' || kind === 'wall' || kind === 'partition' || kind === 'opening')) {
+      candidates.push(obj);
+    }
+  });
+  const raycaster = new Raycaster();
+  raycaster.setFromCamera(ndcOf(clientX, clientY, rect), camera);
+  const first = raycaster.intersectObjects(candidates, false)[0];
+  if (!first || sceneDataOf(first.object).kind !== 'floor') return null;
+  return worldToRoom(first.point.x, first.point.z);
+}

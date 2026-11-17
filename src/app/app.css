@@ -208,6 +208,8 @@ body,
   font: inherit;
   color: var(--ink-soft);
   cursor: pointer;
+  white-space: nowrap;
+  padding: 0 2px;
 }
 
 .app-tab[aria-selected='true'] {

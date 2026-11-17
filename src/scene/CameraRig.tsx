@@ -3,9 +3,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { OrbitControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { MOUSE, OrthographicCamera, PerspectiveCamera, TOUCH, Vector3 } from 'three';
-import type { ViewMode } from '../contracts/types';
+import type { PointMm, ViewMode } from '../contracts/types';
 import { FOV_DEG, applyWallVisibility, orthoFitShift, orthoView, orthoZoomToFit, perspectiveView } from './camera';
 import type { SceneRuntime } from './sceneProbe';
+import { WalkControls } from './WalkControls';
+import { WALK_FOV_DEG, walkFovDeg } from './walk';
 
 // 평면 뷰: 회전 없이 이동과 확대만. 한 손가락 끌기도 이동이다.
 const ORTHO_MOUSE = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN };
@@ -19,13 +21,21 @@ interface CameraRigProps {
   width: number;
   depth: number;
   ceilingHeight: number;
+  /** 사람 뷰가 이동할 자리를 방 안쪽으로 당길 때 쓴다 */
+  corners: readonly PointMm[];
   runtime: SceneRuntime;
 }
 
-export function CameraRig({ viewMode, width, depth, ceilingHeight, runtime }: CameraRigProps) {
+export function CameraRig({ viewMode, width, depth, ceilingHeight, corners, runtime }: CameraRigProps) {
   const [ortho] = useState(() => new OrthographicCamera(-1, 1, 1, -1, 0.1, 200));
   const [persp] = useState(() => new PerspectiveCamera(FOV_DEG, 1, 0.05, 200));
-  const active = viewMode === '2d' ? ortho : persp;
+  // 사람 뷰는 3D 뷰와 따로 둔 원근 카메라를 쓴다(3D 뷰의 시점을 건드리지 않고, probe가 둘을 구별한다).
+  const [walk] = useState(() => {
+    const cam = new PerspectiveCamera(WALK_FOV_DEG, 1, 0.05, 200);
+    cam.userData = { walk: true };
+    return cam;
+  });
+  const active = viewMode === '2d' ? ortho : viewMode === 'walk' ? walk : persp;
 
   const get = useThree((s) => s.get);
   const set = useThree((s) => s.set);
@@ -51,8 +61,11 @@ export function CameraRig({ viewMode, width, depth, ceilingHeight, runtime }: Ca
     ortho.updateProjectionMatrix();
     persp.aspect = w / h;
     persp.updateProjectionMatrix();
+    walk.aspect = w / h;
+    walk.fov = walkFovDeg(w / h);
+    walk.updateProjectionMatrix();
     invalidate();
-  }, [size, get, ortho, persp, invalidate]);
+  }, [size, get, ortho, persp, walk, invalidate]);
 
   // 방이 바뀌거나 화면을 바꾸면 방 전체가 보이도록 맞춘다.
   useEffect(() => {
@@ -71,7 +84,7 @@ export function CameraRig({ viewMode, width, depth, ceilingHeight, runtime }: Ca
       controls.target.copy(view.target);
       controls.minZoom = ortho.zoom * 0.25;
       controls.maxZoom = ortho.zoom * 20;
-    } else {
+    } else if (viewMode === '3d') {
       const view = perspectiveView(extent, w / h);
       const keep = saved3d.current?.key === extentKey ? saved3d.current.target : null;
       if (keep) {
@@ -85,7 +98,8 @@ export function CameraRig({ viewMode, width, depth, ceilingHeight, runtime }: Ca
       controls.minDistance = view.distance * 0.3;
       controls.maxDistance = view.distance * 3;
     }
-    controls.update();
+    // 사람 뷰는 OrbitControls를 쓰지 않는다(WalkControls가 카메라를 직접 움직인다).
+    if (viewMode !== 'walk') controls.update();
     invalidate();
   }, [viewMode, width, depth, ceilingHeight, extentKey, ortho, persp, get, invalidate, controlsRef]);
 
@@ -110,9 +124,12 @@ export function CameraRig({ viewMode, width, depth, ceilingHeight, runtime }: Ca
     <>
       <primitive object={ortho} />
       <primitive object={persp} />
+      <primitive object={walk} />
+      {viewMode === 'walk' && <WalkControls camera={walk} corners={corners} />}
       <OrbitControls
         ref={controlsRef}
-        camera={active}
+        camera={viewMode === '2d' ? ortho : persp}
+        enabled={viewMode !== 'walk'}
         enableDamping={false}
         enableRotate={viewMode === '3d'}
         mouseButtons={viewMode === '2d' ? ORTHO_MOUSE : PERSP_MOUSE}
