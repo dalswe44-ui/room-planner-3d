@@ -92,6 +92,7 @@ export function PhotoPanel() {
     const r = await readLayoutPhoto(blob, ac.signal);
     if (abortRef.current !== ac) return; // 중지했거나 다른 사진으로 바뀜
     abortRef.current = null;
+    if (r.via === 'server') setAuto('server');
     if (r.ok) {
       changeText(r.json);
       setRead({ kind: 'done' });

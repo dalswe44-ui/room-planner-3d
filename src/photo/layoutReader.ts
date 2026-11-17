@@ -56,6 +56,7 @@ export function getSample(): Promise<Sample | null> {
 
 const SERVER_URL = './api/read-layout';
 let serverPromise: Promise<boolean> | null = null;
+let sampleBlocked = false;
 
 /** 이 앱의 서버 함수가 쓸 수 있는지(GET → {available:true}). 실패·404·JSON 아님·false면 없음. */
 export function checkServer(): Promise<boolean> {
@@ -76,6 +77,7 @@ export function checkServer(): Promise<boolean> {
 export function resetSampleCache(): void {
   samplePromise = null;
   serverPromise = null;
+  sampleBlocked = false;
 }
 
 const SERVER_STATUS_MESSAGE: Record<number, string> = {
@@ -84,7 +86,8 @@ const SERVER_STATUS_MESSAGE: Record<number, string> = {
   415: 'JPEG, PNG, WebP 사진만 읽을 수 있어요.',
 };
 
-type ReadResult = { ok: true; json: string } | ({ ok: false } & ReadFailure);
+/** via가 'server'면 sample이 아니라 서버로 읽었다(화면이 서버 경로로 바뀐다). */
+type ReadResult = ({ ok: true; json: string } | ({ ok: false } & ReadFailure)) & { via?: 'server' };
 
 async function readViaServer(photo: Blob, signal: AbortSignal): Promise<ReadResult> {
   try {
@@ -107,9 +110,13 @@ async function readViaServer(photo: Blob, signal: AbortSignal): Promise<ReadResu
 
 /** 사용자 동작 직후에 부른다. 성공하면 결과 JSON 문자열을 돌려준다. */
 export async function readLayoutPhoto(photo: Blob, signal: AbortSignal): Promise<ReadResult> {
-  const sample = await getSample();
-  if (!sample) return (await checkServer()) ? readViaServer(photo, signal) : { ok: false, kind: 'unavailable' };
-  return readViaSample(sample, photo, signal);
+  const sample = sampleBlocked ? null : await getSample();
+  if (!sample) return (await checkServer()) ? { ...(await readViaServer(photo, signal)), via: 'server' } : { ok: false, kind: 'unavailable' };
+  const r = await readViaSample(sample, photo, signal);
+  if (r.ok || r.kind !== 'unavailable') return r;
+  // sample을 쓸 수 없다고 판명됐다. 서버가 있으면 같은 사진을 한 번 서버로 보내고, 이 화면에서는 sample을 다시 시도하지 않는다.
+  sampleBlocked = true;
+  return (await checkServer()) ? { ...(await readViaServer(photo, signal)), via: 'server' } : r;
 }
 
 async function readViaSample(sample: Sample, photo: Blob, signal: AbortSignal): Promise<ReadResult> {

@@ -151,4 +151,29 @@ describe('배치도 사진 서버 읽기', () => {
     await screen.findByTestId('layout-preview');
     expect(posts(f)).toHaveLength(1);
   });
+
+  it('sample이 not_granted로 실패하면 서버가 있을 때 같은 사진을 서버로 한 번 읽고, 이후엔 서버 경로', async () => {
+    const f = mockFetch(() => jsonRes(200, { available: true }));
+    const sample = { json: vi.fn(() => Promise.reject({ code: 'not_granted' })), limits: vi.fn(async () => ({ images: { max: 1 } })) };
+    window.claude = { use: vi.fn(async () => sample) };
+    render(<PhotoPanel />);
+    const user = userEvent.setup();
+    await user.upload(screen.getByTestId('photo-file'), picture());
+    await screen.findByTestId('layout-preview');
+    expect(sample.json).toHaveBeenCalledTimes(1);
+    expect(posts(f)).toHaveLength(1);
+    expect(screen.getByText(/이 앱의 서버를 거쳐 Claude로 보내고, 저장하지 않습니다/)).toBeTruthy();
+    await user.upload(screen.getByTestId('photo-file'), picture());
+    await waitFor(() => expect(posts(f)).toHaveLength(2));
+    expect(sample.json).toHaveBeenCalledTimes(1);
+  });
+
+  it('sample이 not_granted이고 서버도 없으면 대체 경로', async () => {
+    mockFetch(() => new Response('', { status: 404 }));
+    window.claude = { use: vi.fn(async () => ({ json: vi.fn(() => Promise.reject({ code: 'not_granted' })), limits: vi.fn(async () => ({ images: {} })) })) };
+    render(<PhotoPanel />);
+    await userEvent.setup().upload(screen.getByTestId('photo-file'), picture());
+    await waitFor(() => expect(status()).toContain('바로 읽을 수 없어요'));
+    expect(screen.getByTestId('layout-json')).toBeTruthy();
+  });
 });
