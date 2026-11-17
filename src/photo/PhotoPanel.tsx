@@ -5,7 +5,7 @@ import { LAYOUT_READER_PROMPT } from '../contracts/layoutImport';
 import { roomBounds } from '../contracts/room';
 import { formatLength, UNIT_LABEL } from '../contracts/units';
 import { useProjectStore } from '../store/projectStore';
-import { getSample, hasClaudeHost, readLayoutPhoto } from './layoutReader';
+import { checkServer, getSample, hasClaudeHost, readLayoutPhoto } from './layoutReader';
 import { parseLayoutImport } from './parseLayoutImport';
 import { usePhotoStore } from './photoStore';
 import './photo.css';
@@ -20,7 +20,7 @@ export function PhotoPanel() {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'fallback'>('idle');
   const [applyState, setApplyState] = useState<'idle' | 'confirming' | 'applied'>('idle');
   const [fileError, setFileError] = useState<string | null>(null);
-  const [auto, setAuto] = useState<'checking' | 'available' | 'unavailable'>(() => (hasClaudeHost() ? 'checking' : 'unavailable'));
+  const [auto, setAuto] = useState<'checking' | 'sample' | 'server' | 'unavailable'>('checking');
   const [read, setRead] = useState<{ kind: 'idle' | 'reading' | 'done' } | { kind: 'failed'; message: string }>({ kind: 'idle' });
   const abortRef = useRef<AbortController | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
@@ -32,9 +32,14 @@ export function PhotoPanel() {
   }, [applyState]);
 
   useEffect(() => {
-    if (!hasClaudeHost()) return;
     let alive = true;
-    void getSample().then((sample) => alive && setAuto(sample ? 'available' : 'unavailable'));
+    // 서버 확인은 sample 확인을 기다리는 동안 함께 시작한다. 둘 다 되면 sample 우선.
+    const server = checkServer();
+    void (async () => {
+      const sample = hasClaudeHost() ? await getSample() : null;
+      const next = sample ? 'sample' : (await server) ? 'server' : 'unavailable';
+      if (alive) setAuto(next);
+    })();
     return () => {
       alive = false;
     };
@@ -196,7 +201,9 @@ export function PhotoPanel() {
         <p className="photo-hint">
           {auto === 'unavailable'
             ? '사진은 이 기기에서만 보이고 밖으로 보내지 않습니다. 긴 변 2048px 이하로 줄여 이 브라우저에 보관하므로 새로고침해도 남습니다.'
-            : '사진은 긴 변 2048px 이하로 줄여 이 브라우저에 보관합니다. 읽을 때만 지금 쓰는 Claude 계정으로 보내고, 다른 곳으로는 보내지 않습니다.'}
+            : auto === 'server'
+              ? '사진은 긴 변 2048px 이하로 줄여 이 브라우저에 보관합니다. 읽을 때만 사진을 이 앱의 서버를 거쳐 Claude로 보내고, 저장하지 않습니다.'
+              : '사진은 긴 변 2048px 이하로 줄여 이 브라우저에 보관합니다. 읽을 때만 지금 쓰는 Claude 계정으로 보내고, 다른 곳으로는 보내지 않습니다.'}
         </p>
         {storage === 'failed' && (
           <p className="photo-warn" role="status" data-testid="photo-storage-failed">
@@ -246,7 +253,7 @@ export function PhotoPanel() {
             다시 읽기
           </button>
         )}
-        {hasPhoto && auto === 'available' && read.kind === 'idle' && (
+        {hasPhoto && (auto === 'sample' || auto === 'server') && read.kind === 'idle' && (
           <button type="button" className="btn btn--primary" data-testid="photo-read-again" onClick={readAgain}>
             이 사진 읽기
           </button>

@@ -125,8 +125,9 @@ describe('배치도 사진 자동 읽기', () => {
     expect(screen.getByTestId('photo-read-again')).toBeTruthy();
   });
 
-  it('window.claude가 없으면 지금 화면(복사·붙여넣기)과 이유 한 줄', () => {
+  it('window.claude도 서버도 없으면 지금 화면(복사·붙여넣기)과 이유 한 줄', async () => {
     render(<PhotoPanel />);
+    await waitFor(() => expect(screen.getByTestId('photo-read-status').textContent).not.toContain('확인하는 중'));
     expect(screen.getByTestId('photo-read-status').textContent).toBe('이 화면에서는 사진을 바로 읽을 수 없어요. 아래 방법으로 읽어 주세요.');
     expect(screen.queryByTestId('layout-manual')).toBeNull();
     expect(screen.getByTestId('layout-prompt-copy')).toBeTruthy();
