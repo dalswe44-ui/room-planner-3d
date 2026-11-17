@@ -86,7 +86,7 @@ export function applyWallVisibility(scene: Object3D, camera: Camera, viewMode: V
   const cz = camera.position.z;
   scene.traverse((obj) => {
     const data = sceneDataOf(obj);
-    if (data.kind !== 'wall' || !data.edgeMid || !data.outward) return;
+    if ((data.kind !== 'wall' && data.kind !== 'opening') || !data.edgeMid || !data.outward) return;
     const beyond =
       (cx - data.edgeMid.x) * data.outward.x + (cz - data.edgeMid.z) * data.outward.z > 0;
     obj.visible = !(viewMode === '3d' && beyond);

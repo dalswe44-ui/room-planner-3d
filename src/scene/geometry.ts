@@ -2,7 +2,7 @@
 // three.js 객체는 만들지 않으므로 React 없이 테스트할 수 있다.
 import { MathUtils, Object3D, Shape, Vector2 } from 'three';
 import { mmToWorld } from '../contracts/coords';
-import type { FurnitureItem, FurnitureKind, Mm, PointMm } from '../contracts/types';
+import type { FurnitureItem, FurnitureKind, ItemStatus, Mm, PointMm, StructureTarget } from '../contracts/types';
 
 export const WALL_THICKNESS_MM = 100;
 /** 색은 docs/DESIGN-SYSTEM.md와 src/app/app.css의 변수와 같은 값이다. */
@@ -16,6 +16,14 @@ export const WALL_INNER_COLOR = '#f4f2ec';
 export const WALL_OUTER_COLOR = '#e4e0d6';
 export const WALL_TOP_COLOR = INK_COLOR;
 export const SCENE_BACKGROUND = '#eef1f0';
+export const DOOR_COLOR = '#d9b98a';
+export const GLASS_COLOR = '#bcd6e6';
+export const WINDOW_LINE_COLOR = '#8aa7bd';
+
+/** 경고색으로 표시할지: 겹침, 방 이탈, 칸막이 벽과 겹침, 문 열림 자리와 겹침 중 하나라도 있으면. */
+export function isWarningStatus(status: ItemStatus | undefined): boolean {
+  return status !== undefined && (status.overlap || status.outside || status.wall || status.door);
+}
 
 /** "#rrggbb" 두 색을 sRGB 값 그대로 섞는다(t = b의 비율). 눈에 보이는 색 그대로 섞이도록 선형 변환을 거치지 않는다. */
 export function mixHex(a: string, b: string, t: number): string {
@@ -26,7 +34,17 @@ export function mixHex(a: string, b: string, t: number): string {
 
 /** 그려진 three.js 객체에 붙여 두는 표식. 검증 조회와 카메라 처리가 이 값을 읽는다. */
 export interface SceneUserData {
-  kind?: 'floor' | 'wall' | 'furniture';
+  /** wall: 바깥 벽 조각, partition: 칸막이 벽 조각, partitionFootprint: 칸막이 벽 전체 자리(보이지 않음, 검증 조회용), opening: 문·창문의 눌림 상자·문짝·유리 */
+  kind?: 'floor' | 'wall' | 'furniture' | 'partition' | 'partitionFootprint' | 'opening';
+  /** 구조 편집 모드에서 눌리면 보낼 대상 */
+  structure?: StructureTarget;
+  /** opening: 구간 전체를 덮는 눌림 상자이면 'span'(검증 조회가 from/to를 여기서 읽는다) */
+  role?: 'span' | 'leaf' | 'glass';
+  /** opening 눌림 상자: 상자 중심이 개구부 구간 선(안목선)에서 벽 몸통 쪽으로 옮겨진 거리(mm, 방 좌표). 검증 조회가 되돌려 읽는다. */
+  shiftMm?: { x: number; z: number };
+  /** partitionFootprint: 칸막이 벽 id */
+  wallId?: string;
+  openingType?: 'door' | 'window' | 'opening';
   furnitureId?: string;
   /** 가구: 그려진 모양의 종류. 없으면 'box' */
   shape?: FurnitureKind;

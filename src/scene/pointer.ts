@@ -1,7 +1,7 @@
 // 화면 좌표(CSS px, 뷰포트 기준) ↔ 방 바닥 좌표(mm). 장면 좌표 변환은 coords.ts 함수만 쓴다.
 import { Camera, Object3D, Plane, Raycaster, Vector2, Vector3 } from 'three';
 import { mmToWorld, worldToRoom } from '../contracts/coords';
-import type { PointMm } from '../contracts/types';
+import type { PointMm, StructureTarget } from '../contracts/types';
 import { sceneDataOf } from './geometry';
 
 export interface ScreenRect {
@@ -97,7 +97,7 @@ export function pickFurniture(
   const candidates: Object3D[] = [];
   scene.traverse((obj) => {
     const kind = sceneDataOf(obj).kind;
-    if (kind === 'furniture' || (kind === 'wall' && obj.visible)) candidates.push(obj);
+    if (kind === 'furniture' || ((kind === 'wall' || kind === 'partition') && obj.visible)) candidates.push(obj);
   });
   const raycaster = new Raycaster();
   raycaster.setFromCamera(ndcOf(clientX, clientY, rect), camera);
@@ -112,4 +112,46 @@ export function pickFurniture(
   const itemId = sceneDataOf(chosen).furnitureId;
   if (itemId === undefined) return null;
   return { itemId, center: worldToRoom(chosen.position.x, chosen.position.z) };
+}
+
+export interface StructureRayHit {
+  distance: number;
+  /** 구조물이면 눌린 대상. 가구(누를 수 없지만 앞을 가린다)면 undefined */
+  target?: StructureTarget;
+}
+
+/** 문·창문이 같은 자리의 벽보다 우선하는 거리 여유(m). 개구부 상자와 벽 조각의 면이 맞닿는 자리에서 벽이 먼저 맞는 것을 막는다. */
+export const OPENING_PRIORITY_SLACK_M = 0.15;
+
+/**
+ * 광선이 맞은 것들(가까운 순)에서 눌린 구조물을 고른다. 가장 가까운 것이 가구면 누를 수 있는 것이 없다(빈 곳).
+ * 가장 가까운 것에서 여유 거리 안에 문·창문이 있으면 그것이 우선이고, 아니면 가장 가까운 구조물이다.
+ */
+export function chooseStructureHit(hits: readonly StructureRayHit[]): StructureTarget | null {
+  const sorted = [...hits].sort((a, b) => a.distance - b.distance);
+  const first = sorted[0];
+  if (!first || !first.target) return null;
+  const opening = sorted.find((h) => h.target?.kind === 'opening' && h.distance <= first.distance + OPENING_PRIORITY_SLACK_M);
+  return (opening ?? first).target ?? null;
+}
+
+/** 화면의 한 점 아래에서 구조 편집 모드로 눌리는 구조물(문·창문 > 칸막이 벽 > 바깥 벽). 보이지 않는 벽은 제외한다. */
+export function pickStructure(
+  scene: Object3D,
+  camera: Camera,
+  rect: ScreenRect,
+  clientX: number,
+  clientY: number,
+): StructureTarget | null {
+  scene.updateMatrixWorld();
+  camera.updateMatrixWorld();
+  const candidates: Object3D[] = [];
+  scene.traverse((obj) => {
+    const d = sceneDataOf(obj);
+    if (d.kind === 'furniture' || (d.structure !== undefined && obj.visible)) candidates.push(obj);
+  });
+  const raycaster = new Raycaster();
+  raycaster.setFromCamera(ndcOf(clientX, clientY, rect), camera);
+  const hits = raycaster.intersectObjects(candidates, false).map((h) => ({ distance: h.distance, target: sceneDataOf(h.object).structure }));
+  return chooseStructureHit(hits);
 }

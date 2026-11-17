@@ -169,3 +169,26 @@ export function roomDimLines(
     wallOuterLeft: outer.x,
   };
 }
+
+export interface WallDim {
+  line: DimLine;
+  /** 벽 위의 두 끝(화면). 보조선(벽 → 치수선)을 긋는 데 쓴다 */
+  a: PxPoint;
+  b: PxPoint;
+}
+
+/**
+ * 벽 하나의 길이 치수선. 벽 선분(start → end)을 normal 쪽으로 faceMm만큼 옮긴 선(벽 면)에서 화면 기준 offsetPx 더 띄운다.
+ * normal은 방 좌표 단위 벡터. 화면에서 그 방향이 어디인지는 카메라로 알아낸다.
+ */
+export function wallDimLine(camera: Camera, size: PxSize, start: PointMm, end: PointMm, normal: PointMm, faceMm: Mm, offsetPx: number): WallDim {
+  const shift = (p: PointMm): PointMm => ({ x: p.x + normal.x * faceMm, z: p.z + normal.z * faceMm });
+  const a = projectToPx(camera, size, shift(start));
+  const b = projectToPx(camera, size, shift(end));
+  const n = projectToPx(camera, size, { x: shift(start).x + normal.x * 1000, z: shift(start).z + normal.z * 1000 });
+  const nl = Math.hypot(n.x - a.x, n.y - a.y) || 1;
+  const px = { x: (n.x - a.x) / nl, y: (n.y - a.y) / nl };
+  const from = { x: a.x + px.x * offsetPx, y: a.y + px.y * offsetPx };
+  const to = { x: b.x + px.x * offsetPx, y: b.y + px.y * offsetPx };
+  return { line: dimLine(from, to, { x: 1, y: 0 }), a, b };
+}

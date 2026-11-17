@@ -3,9 +3,10 @@ import { Box3, BoxGeometry, Camera, MathUtils, Mesh, Object3D, OrthographicCamer
 import type { OrbitControls } from '@react-three/drei';
 import type { RootState } from '@react-three/fiber';
 import type { ComponentRef, RefObject } from 'react';
-import { worldToMm } from '../contracts/coords';
+import { mmToWorld, worldToMm } from '../contracts/coords';
 import type { SceneProbe, SceneProbeItem, SceneProbeSnapshot } from '../contracts/probe';
 import type { Mm } from '../contracts/types';
+import { useProjectStore } from '../store/projectStore';
 import { sceneDataOf } from './geometry';
 import { floorToClient, screenRectOf } from './pointer';
 
@@ -44,17 +45,54 @@ function readItem(mesh: Mesh, geometry: BoxGeometry): SceneProbeItem {
   };
 }
 
+const dirOf = (rotationY: number) => ({ x: Math.cos(rotationY), z: -Math.sin(rotationY) });
+const mmPt = (x: number, z: number) => ({ x: worldToMm(x), z: worldToMm(z) });
+
+export interface SnapshotExtras {
+  editMode?: 'furniture' | 'structure';
+  /** 구역 이름표(DOM)를 찾을 범위. 없으면 문서 전체 */
+  labelRoot?: ParentNode | null;
+}
+
 /** 장면을 읽어 검증용 스냅샷을 만든다. 방의 크기는 바닥 메시의 실제 범위, 천장은 벽 상자의 높이다. */
-export function readSnapshot(scene: Object3D, camera: Camera): SceneProbeSnapshot {
+export function readSnapshot(scene: Object3D, camera: Camera, extras: SnapshotExtras = {}): SceneProbeSnapshot {
   const floors: Mesh[] = [];
   const walls: BoxGeometry[] = [];
   const items: SceneProbeItem[] = [];
   let draft: SceneProbeItem | null = null;
+  const wallOut: SceneProbeSnapshot['walls'] = [];
+  const openingOut: SceneProbeSnapshot['openings'] = [];
   scene.traverse((obj) => {
     if (!(obj instanceof Mesh)) return;
     const data = sceneDataOf(obj);
     if (data.kind === 'floor') floors.push(obj);
     else if (data.kind === 'wall' && obj.geometry instanceof BoxGeometry) walls.push(obj.geometry);
+    else if (data.kind === 'partitionFootprint' && obj.geometry instanceof BoxGeometry) {
+      // 상자의 로컬 x축이 벽 방향(시작 → 끝), 로컬 z 크기가 두께다.
+      const { width, depth } = obj.geometry.parameters;
+      const dir = dirOf(obj.rotation.y);
+      const half = width / 2;
+      wallOut.push({
+        id: data.wallId ?? '',
+        a: mmPt(obj.position.x - dir.x * half, obj.position.z - dir.z * half),
+        b: mmPt(obj.position.x + dir.x * half, obj.position.z + dir.z * half),
+        thickness: worldToMm(depth),
+        selected: data.selected === true,
+      });
+    } else if (data.kind === 'opening' && data.role === 'span' && obj.geometry instanceof BoxGeometry && data.structure?.kind === 'opening') {
+      const half = obj.geometry.parameters.width / 2;
+      const dir = dirOf(obj.rotation.y);
+      const shift = data.shiftMm ?? { x: 0, z: 0 };
+      const cx = obj.position.x - mmToWorld(shift.x);
+      const cz = obj.position.z - mmToWorld(shift.z);
+      openingOut.push({
+        id: data.structure.id,
+        type: data.openingType ?? 'door',
+        from: mmPt(cx - dir.x * half, cz - dir.z * half),
+        to: mmPt(cx + dir.x * half, cz + dir.z * half),
+        selected: data.selected === true,
+      });
+    }
     else if (data.kind === 'furniture' && obj.geometry instanceof BoxGeometry) {
       if (data.draft === true) draft = readItem(obj, obj.geometry);
       else items.push(readItem(obj, obj.geometry));
@@ -68,14 +106,28 @@ export function readSnapshot(scene: Object3D, camera: Camera): SceneProbeSnapsho
     width = worldToMm(box.max.x - box.min.x);
     depth = worldToMm(box.max.z - box.min.z);
   }
-  const ceilingHeight: Mm = walls[0] ? worldToMm(walls[0].parameters.height) : 0;
+  const ceilingHeight: Mm = walls.length > 0 ? Math.max(...walls.map((g) => worldToMm(g.parameters.height))) : 0;
 
   return {
     view: camera instanceof OrthographicCamera ? '2d' : '3d',
     room: { width, depth, ceilingHeight },
     items,
     draft,
+    walls: wallOut,
+    openings: openingOut,
+    labels: readLabels(extras.labelRoot ?? (typeof document === 'undefined' ? null : document)),
+    editMode: extras.editMode ?? 'furniture',
   };
+}
+
+/** 평면 뷰에 그려진 구역 이름표(DOM). 3D 뷰에서는 그리지 않으므로 빈 목록이다. */
+function readLabels(root: ParentNode | null): SceneProbeSnapshot['labels'] {
+  if (!root) return [];
+  return Array.from(root.querySelectorAll<HTMLElement>('[data-label-id]')).map((el) => ({
+    id: el.dataset.labelId ?? '',
+    name: el.textContent ?? '',
+    at: { x: Number(el.dataset.atX), z: Number(el.dataset.atZ) },
+  }));
 }
 
 export function createSceneProbe(runtime: SceneRuntime): SceneProbe {
@@ -86,7 +138,10 @@ export function createSceneProbe(runtime: SceneRuntime): SceneProbe {
   return {
     snapshot() {
       const s = state();
-      return readSnapshot(s.scene, s.camera);
+      return readSnapshot(s.scene, s.camera, {
+        editMode: useProjectStore.getState().editMode,
+        labelRoot: s.gl.domElement.closest('[data-testid="scene-canvas"]'),
+      });
     },
     floorToClient(x, z) {
       const s = state();

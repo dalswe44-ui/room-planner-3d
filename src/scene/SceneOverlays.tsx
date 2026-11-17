@@ -1,13 +1,15 @@
 // 장면 위에 DOM으로 얹는 것: 선택한 가구 위의 도구 막대, 가구에서 벽까지의 거리, 방의 폭·깊이 치수선(평면 뷰).
 // 위치는 카메라나 가구가 바뀔 때마다 ref.style로 옮긴다(React 재렌더 없이). 값은 store에서 읽기만 한다.
-import { useCallback, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { OrthographicCamera } from 'three';
 import { roomBounds } from '../contracts/room';
 import type { Mm } from '../contracts/types';
+import { wallSegment } from '../contracts/structure';
 import { formatLength, formatLengthWithUnit } from '../contracts/units';
 import { useProjectStore } from '../store/projectStore';
 import { WALL_THICKNESS_MM, wallSegments } from './geometry';
-import { itemScreenRect, placeOverlay, roomDimLines, wallDistanceLines, type DimLine, type PxPoint } from './overlayMath';
+import { itemScreenRect, placeOverlay, projectToPx, roomDimLines, wallDimLine, wallDistanceLines, type DimLine, type PxPoint } from './overlayMath';
+import { straightenPreview } from './structureGeometry';
 import type { SceneRuntime } from './sceneProbe';
 
 /** 치수선 끝 눈금의 길이(px) */
@@ -15,11 +17,15 @@ const TICK_PX = 10;
 /** 방 치수선을 벽 바깥 면에서 띄우는 거리(px) */
 const ROOM_DIM_OFFSET_PX = 20;
 const WALL_INDEXES = [0, 1, 2, 3] as const;
+/** 벽 길이 치수선을 벽 면에서 띄우는 거리(px) */
+const WALL_DIM_OFFSET_PX = 16;
 
 interface SceneOverlaysProps {
   runtime: SceneRuntime;
   selectionOverlay?: ReactNode;
   wallDistances?: readonly [Mm, Mm, Mm, Mm] | null;
+  /** 구조 편집 모드에서 이름표를 누름(끌기 시작). 이름표는 DOM이라 장면 레이캐스트가 아니라 여기서 받는다. */
+  onLabelPointerDown?: (id: string, event: ReactPointerEvent<HTMLElement>) => void;
 }
 
 const f = (n: number) => n.toFixed(1);
@@ -30,18 +36,27 @@ function tick(at: PxPoint, dir: PxPoint): string {
   const ny = dir.x * (TICK_PX / 2);
   return segment({ x: at.x - nx, y: at.y - ny }, { x: at.x + nx, y: at.y + ny });
 }
+/** 벽 길이 치수선: 선, 양 끝 눈금, 벽에서 치수선까지의 보조선 */
+function wallDimPath(line: DimLine, a: PxPoint, b: PxPoint): string {
+  return (
+    segment(line.from, line.to) + tick(line.from, line.dir) + tick(line.to, line.dir) + segment(a, line.from) + segment(b, line.to)
+  );
+}
 const place = (el: HTMLElement | null, x: number, y: number, rotate = '') => {
   if (!el) return;
   el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)${rotate}`;
   el.style.visibility = 'visible';
 };
 
-export function SceneOverlays({ runtime, selectionOverlay, wallDistances }: SceneOverlaysProps) {
+export function SceneOverlays({ runtime, selectionOverlay, wallDistances, onLabelPointerDown }: SceneOverlaysProps) {
   const project = useProjectStore((s) => s.project);
   const viewMode = useProjectStore((s) => s.viewMode);
   const selectedItemId = useProjectStore((s) => s.selectedItemId);
   const dragPreview = useProjectStore((s) => s.dragPreview);
   const draft = useProjectStore((s) => s.draft);
+  const editMode = useProjectStore((s) => s.editMode);
+  const selectedStructure = useProjectStore((s) => s.selectedStructure);
+  const wallPreview = useProjectStore((s) => s.wallPreview);
   const plan = viewMode === '2d';
   const unit = project.displayUnit;
   const selected = draft ?? project.items.find((i) => i.id === selectedItemId) ?? null;
@@ -58,6 +73,14 @@ export function SceneOverlays({ runtime, selectionOverlay, wallDistances }: Scen
   const depthChipRef = useRef<HTMLSpanElement>(null);
   const distChipRefs = useRef<(HTMLSpanElement | null)[]>([null, null, null, null]);
   const holderRef = useRef<HTMLDivElement>(null);
+  const structPathRef = useRef<SVGPathElement>(null);
+  const wallDimRef = useRef<HTMLSpanElement>(null);
+  const previewDimRef = useRef<HTMLSpanElement>(null);
+  const labelRefs = useRef(new Map<string, HTMLElement>());
+  const structure = editMode === 'structure';
+  const selectedWallKey =
+    selectedStructure?.kind === 'outerWall' ? selectedStructure.index : selectedStructure?.kind === 'wall' ? selectedStructure.id : null;
+  const hasPreview = wallPreview !== null && (wallPreview.a.x !== wallPreview.b.x || wallPreview.a.z !== wallPreview.b.z);
 
   // 렌더마다 최신 값을 담아 두고, 카메라가 바뀔 때도 같은 값으로 위치만 다시 잡는다.
   const latest = useRef({ plan, bounds, outward, wallDistances, showToolbar, showDists });
@@ -85,7 +108,37 @@ export function SceneOverlays({ runtime, selectionOverlay, wallDistances }: Scen
       holderRect = { left: p.x, top: p.y, right: p.x + box.width, bottom: p.y + box.height };
     }
 
+    // 고른 벽의 길이 치수선과 그리는 중인 벽의 길이
+    let dimPath = '';
+    const room = st.project.room;
+    const sel = st.selectedStructure;
+    const wallRef = sel?.kind === 'outerWall' ? sel.index : sel?.kind === 'wall' ? sel.id : null;
+    const seg = wallRef !== null ? wallSegment(room, wallRef) : null;
+    if (seg && wallDimRef.current) {
+      const d = wallDimLine(camera, size, seg.start, seg.end, seg.normal, seg.thickness / 2, WALL_DIM_OFFSET_PX);
+      dimPath += wallDimPath(d.line, d.a, d.b);
+      place(wallDimRef.current, d.line.mid.x, d.line.mid.y);
+    }
+    if (st.wallPreview && previewDimRef.current) {
+      const pv = straightenPreview(st.wallPreview.a, st.wallPreview.b);
+      if (pv.length > 0) {
+        const dx = pv.b.x - pv.a.x;
+        const dz = pv.b.z - pv.a.z;
+        const len = Math.hypot(dx, dz);
+        const n = { x: -dz / len, z: dx / len };
+        const d = wallDimLine(camera, size, pv.a, pv.b, n, WALL_THICKNESS_MM / 2, WALL_DIM_OFFSET_PX);
+        dimPath += wallDimPath(d.line, d.a, d.b);
+        place(previewDimRef.current, d.line.mid.x, d.line.mid.y);
+      }
+    }
+    structPathRef.current?.setAttribute('d', dimPath);
+
     if (!cur.plan) return;
+
+    for (const label of room.labels) {
+      const p = projectToPx(camera, size, label.at);
+      place(labelRefs.current.get(label.id) ?? null, p.x, p.y);
+    }
 
     const dims = roomDimLines(camera, size, cur.bounds, WALL_THICKNESS_MM, ROOM_DIM_OFFSET_PX);
     const ext = (line: DimLine, wallEdge: number, horizontal: boolean): string =>
@@ -174,6 +227,44 @@ export function SceneOverlays({ runtime, selectionOverlay, wallDistances }: Scen
           </span>
         </>
       )}
+      <svg className="scene-dim-svg" aria-hidden="true">
+        <path ref={structPathRef} className="scene-dim-path" />
+      </svg>
+      {selectedWallKey !== null && (
+        <span ref={wallDimRef} className="scene-dim-chip num" data-testid="wall-dim">
+          {formatLengthWithUnit(
+            wallSegment(project.room, selectedWallKey)?.length ?? 0,
+            unit,
+          )}
+        </span>
+      )}
+      {hasPreview && wallPreview && (
+        <span ref={previewDimRef} className="scene-dim-chip scene-dim-chip--preview num" data-testid="wall-preview-dim">
+          {formatLengthWithUnit(straightenPreview(wallPreview.a, wallPreview.b).length, unit)}
+        </span>
+      )}
+      {plan &&
+        project.room.labels.map((l) => {
+          const selectedLabel = selectedStructure?.kind === 'label' && selectedStructure.id === l.id;
+          return (
+            <span
+              key={l.id}
+              ref={(el) => {
+                if (el) labelRefs.current.set(l.id, el);
+                else labelRefs.current.delete(l.id);
+              }}
+              className={`scene-area-label${structure ? ' scene-area-label--editable' : ''}${selectedLabel ? ' scene-area-label--selected' : ''}`}
+              data-testid="area-label"
+              data-label-id={l.id}
+              data-at-x={l.at.x}
+              data-at-z={l.at.z}
+              data-scene-overlay=""
+              onPointerDown={structure ? (e) => onLabelPointerDown?.(l.id, e) : undefined}
+            >
+              {l.name}
+            </span>
+          );
+        })}
       {showDists &&
         WALL_INDEXES.map((i) => (
           <span

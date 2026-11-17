@@ -4,16 +4,19 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Object3D, type DirectionalLight } from 'three';
 import { roomBounds } from '../contracts/room';
 import { mmToWorld } from '../contracts/coords';
-import type { ItemStatus, Mm, PlacementHandlers, ViewMode } from '../contracts/types';
+import type { ItemStatus, Mm, PlacementHandlers, StructureHandlers, ViewMode } from '../contracts/types';
 import { useProjectStore } from '../store/projectStore';
 import { CameraRig } from './CameraRig';
 import { FOV_DEG } from './camera';
 import { FurnitureBox } from './Furniture';
 import { Room } from './Room';
 import { SceneOverlays } from './SceneOverlays';
-import { SCENE_BACKGROUND } from './geometry';
-import { PlacementRouter } from './gestures';
-import { pickFurniture, clientToFloor, mmPerPxAt, screenRectOf } from './pointer';
+import { SCENE_BACKGROUND, WALL_THICKNESS_MM, isWarningStatus } from './geometry';
+import { Openings } from './Openings';
+import { WallPreviewOutline } from './Outlines';
+import { straightenPreview } from './structureGeometry';
+import { PlacementRouter, StructureRouter } from './gestures';
+import { pickStructure, pickFurniture, clientToFloor, mmPerPxAt, screenRectOf } from './pointer';
 import { createSceneProbe, type ControlsHandle, type SceneRuntime } from './sceneProbe';
 import './scene.css';
 
@@ -24,14 +27,19 @@ export interface SceneViewProps {
   selectionOverlay?: ReactNode;
   /** 선택한 가구에서 벽 0 ~ 3까지의 거리(mm). 평면 뷰에서 치수선과 글자로 그린다. 음수는 방 밖. */
   wallDistances?: readonly [Mm, Mm, Mm, Mm] | null;
+  /** 구조 편집 모드(store.editMode === 'structure')의 포인터 처리. 없으면 구조 모드에서 장면은 카메라만 움직인다. */
+  structureHandlers?: StructureHandlers;
 }
 
-export function SceneView({ handlers, statuses, selectionOverlay, wallDistances }: SceneViewProps) {
+export function SceneView({ handlers, statuses, selectionOverlay, wallDistances, structureHandlers }: SceneViewProps) {
   const project = useProjectStore((s) => s.project);
   const viewMode = useProjectStore((s) => s.viewMode);
   const selectedItemId = useProjectStore((s) => s.selectedItemId);
   const dragPreview = useProjectStore((s) => s.dragPreview);
   const draft = useProjectStore((s) => s.draft);
+  const editMode = useProjectStore((s) => s.editMode);
+  const selectedStructure = useProjectStore((s) => s.selectedStructure);
+  const wallPreview = useProjectStore((s) => s.wallPreview);
 
   const [hintDismissed, setHintDismissed] = useState(false);
   const [runtime] = useState<SceneRuntime>(() => ({ get: null, controlsRef: createRef<ControlsHandle>() }));
@@ -41,6 +49,10 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances 
   useEffect(() => {
     handlersRef.current = handlers;
   }, [handlers]);
+  const structureRef = useRef(structureHandlers);
+  useEffect(() => {
+    structureRef.current = structureHandlers;
+  }, [structureHandlers]);
 
   const [router] = useState(
     () =>
@@ -66,6 +78,31 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances 
       }),
   );
 
+  const [structureRouter] = useState(
+    () =>
+      new StructureRouter({
+        handlers: {
+          onTargetPointerDown: (t, floor) => structureRef.current?.onTargetPointerDown(t, floor),
+          onBackgroundPointerDown: (floor) => structureRef.current?.onBackgroundPointerDown(floor),
+          onPointerMove: (floor, mmPerPx) => structureRef.current?.onPointerMove(floor, mmPerPx),
+          onPointerUp: () => structureRef.current?.onPointerUp(),
+          onBackgroundTap: () => structureRef.current?.onBackgroundTap(),
+        },
+        toFloor: (clientX, clientY) => {
+          const s = runtime.get?.();
+          return s ? clientToFloor(s.camera, screenRectOf(s.gl.domElement), clientX, clientY) : null;
+        },
+        mmPerPxAt: (clientX, clientY) => {
+          const s = runtime.get?.();
+          return s ? mmPerPxAt(s.camera, screenRectOf(s.gl.domElement), clientX, clientY) : undefined;
+        },
+        setCameraEnabled: (enabled) => {
+          const controls = runtime.controlsRef.current;
+          if (controls) controls.enabled = enabled;
+        },
+      }),
+  );
+
   // 캡처 단계에서 먼저 받아야 카메라 조작(OrbitControls)이 같은 누름을 가져가기 전에 끌 수 있다.
   const onPointerDownCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
     // 도구 막대 같은 겹침 DOM 위에서 누른 것은 장면 조작(끌기, 빈 곳 탭)이 아니다.
@@ -73,6 +110,14 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances 
     const s = runtime.get?.();
     if (!s) return;
     const primary = event.pointerType !== 'mouse' || event.button === 0;
+    if (useProjectStore.getState().editMode === 'structure') {
+      const state = useProjectStore.getState();
+      const rect = screenRectOf(s.gl.domElement);
+      const target = primary ? pickStructure(s.scene, s.camera, rect, event.clientX, event.clientY) : null;
+      if (state.viewMode === '3d') setHintDismissed(true);
+      structureRouter.pointerDown(event.pointerId, event.clientX, event.clientY, primary, target, state.viewMode === '2d');
+      return;
+    }
     const hit = primary
       ? pickFurniture(s.scene, s.camera, screenRectOf(s.gl.domElement), event.clientX, event.clientY, useProjectStore.getState().draft?.id ?? useProjectStore.getState().selectedItemId)
       : null;
@@ -82,9 +127,18 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances 
 
   // 포인터가 캔버스 밖으로 나가도 끝을 받도록 창에 건다.
   useEffect(() => {
-    const move = (e: PointerEvent) => router.pointerMove(e.pointerId, e.clientX, e.clientY);
-    const up = (e: PointerEvent) => router.pointerUp(e.pointerId);
-    const cancel = (e: PointerEvent) => router.pointerCancel(e.pointerId);
+    const move = (e: PointerEvent) => {
+      router.pointerMove(e.pointerId, e.clientX, e.clientY);
+      structureRouter.pointerMove(e.pointerId, e.clientX, e.clientY);
+    };
+    const up = (e: PointerEvent) => {
+      router.pointerUp(e.pointerId);
+      structureRouter.pointerUp(e.pointerId);
+    };
+    const cancel = (e: PointerEvent) => {
+      router.pointerCancel(e.pointerId);
+      structureRouter.pointerCancel(e.pointerId);
+    };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', cancel);
@@ -93,13 +147,18 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances 
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', cancel);
     };
-  }, [router]);
+  }, [router, structureRouter]);
 
   const bounds = useMemo(() => roomBounds(project.room), [project.room]);
 
-  const isWarning = (id: string): boolean => {
-    const status = statuses[id];
-    return status !== undefined && (status.overlap || status.outside);
+  const isWarning = (id: string): boolean => isWarningStatus(statuses[id]);
+  const structureMode = editMode === 'structure';
+  const preview = wallPreview ? straightenPreview(wallPreview.a, wallPreview.b) : null;
+  const onLabelPointerDown = (id: string, event: ReactPointerEvent<HTMLElement>) => {
+    const s = runtime.get?.();
+    if (!s) return;
+    const primary = event.pointerType !== 'mouse' || event.button === 0;
+    structureRouter.pointerDown(event.pointerId, event.clientX, event.clientY, primary, { kind: 'label', id }, viewMode === '2d');
   };
 
   return (
@@ -124,7 +183,9 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances 
         <OverlaySync runtime={runtime} />
         <color attach="background" args={[SCENE_BACKGROUND]} />
         <Lights viewMode={viewMode} width={bounds.width} depth={bounds.depth} />
-        <Room corners={project.room.corners} ceilingHeight={project.room.ceilingHeight} />
+        <Room room={project.room} plan={viewMode === '2d'} selected={selectedStructure} />
+        <Openings room={project.room} plan={viewMode === '2d'} selected={selectedStructure} />
+        {structureMode && preview && <WallPreviewOutline a={preview.a} b={preview.b} thickness={WALL_THICKNESS_MM} />}
         {project.items.map((item) => (
           <FurnitureBox
             key={item.id}
@@ -155,7 +216,12 @@ export function SceneView({ handlers, statuses, selectionOverlay, wallDistances 
         />
       </Canvas>
       </div>
-      <SceneOverlays runtime={runtime} selectionOverlay={selectionOverlay} wallDistances={wallDistances} />
+      <SceneOverlays runtime={runtime} selectionOverlay={selectionOverlay} wallDistances={wallDistances} onLabelPointerDown={onLabelPointerDown} />
+      {structureMode && (
+        <p className="scene-mode-badge" data-testid="structure-mode-badge">
+          벽·문 편집 중
+        </p>
+      )}
       {viewMode === '3d' && !hintDismissed && (
         <p className="scene-hint" data-testid="scene-hint">
           빈 곳을 끌면 화면이 돌아가요. 휠이나 두 손가락으로 확대해요.

@@ -167,3 +167,47 @@ describe('미리보기(draft) 가구', () => {
     expect(readSnapshot(buildScene(3600, 3000, 2400), new OrthographicCamera()).draft).toBeNull();
   });
 });
+
+describe('readSnapshot: 칸막이 벽, 개구부, 이름표, 편집 모드', () => {
+  it('벽 자리 메시와 개구부 상자의 위치·회전·크기에서 mm 값을 읽는다(바깥 벽 문은 몸통 쪽 이동을 되돌린다)', () => {
+    const scene = buildScene(5000, 4000, 2400);
+    // 칸막이 벽 a (3000, 2500) → b (5000, 2500): 방향 +x, rotationY 0
+    const foot = new Mesh(new BoxGeometry(mmToWorld(2000), mmToWorld(1), mmToWorld(100)), new MeshStandardMaterial());
+    foot.position.set(mmToWorld(4000), 0, mmToWorld(2500));
+    foot.userData = { kind: 'partitionFootprint', wallId: 'w2', selected: true };
+    scene.add(foot);
+    // 세로 벽 a (3000, 0) → b (3000, 2500): 방향 +z, rotationY = -90도
+    const foot2 = new Mesh(new BoxGeometry(mmToWorld(2500), mmToWorld(1), mmToWorld(100)), new MeshStandardMaterial());
+    foot2.position.set(mmToWorld(3000), 0, mmToWorld(1250));
+    foot2.rotation.y = -Math.PI / 2;
+    foot2.userData = { kind: 'partitionFootprint', wallId: 'w1' };
+    scene.add(foot2);
+    // 바깥 벽 2(아래쪽, 방향 -x)의 문: 구간 x 4400 → 3500, 몸통 쪽(+z)으로 50 이동
+    const door = new Mesh(new BoxGeometry(mmToWorld(900), mmToWorld(2100), mmToWorld(240)), new MeshStandardMaterial());
+    door.position.set(mmToWorld(3950), mmToWorld(1050), mmToWorld(4050));
+    door.rotation.y = Math.PI;
+    door.userData = { kind: 'opening', role: 'span', structure: { kind: 'opening', id: 'd1' }, openingType: 'door', shiftMm: { x: 0, z: 50 }, selected: true };
+    scene.add(door);
+    // 문짝(role leaf)은 개구부 목록에 들어가지 않는다
+    const leaf = new Mesh(new BoxGeometry(0.9, 2.1, 0.04), new MeshStandardMaterial());
+    leaf.userData = { kind: 'opening', role: 'leaf', structure: { kind: 'opening', id: 'd1' } };
+    scene.add(leaf);
+
+    const snap = readSnapshot(scene, new OrthographicCamera(), { editMode: 'structure' });
+    expect(snap.walls).toEqual([
+      { id: 'w2', a: { x: 3000, z: 2500 }, b: { x: 5000, z: 2500 }, thickness: 100, selected: true },
+      { id: 'w1', a: { x: 3000, z: 0 }, b: { x: 3000, z: 2500 }, thickness: 100, selected: false },
+    ]);
+    expect(snap.openings).toEqual([{ id: 'd1', type: 'door', from: { x: 4400, z: 4000 }, to: { x: 3500, z: 4000 }, selected: true }]);
+    expect(snap.editMode).toBe('structure');
+    expect(snap.labels).toEqual([]);
+    expect(readSnapshot(scene, new OrthographicCamera()).editMode).toBe('furniture');
+  });
+
+  it('이름표는 그려진 DOM 요소에서 읽는다', () => {
+    const root = document.createElement('div');
+    root.innerHTML = '<span data-label-id="a" data-at-x="1500" data-at-z="1500">거실</span>';
+    const snap = readSnapshot(buildScene(3600, 3000, 2400), new OrthographicCamera(), { labelRoot: root });
+    expect(snap.labels).toEqual([{ id: 'a', name: '거실', at: { x: 1500, z: 1500 } }]);
+  });
+});
