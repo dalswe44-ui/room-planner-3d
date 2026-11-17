@@ -2,7 +2,7 @@
 import { roomBounds } from '../contracts/room';
 import type { FurnitureItem } from '../contracts/types';
 import { useProjectStore } from '../store/projectStore';
-import { findFreeSpot, footprint, footprintSize } from './placement';
+import { doorRects, findFreeSpot, footprint, footprintSize, wallRects } from './placement';
 
 /** 같은 이름·종류·치수·색·회전의 복제본을 원본에서 가장 가까운 빈 자리에 놓고 선택한다. addItem 한 번이라 되돌리기 한 번에 사라진다. */
 export function duplicateItem(item: FurnitureItem): string {
@@ -13,6 +13,7 @@ export function duplicateItem(item: FurnitureItem): string {
     roomBounds(project.room),
     project.items.map((it) => footprint(it)),
     { x: item.x, z: item.z },
+    [...wallRects(project.room), ...doorRects(project.room)],
   );
   return addItem({
     name: item.name,

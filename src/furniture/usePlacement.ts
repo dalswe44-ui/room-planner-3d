@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { PlacementHandlers, PointMm } from '../contracts/types';
 import { useProjectStore, type ProjectState } from '../store/projectStore';
 import { roomBounds } from '../contracts/room';
-import { dragCenter, footprint, grabOffset, settleCenter, snapDistanceMm, snapToEdges, type Footprint } from './placement';
+import { dragCenter, footprint, grabOffset, settleCenter, snapDistanceMm, snapToEdges, wallRects, type Footprint } from './placement';
 
 /**
  * store 상태를 읽는 함수를 받아 핸들러를 만든다. 끄는 중인 가구와 grab offset은 이 클로저에만 둔다.
@@ -44,7 +44,7 @@ export function createPlacementHandlers(getState: () => ProjectState): Placement
       const raw = dragCenter(floor, drag.offset);
       drag.snapMm = snapDistanceMm(mmPerPx);
       drag.raw = raw; // 확정은 자석 맞춤 전의 포인터 위치에서 다시 계산한다
-      const at = snapToEdges(item, raw, roomBounds(s.project.room), othersOf(s, item.id), drag.snapMm);
+      const at = snapToEdges(item, raw, roomBounds(s.project.room), othersOf(s, item.id), drag.snapMm, wallRects(s.project.room));
       s.setDragPreview({ itemId: drag.itemId, x: at.x, z: at.z });
     },
 
@@ -56,7 +56,7 @@ export function createPlacementHandlers(getState: () => ProjectState): Placement
       const preview = s.dragPreview;
       const item = findTarget(s, itemId);
       if (item && preview && preview.itemId === itemId && (preview.x !== item.x || preview.z !== item.z)) {
-        const at = settleCenter(item, raw ?? preview, roomBounds(s.project.room), othersOf(s, itemId), snapMm);
+        const at = settleCenter(item, raw ?? preview, roomBounds(s.project.room), othersOf(s, itemId), snapMm, wallRects(s.project.room));
         if (s.draft?.id === itemId) s.updateDraft(at);
         else s.updateItem(itemId, at);
       }

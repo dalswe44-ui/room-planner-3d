@@ -244,6 +244,28 @@ describe('경고와 벽까지 거리', () => {
     expect(byId('item-status').textContent).toContain('방 밖');
   });
 
+  it('칸막이 벽과 겹치면 "벽", 열림 자리면 "문" 문구, 거리는 칸막이 면까지', async () => {
+    await add('A', '1000', '600', '700');
+    const id = items()[0].id;
+    act(() => {
+      useProjectStore.setState((s) => ({
+        project: {
+          ...s.project,
+          room: {
+            ...s.project.room,
+            walls: [{ id: 'w1', a: { x: 2500, z: 0 }, b: { x: 2500, z: 3000 }, thickness: 100 }],
+            openings: [{ id: 'o1', type: 'door', wall: 2, offset: 0, width: 900, height: 2100, sill: 0 }],
+          },
+        },
+      }));
+    });
+    expect(dists()).toEqual(['1200', '150', '1200', '1300']); // 오른쪽: 칸막이 면 2450 - 가구 오른쪽 변 2300
+    act(() => store().updateItem(id, { x: 2500, z: 1500 }));
+    expect(byId('item-status').textContent).toContain('벽');
+    act(() => store().updateItem(id, { x: 3100, z: 2700 }));
+    expect(byId('item-status').textContent).toContain('문');
+  });
+
   it('D-1: A → 1200, 1300, 1200, 1300 (cm, m 전환), 회전 → 1000, 1500, 1000, 1500', async () => {
     await add('A', '1000', '600', '700');
     expect(dists()).toEqual(['1200', '1300', '1200', '1300']);

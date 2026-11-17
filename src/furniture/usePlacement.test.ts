@@ -2,7 +2,6 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDefaultProject, useProjectStore } from '../store/projectStore';
-import { roomBounds } from '../contracts/room';
 import { computeItemStatuses, SNAP_MM } from './placement';
 import { createPlacementHandlers, usePlacement } from './usePlacement';
 
@@ -127,7 +126,7 @@ describe('createPlacementHandlers', () => {
     h.onFloorPointerMove({ x: 1600 + SNAP_MM - 5, z: 1500 }); // a 오른쪽 1100과 간격 SNAP_MM - 5
     h.onPointerUp();
     expect(itemOf(b)).toMatchObject({ x: 1600, z: 1500 });
-    const st = computeItemStatuses(store().project.items, roomBounds(store().project.room), null);
+    const st = computeItemStatuses(store().project.items, store().project.room, null);
     expect(st[a].overlap || st[b].overlap).toBe(false);
   });
 

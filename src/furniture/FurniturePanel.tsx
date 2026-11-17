@@ -10,7 +10,7 @@ import { LengthInput } from '../ui/LengthInput';
 import { IconDuplicate, IconPlus, IconRotateLeft, IconRotateRight, IconTrash } from '../ui/icons';
 import { duplicateItem } from './duplicateItem';
 import { IconCheck, IconClose } from './DraftIcons';
-import { findFreeSpot, footprint, nextRotation, ROTATE_STEP_DEG } from './placement';
+import { doorRects, findFreeSpot, footprint, nextRotation, ROTATE_STEP_DEG, wallRects } from './placement';
 import { useItemStatuses } from './useItemStatuses';
 import { useSelectedWallDistances } from './useSelectedWallDistances';
 import './furniture.css';
@@ -27,8 +27,8 @@ const SIZE_FIELDS: { key: SizeKey; label: string }[] = [
 /** 추가 폼의 처음 치수(mm). SPEC에 없는 값이라 헤드 확인이 필요하다. */
 const INITIAL_SIZE: Size = { w: 600, d: 600, h: 600 };
 
-/** 벽 번호와 평면 뷰(원점 왼쪽 위, +z 아래)에서의 위치 */
-const WALL_LABELS = ['위쪽 벽 (벽 0)', '오른쪽 벽 (벽 1)', '아래쪽 벽 (벽 2)', '왼쪽 벽 (벽 3)'] as const;
+/** 방향과 평면 뷰(원점 왼쪽 위, +z 아래)에서의 위치 */
+const WALL_LABELS = ['위쪽 벽까지', '오른쪽 벽까지', '아래쪽 벽까지', '왼쪽 벽까지'] as const;
 
 /** 새 가구를 놓을 빈 자리. 방과 다른 가구는 누른 순간의 store에서 읽는다. */
 function freeSpotFor(size: Pick<FurnitureItem, 'w' | 'd'>, from?: PointMm) {
@@ -38,6 +38,7 @@ function freeSpotFor(size: Pick<FurnitureItem, 'w' | 'd'>, from?: PointMm) {
     roomBounds(project.room),
     project.items.map((it) => footprint(it)),
     from,
+    [...wallRects(project.room), ...doorRects(project.room)],
   );
 }
 
@@ -217,10 +218,12 @@ function DraftCard({ draft, unit, addedIdRef }: { draft: FurnitureItem; unit: Di
           <p className="furniture-editor__size num">{sizeSummary(draft, unit)}</p>
         </div>
       </header>
-      {status && (status.overlap || status.outside) && (
+      {status && (status.overlap || status.outside || status.wall || status.door) && (
         <p className="furniture-editor__status" role="status" data-testid="draft-status">
           {status.overlap && <span>겹침: 다른 가구와 겹칩니다.</span>}
           {status.outside && <span>방 밖: 방 경계를 벗어났습니다.</span>}
+          {status.wall && <span>칸막이 벽과 겹쳐요.</span>}
+          {status.door && <span>문이 열리는 자리예요.</span>}
         </p>
       )}
       <div className="furniture-field">
@@ -377,10 +380,12 @@ function ItemEditor({ item, unit, status }: ItemEditorProps) {
         </button>
       </div>
 
-      {status && (status.overlap || status.outside) && (
+      {status && (status.overlap || status.outside || status.wall || status.door) && (
         <p className="furniture-editor__status" role="status" data-testid="item-status">
           {status.overlap && <span>겹침: 다른 가구와 겹칩니다.</span>}
           {status.outside && <span>방 밖: 방 경계를 벗어났습니다.</span>}
+          {status.wall && <span>칸막이 벽과 겹쳐요.</span>}
+          {status.door && <span>문이 열리는 자리예요.</span>}
         </p>
       )}
 

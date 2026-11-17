@@ -1,8 +1,9 @@
 // 배치 규칙 순수 함수. SPEC 4절의 수치 예(P-2, P-3, W-1 ~ W-6, D-1, D-3)를 숫자로 옮겼다.
 import { describe, expect, it } from 'vitest';
 import { rectCorners, roomBounds, type RoomBounds } from '../contracts/room';
-import type { FurnitureItem } from '../contracts/types';
+import type { FurnitureItem, InteriorWall, Opening } from '../contracts/types';
 import {
+  computeDraftStatus,
   computeItemStatuses,
   dragCenter,
   footprint,
@@ -19,10 +20,18 @@ import {
   SNAP_MM,
   SNAP_PX,
   wallDistances,
+  wallRects,
+  doorRects,
 } from './placement';
 
 const room = (width: number, depth: number): RoomBounds => roomBounds({ corners: rectCorners(width, depth) });
 const ROOM = room(3600, 3000);
+/** 상태 계산용 방: 바깥 테두리는 bounds와 같은 직사각형 */
+const R = (b: RoomBounds, walls: InteriorWall[] = [], openings: Opening[] = []) => ({
+  corners: rectCorners(b.width, b.depth),
+  walls,
+  openings,
+});
 
 function item(id: string, w: number, d: number, x: number, z: number, rotationDeg = 0): FurnitureItem {
   return { id, name: id, w, d, h: 500, x, z, rotationDeg, elevation: 0, color: '#000000' };
@@ -110,33 +119,33 @@ describe('isOutsideRoom (방 이탈)', () => {
 
 describe('computeItemStatuses', () => {
   it('W-1: 같은 자리의 B 두 개는 둘 다 overlap', () => {
-    const s = computeItemStatuses([B('B1'), B('B2')], ROOM, null);
+    const s = computeItemStatuses([B('B1'), B('B2')], R(ROOM), null);
     expect(s).toEqual({ B1: { overlap: true, outside: false, wall: false, door: false }, B2: { overlap: true, outside: false, wall: false, door: false } });
   });
 
   it('W-2: 하나를 (600, 600)으로 옮기면 둘 다 경고 없음', () => {
-    const s = computeItemStatuses([B('B1'), B('B2', 600, 600)], ROOM, null);
+    const s = computeItemStatuses([B('B1'), B('B2', 600, 600)], R(ROOM), null);
     expect(s.B1).toEqual({ overlap: false, outside: false, wall: false, door: false });
     expect(s.B2).toEqual({ overlap: false, outside: false, wall: false, door: false });
   });
 
   it('W-7: 겹침과 방 밖이 함께', () => {
-    const s = computeItemStatuses([B('B1'), B('B2')], room(2000, 3000), null);
+    const s = computeItemStatuses([B('B1'), B('B2')], R(room(2000, 3000)), null);
     expect(s.B2).toEqual({ overlap: true, outside: true, wall: false, door: false });
   });
 
   it('끄는 중이면 dragPreview 위치로 판정한다', () => {
     const items = [B('B1'), B('B2')];
-    const s = computeItemStatuses(items, ROOM, { itemId: 'B2', x: 600, z: 600 });
+    const s = computeItemStatuses(items, R(ROOM), { itemId: 'B2', x: 600, z: 600 });
     expect(s.B1.overlap).toBe(false);
     expect(s.B2.overlap).toBe(false);
-    const out = computeItemStatuses(items, ROOM, { itemId: 'B2', x: 100, z: 600 });
+    const out = computeItemStatuses(items, R(ROOM), { itemId: 'B2', x: 100, z: 600 });
     expect(out.B2).toEqual({ overlap: false, outside: true, wall: false, door: false });
     expect(out.B1).toEqual({ overlap: false, outside: false, wall: false, door: false });
   });
 
   it('가구가 하나면 overlap은 false', () => {
-    expect(computeItemStatuses([A()], ROOM, null)).toEqual({ A: { overlap: false, outside: false, wall: false, door: false } });
+    expect(computeItemStatuses([A()], R(ROOM), null)).toEqual({ A: { overlap: false, outside: false, wall: false, door: false } });
   });
 });
 
@@ -322,7 +331,7 @@ describe('settleCenter', () => {
     const mine = item('m', 1000, 600, 0, 0);
     const at = settleCenter(mine, { x: 1800 + near, z: 1500 }, ROOM, [footprint(o)]);
     expect(at).toEqual({ x: 1800, z: 1500 });
-    const st = computeItemStatuses([o, { ...mine, ...at }], ROOM, null);
+    const st = computeItemStatuses([o, { ...mine, ...at }], R(ROOM), null);
     expect(st.o).toEqual({ overlap: false, outside: false, wall: false, door: false });
     expect(st.m).toEqual({ overlap: false, outside: false, wall: false, door: false });
   });
@@ -330,7 +339,7 @@ describe('settleCenter', () => {
   it('벽에 붙은 홀수 치수 가구는 반올림해도 이탈 경고가 없다', () => {
     const odd = item('odd', 451, 301, 0, 0);
     const at = settleCenter(odd, { x: 225 + near, z: 150 + near }, ROOM, []); // 변 14.5, 벽에 붙는다
-    const st = computeItemStatuses([{ ...odd, ...at }], ROOM, null);
+    const st = computeItemStatuses([{ ...odd, ...at }], R(ROOM), null);
     expect(st.odd.outside).toBe(false);
   });
 
@@ -464,5 +473,188 @@ describe('findFreeSpot 시작점', () => {
   it('시작점이 방 구석이어도 방 안의 빈 자리를 찾는다', () => {
     const at = findFreeSpot({ w: 600, d: 600 }, room, [], { x: 0, z: 0 });
     expect(isOutsideRoom(footprint({ ...at, w: 600, d: 600, rotationDeg: 0 }), room)).toBe(false);
+  });
+});
+
+
+// ---- 칸막이 벽·문 (T-036) ----
+/** 세로 칸막이: x=2000 중심, 두께 100 → x 1950 ~ 2050, z 0 ~ 3000 */
+const PART: InteriorWall = { id: 'w1', a: { x: 2000, z: 0 }, b: { x: 2000, z: 3000 }, thickness: 100 };
+/** 아래쪽 바깥 벽(벽 2)에 폭 900 문. 벽 2는 (3600,3000) → (0,3000), normal은 (−dz, dx) = (0, −1)이라 방 안쪽 */
+const doorOn = (wall: Opening['wall'], offset: number, extra: Partial<Opening> = {}): Opening => ({
+  id: 'o1', type: 'door', wall, offset, width: 900, height: 2100, sill: 0, ...extra,
+});
+
+describe('칸막이 벽과 겹침 (wall)', () => {
+  const st = (x: number, walls = [PART]) => computeItemStatuses([item('X', 1000, 600, x, 1500)], R(ROOM, walls), null).X;
+
+  it('벽 면(1950)에 정확히 맞닿으면 겹침이 아니다', () => {
+    expect(st(1450).wall).toBe(false); // maxX 1950
+    expect(st(2550).wall).toBe(false); // minX 2050
+  });
+
+  it('1 mm 겹치면 wall', () => {
+    expect(st(1451).wall).toBe(true);
+    expect(st(2549).wall).toBe(true);
+  });
+
+  it('칸막이가 없으면 wall 없음, wall은 overlap(가구끼리)과 별개', () => {
+    expect(st(2000, []).wall).toBe(false);
+    expect(st(2000)).toEqual({ overlap: false, outside: false, wall: true, door: false });
+  });
+
+  it('끄는 중이면 임시 위치로 판정한다', () => {
+    const it1 = item('X', 1000, 600, 600, 1500);
+    expect(computeItemStatuses([it1], R(ROOM, [PART]), null).X.wall).toBe(false);
+    expect(computeItemStatuses([it1], R(ROOM, [PART]), { itemId: 'X', x: 2000, z: 1500 }).X.wall).toBe(true);
+  });
+
+  it('computeDraftStatus도 wall을 본다', () => {
+    const d = item('D', 1000, 600, 2000, 1500);
+    expect(computeDraftStatus(d, [], R(ROOM, [PART]), null).wall).toBe(true);
+    expect(computeDraftStatus(d, [], R(ROOM, [PART]), { itemId: 'D', x: 600, z: 1500 }).wall).toBe(false);
+  });
+});
+
+describe('문이 열리는 자리 (door)', () => {
+  // 벽 2 위 offset 1000, 폭 900: x = 2600 ~ 1700(벽 시작이 x=3600) → 문 x 2600 ~ 1700. 안쪽으로 900 → z 2100 ~ 3000
+  const room1 = (o: Opening) => R(ROOM, [], [o]);
+  const at = (o: Opening, x: number, z: number) => computeItemStatuses([item('X', 400, 400, x, z)], room1(o), null).X;
+
+  it('안쪽으로 열리는 문: 열림 사각형 안이면 door', () => {
+    const o = doorOn(2, 1000);
+    expect(doorRects(room1(o))[0]).toEqual({ minX: 1700, maxX: 2600, minZ: 2100, maxZ: 3000 });
+    expect(at(o, 2150, 2700).door).toBe(true);
+  });
+
+  it('열림 사각형 밖이거나 변에 맞닿으면 door 아님', () => {
+    const o = doorOn(2, 1000);
+    expect(at(o, 2150, 1900).door).toBe(false); // maxZ 2100 맞닿음
+    expect(at(o, 1500, 2700).door).toBe(false); // maxX 1700 맞닿음
+    expect(at(o, 1501, 2700).door).toBe(true);
+  });
+
+  it('바깥쪽으로 열리는 문(opposite)은 방 안 가구와 상관없다', () => {
+    const o = doorOn(2, 1000, { swing: 'opposite' });
+    expect(at(o, 2150, 2700).door).toBe(false);
+  });
+
+  it('경첩 쪽은 열림 사각형에 영향이 없다(같은 정사각형)', () => {
+    const a = doorRects(room1(doorOn(2, 1000, { hinge: 'start' })))[0];
+    const b = doorRects(room1(doorOn(2, 1000, { hinge: 'end' })))[0];
+    expect(a).toEqual(b);
+  });
+
+  it('칸막이 벽의 문은 벽 면에서부터 열린다', () => {
+    // 세로 칸막이 x=2000, 두께 100. 벽 방향 (0,+1), normal (−1, 0): 왼쪽(x 작은 쪽)으로 열림. 면 x=1950, 폭 900
+    const o = doorOn('w1', 500);
+    expect(doorRects(R(ROOM, [PART], [o]))[0]).toEqual({ minX: 1050, maxX: 1950, minZ: 500, maxZ: 1400 });
+    const opp = doorOn('w1', 500, { swing: 'opposite' });
+    expect(doorRects(R(ROOM, [PART], [opp]))[0]).toEqual({ minX: 2050, maxX: 2950, minZ: 500, maxZ: 1400 });
+  });
+
+  it('창문·문틈은 경고가 없다', () => {
+    for (const type of ['window', 'opening'] as const) {
+      const o = doorOn(2, 1000, { type });
+      expect(doorRects(room1(o))).toEqual([]);
+      expect(at(o, 2150, 2700)).toEqual({ overlap: false, outside: false, wall: false, door: false });
+    }
+  });
+
+  it('computeDraftStatus도 door를 본다', () => {
+    const d = item('D', 400, 400, 2150, 2700);
+    expect(computeDraftStatus(d, [], room1(doorOn(2, 1000)), null).door).toBe(true);
+  });
+});
+
+describe('칸막이 벽 자석 맞춤', () => {
+  const box = { w: 1000, d: 600, rotationDeg: 0 };
+  const walls = wallRects({ walls: [PART] });
+
+  it('왼쪽 칸막이 면(1950)에 오른쪽 변이 붙는다', () => {
+    const s = snapToEdges(box, { x: 1450 - 15, z: 1500 }, ROOM, [], SNAP_MM, walls);
+    expect(s).toMatchObject({ x: 1450, snappedX: true });
+  });
+
+  it('오른쪽 칸막이 면(2050)에 왼쪽 변이 붙는다', () => {
+    const s = snapToEdges(box, { x: 2550 + 15, z: 1500 }, ROOM, [], SNAP_MM, walls);
+    expect(s).toMatchObject({ x: 2550, snappedX: true });
+  });
+
+  it('칸막이의 같은 방향 면(왼쪽 가구의 왼쪽 변이 1950)에는 붙지 않는다', () => {
+    const s = snapToEdges(box, { x: 1950 + 500 + 10, z: 1500 }, ROOM, [], SNAP_MM, walls);
+    expect(s.snappedX).toBe(false);
+  });
+
+  it('다른 축에서 멀리 떨어진 칸막이에는 붙지 않는다', () => {
+    const short: InteriorWall = { id: 's', a: { x: 2000, z: 0 }, b: { x: 2000, z: 500 }, thickness: 100 };
+    const s = snapToEdges(box, { x: 1450 - 15, z: 2500 }, ROOM, [], SNAP_MM, wallRects({ walls: [short] }));
+    expect(s.snappedX).toBe(false);
+  });
+
+  it('칸막이와 가구가 같은 거리면 칸막이가 이긴다', () => {
+    const other = footprint(item('o', 100, 600, 1500, 1500)); // minX 1450... 왼쪽 면 1450
+    const s = snapToEdges(box, { x: 1450 - 10, z: 1500 }, ROOM, [other], SNAP_MM, walls);
+    expect(s.x).toBe(1450); // 칸막이 면 1950 - 500
+  });
+
+  it('settleCenter: 칸막이에 붙으면 격자 없이 확정, 그 뒤 wall 경고가 없다', () => {
+    const odd = item('m', 1001, 600, 0, 0);
+    const at = settleCenter(odd, { x: 1400, z: 1500 }, ROOM, [], SNAP_MM, walls);
+    const st = computeItemStatuses([{ ...odd, ...at }], R(ROOM, [PART]), null);
+    expect(st.m.wall).toBe(false);
+  });
+});
+
+describe('wallDistances: 칸막이 벽 면까지', () => {
+  const f = footprint(item('X', 1000, 600, 1000, 1500)); // x 500 ~ 1500, z 1200 ~ 1800
+  const walls = wallRects({ walls: [PART] });
+
+  it('칸막이가 없으면 바깥 벽까지(기존과 같다)', () => {
+    expect(wallDistances(f, ROOM, [])).toEqual([1200, 2100, 1200, 500]);
+  });
+
+  it('오른쪽은 가까운 칸막이 면(1950)까지', () => {
+    expect(wallDistances(f, ROOM, walls)).toEqual([1200, 450, 1200, 500]);
+  });
+
+  it('왼쪽 방향의 칸막이: 오른쪽 면(2050)까지', () => {
+    const g = footprint(item('X', 1000, 600, 3000, 1500)); // minX 2500
+    expect(wallDistances(g, ROOM, walls)).toEqual([1200, 100, 1200, 450]);
+  });
+
+  it('위·아래: 가로 칸막이는 다른 축에서 겹칠 때만', () => {
+    const h: InteriorWall = { id: 'h', a: { x: 0, z: 800 }, b: { x: 1200, z: 800 }, thickness: 100 }; // z 750 ~ 850, x 0 ~ 1200
+    expect(wallDistances(f, ROOM, wallRects({ walls: [h] }))[0]).toBe(350); // 1200 - 850
+    const away = footprint(item('X', 1000, 600, 2500, 1500)); // x 2000 ~ 3000: x 겹침 없음
+    expect(wallDistances(away, ROOM, wallRects({ walls: [h] }))[0]).toBe(1200);
+  });
+
+  it('칸막이와 겹친 가구는 그 칸막이를 거리로 세지 않는다', () => {
+    const g = footprint(item('X', 1000, 600, 2000, 1500)); // x 1500 ~ 2500, 칸막이 위
+    expect(wallDistances(g, ROOM, walls)).toEqual([1200, 1100, 1200, 1500]);
+  });
+});
+
+describe('findFreeSpot: 칸막이 벽과 문 열림 자리', () => {
+  const sz = { w: 600, d: 600 };
+  const fp = (x: number, z: number) => footprint({ ...sz, x, z, rotationDeg: 0 });
+
+  it('칸막이를 피한다', () => {
+    const wall: InteriorWall = { id: 'v', a: { x: 1800, z: 0 }, b: { x: 1800, z: 3000 }, thickness: 200 };
+    const avoid = wallRects({ walls: [wall] });
+    expect(findFreeSpot(sz, ROOM, [])).toEqual({ x: 1800, z: 1500 });
+    const at = findFreeSpot(sz, ROOM, [], undefined, avoid);
+    expect(footprintsOverlap(fp(at.x, at.z), avoid[0])).toBe(false);
+  });
+
+  it('문 열림 자리를 피한다', () => {
+    const o: Opening = doorOn(2, 1000, { width: 2000 }); // 열림 x 600 ~ 2600, z 1000 ~ 3000 → 가운데(1800, 1500)가 걸린다
+    const rooms = R(ROOM, [], [o]);
+    const avoid = doorRects(rooms);
+    expect(avoid).toHaveLength(1);
+    expect(footprintsOverlap(fp(1800, 1500), avoid[0])).toBe(true);
+    const at = findFreeSpot(sz, ROOM, [], undefined, avoid);
+    expect(footprintsOverlap(fp(at.x, at.z), avoid[0])).toBe(false);
   });
 });

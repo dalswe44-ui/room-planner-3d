@@ -1,6 +1,7 @@
 // 가구 배치 규칙의 순수 계산. three.js와 React 없이 mm 숫자만 다룬다(docs/SPEC.md 2절).
-import type { RoomBounds } from '../contracts/room';
-import type { DragPreview, FurnitureItem, ItemStatus, Mm, PointMm } from '../contracts/types';
+import { roomBounds, type RoomBounds } from '../contracts/room';
+import { doorSwingRect, interiorWallRect } from '../contracts/structure';
+import type { DragPreview, FurnitureItem, ItemStatus, Mm, PointMm, Room } from '../contracts/types';
 
 // SPEC 2절의 기준값(mm). 가구 크기 범위와 기본 이름은 src/contracts/limits.ts에 있다.
 /** 끌어 놓을 때 바닥 사각형의 왼쪽·위쪽 변을 맞추는 격자 간격 */
@@ -58,6 +59,19 @@ export function isOutsideRoom(f: Footprint, room: RoomBounds): boolean {
   );
 }
 
+/** 상태 계산에 필요한 방 데이터: 바깥 테두리, 칸막이 벽, 문·창문 */
+export type PlacementRoom = Pick<Room, 'corners' | 'walls' | 'openings'>;
+
+/** 칸막이 벽이 바닥에서 차지하는 사각형들(두께 포함) */
+export function wallRects(room: Pick<PlacementRoom, 'walls'>): Footprint[] {
+  return room.walls.map(interiorWallRect);
+}
+
+/** 문이 열리는 자리의 사각형들. 창문·문틈은 없다. */
+export function doorRects(room: Pick<PlacementRoom, 'corners' | 'walls' | 'openings'>): Footprint[] {
+  return room.openings.flatMap((o) => doorSwingRect(room, o) ?? []);
+}
+
 /** 지금 그려지는 위치(끄는 중이면 임시 위치)의 바닥 사각형 */
 export function currentFootprint(item: Placed & Pick<FurnitureItem, 'id'>, preview: DragPreview | null): Footprint {
   return preview && preview.itemId === item.id ? footprint(item, preview) : footprint(item);
@@ -66,31 +80,39 @@ export function currentFootprint(item: Placed & Pick<FurnitureItem, 'id'>, previ
 /** 가구마다 겹침·이탈 상태. 높이는 따지지 않는다. */
 export function computeItemStatuses(
   items: FurnitureItem[],
-  room: RoomBounds,
+  room: PlacementRoom,
   preview: DragPreview | null,
 ): Record<string, ItemStatus> {
+  const bounds = roomBounds(room);
+  const walls = wallRects(room);
+  const doors = doorRects(room);
   const fps = items.map((it) => currentFootprint(it, preview));
   const result: Record<string, ItemStatus> = {};
   items.forEach((it, i) => {
     const overlap = fps.some((other, j) => j !== i && footprintsOverlap(fps[i], other));
-    result[it.id] = { overlap, outside: isOutsideRoom(fps[i], room), wall: false, door: false };
+    result[it.id] = {
+      overlap,
+      outside: isOutsideRoom(fps[i], bounds),
+      wall: walls.some((w) => footprintsOverlap(fps[i], w)),
+      door: doors.some((d) => footprintsOverlap(fps[i], d)),
+    };
   });
   return result;
 }
 
-/** 미리보기 가구 하나의 상태. 확정된 가구와 겹쳤는지, 방 밖인지(끄는 중이면 임시 위치). 확정 가구의 상태에는 영향을 주지 않는다. */
+/** 미리보기 가구 하나의 상태. 확정된 가구·칸막이 벽·문 열림 자리와 겹쳤는지, 방 밖인지(끄는 중이면 임시 위치). 확정 가구의 상태에는 영향을 주지 않는다. */
 export function computeDraftStatus(
   draft: FurnitureItem,
   items: FurnitureItem[],
-  room: RoomBounds,
+  room: PlacementRoom,
   preview: DragPreview | null,
 ): ItemStatus {
   const fp = currentFootprint(draft, preview);
   return {
     overlap: items.some((it) => footprintsOverlap(fp, footprint(it))),
-    outside: isOutsideRoom(fp, room),
-    wall: false,
-    door: false,
+    outside: isOutsideRoom(fp, roomBounds(room)),
+    wall: wallRects(room).some((w) => footprintsOverlap(fp, w)),
+    door: doorRects(room).some((d) => footprintsOverlap(fp, d)),
   };
 }
 
@@ -138,7 +160,8 @@ export interface EdgeSnap {
 /**
  * 자석 맞춤. at에 중심을 둔 발자국의 변이 벽 또는 다른 가구의 반대쪽 변과 snapMm(기본 SNAP_MM) 이내면 그 값에 붙인다.
  * 왼쪽 변은 왼쪽 벽·다른 가구의 오른쪽 변에, 오른쪽 변은 오른쪽 벽·다른 가구의 왼쪽 변에(z도 같다).
- * 다른 가구는 다른 축에서 겹치거나 snapMm 이내일 때만 후보다. 벽이 가구와 같은 거리면 벽이 이긴다.
+ * 칸막이 벽(walls, 사각형의 네 면)과 다른 가구는 다른 축에서 겹치거나 snapMm 이내일 때만 후보다.
+ * 같은 거리면 바깥 벽, 칸막이 벽, 가구 순으로 이긴다.
  * 방 밖에 있어도 벽 가까이면 안쪽 변이 벽에 붙는다. others에 끄는 가구 자신을 넣지 않는다.
  */
 export function snapToEdges(
@@ -147,10 +170,11 @@ export function snapToEdges(
   room: RoomBounds,
   others: Footprint[],
   snapMm: number = SNAP_MM,
+  walls: Footprint[] = [],
 ): EdgeSnap {
   const f = footprint({ ...item, x: at.x, z: at.z });
-  const nearZ = others.filter((o) => gap(f.minZ, f.maxZ, o.minZ, o.maxZ) <= snapMm);
-  const nearX = others.filter((o) => gap(f.minX, f.maxX, o.minX, o.maxX) <= snapMm);
+  const nearZ = [...walls, ...others].filter((o) => gap(f.minZ, f.maxZ, o.minZ, o.maxZ) <= snapMm);
+  const nearX = [...walls, ...others].filter((o) => gap(f.minX, f.maxX, o.minX, o.maxX) <= snapMm);
   const dx = nearestShift(f.minX, f.maxX, [
     { lo: room.minX, hi: room.maxX },
     ...nearZ.map((o) => ({ lo: o.maxX, hi: o.minX })),
@@ -171,8 +195,9 @@ export function settleCenter(
   room: RoomBounds,
   others: Footprint[],
   snapMm: number = SNAP_MM,
+  walls: Footprint[] = [],
 ): PointMm {
-  const s = snapToEdges(item, at, room, others, snapMm);
+  const s = snapToEdges(item, at, room, others, snapMm, walls);
   const grid = snapCenter(item, at);
   return { x: Math.round(s.snappedX ? s.x : grid.x) + 0, z: Math.round(s.snappedZ ? s.z : grid.z) + 0 };
 }
@@ -193,11 +218,25 @@ export function nextRotation(deg: number): number {
 }
 
 /**
- * 바닥 사각형에서 벽 0 ~ 3까지의 거리. 벽 0은 z=minZ, 벽 1은 x=maxX, 벽 2는 z=maxZ, 벽 3은 x=minX(rectCorners 순서).
- * 벽 밖으로 나간 쪽은 음수다.
+ * 위·오른쪽·아래·왼쪽(벽 0 ~ 3 순서, 평면 뷰 기준) 방향으로 가장 가까운 벽 면까지의 거리.
+ * 바깥 벽(z=minZ, x=maxX, z=maxZ, x=minX)과, 그 방향에 있으면서 다른 축에서 1 mm 이상 겹치는 칸막이 벽(walls)의 가까운 면 중 작은 값이다.
+ * 바깥 벽 밖으로 나간 쪽은 음수다. 칸막이와 겹친 가구는 그 칸막이를 그 방향의 벽으로 세지 않는다.
  */
-export function wallDistances(f: Footprint, room: RoomBounds): [number, number, number, number] {
-  return [f.minZ - room.minZ, room.maxX - f.maxX, room.maxZ - f.maxZ, f.minX - room.minX];
+export function wallDistances(f: Footprint, room: RoomBounds, walls: Footprint[] = []): [number, number, number, number] {
+  const d: [number, number, number, number] = [f.minZ - room.minZ, room.maxX - f.maxX, room.maxZ - f.maxZ, f.minX - room.minX];
+  for (const w of walls) {
+    const overX = gap(f.minX, f.maxX, w.minX, w.maxX) <= -WARN_MIN_MM;
+    const overZ = gap(f.minZ, f.maxZ, w.minZ, w.maxZ) <= -WARN_MIN_MM;
+    if (overX) {
+      if (w.maxZ <= f.minZ) d[0] = Math.min(d[0], f.minZ - w.maxZ);
+      if (w.minZ >= f.maxZ) d[2] = Math.min(d[2], w.minZ - f.maxZ);
+    }
+    if (overZ) {
+      if (w.minX >= f.maxX) d[1] = Math.min(d[1], w.minX - f.maxX);
+      if (w.maxX <= f.minX) d[3] = Math.min(d[3], f.minX - w.maxX);
+    }
+  }
+  return d;
 }
 
 /** 새 가구를 찾을 때 방 가운데에서 바깥으로 훑는 간격 */
@@ -207,6 +246,7 @@ const FREE_SPOT_STEP_MM = 100;
  * 새 가구(회전 0)를 놓을 빈 자리의 중심. 방 가운데에서 100 mm 격자로 바깥으로 훑어,
  * 다른 가구와 겹치지 않고 방 안에 들어가는 가장 가까운 자리를 고른다. 왼쪽·위쪽 변은 10 mm 격자에 맞춘다.
  * 같은 거리면 위쪽, 그다음 왼쪽을 먼저 고른다. 빈 자리가 없으면 시작점(겹침·이탈은 경고로 보인다).
+ * avoid(칸막이 벽, 문 열림 자리)와도 겹치지 않는 자리를 고른다.
  * from을 주면 방 가운데 대신 그 점에서 훑는다(복제본을 원본 옆에 놓을 때). 기본값은 방 가운데.
  */
 export function findFreeSpot(
@@ -214,6 +254,7 @@ export function findFreeSpot(
   room: RoomBounds,
   others: Footprint[],
   from?: PointMm,
+  avoid: Footprint[] = [],
 ): PointMm {
   const cx = Math.round(from?.x ?? (room.minX + room.maxX) / 2);
   const cz = Math.round(from?.z ?? (room.minZ + room.maxZ) / 2);
@@ -233,6 +274,7 @@ export function findFreeSpot(
     const f = footprint(shape, at);
     if (isOutsideRoom(f, room)) continue;
     if (others.some((other) => footprintsOverlap(f, other))) continue;
+    if (avoid.some((a) => footprintsOverlap(f, a))) continue;
     return at;
   }
   return { x: cx, z: cz };
