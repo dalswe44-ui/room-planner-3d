@@ -125,3 +125,13 @@ e2e 테스트가 화면 요소를 찾을 때 쓴다. 모듈은 아래 이름을 
 - 가구 쪽: `usePlacement`가 draft 끌기를 처리(놓으면 `updateDraft({x, z})`, 자석·격자 규칙은 가구와 같다), `useItemStatuses`는 draft의 겹침·방 밖도 계산(키 draft.id), `useKeyboardNudge`는 draft도 움직인다. `DraftToolbar()`: ✓ 추가(`draft-confirm`), 왼쪽·오른쪽 90도(`draft-rotate-left`, `draft-rotate-right`), ✗ 취소(`draft-cancel`). 패널에는 미리보기 카드(`draft-card`, 이름과 치수 편집 가능, 같은 ✓ ✗ 버튼).
 - App: `selectionOverlay={draft ? <DraftToolbar /> : <ItemToolbar />}`.
 - 추가 data-testid (T-030): `draft-toolbar`, `draft-confirm`, `draft-cancel`, `draft-rotate-left`, `draft-rotate-right`, `draft-card`, `draft-card-confirm`, `draft-card-cancel`, `draft-name`, `draft-w`, `draft-d`, `draft-h`, `draft-status`. 내보내기: `src/furniture/DraftToolbar.tsx`의 `DraftToolbar()`.
+
+
+### 2026-11-17 벽·문·이름표 (사용자 요청 13:34, 방식: 바깥 벽 + 칸막이 + 문 + 구역 이름표)
+- 데이터(types.ts): `Room.walls: InteriorWall[]`(가로·세로만, a/b 중심선, 두께), `Room.labels: AreaLabel[]`, `Opening.wall: WallRef`(숫자 = 바깥 벽 번호, 문자열 = 칸막이 벽 id), 문은 `hinge`('start'|'end'), `swing`('normal'|'opposite', normal = 방향 (dx,dz)의 (−dz, dx) 쪽 = 바깥 벽에서는 방 안쪽). `ItemStatus`에 `wall`(칸막이 벽과 겹침), `door`(문이 열리는 자리와 겹침).
+- 기하(contracts/structure.ts, 모두 이것만 쓴다): `wallSegment`, `allWallSegments`, `interiorWallRect`, `openingSpan`, `openingFits`, `doorSwingRect`, `doorHinge`, `offsetAlongWall`, `rectsOverlap`.
+- store: `editMode`('furniture' | 'structure', `setEditMode`), `selectedStructure`(`StructureTarget | null`, 가구 선택·미리보기와 배타), `addWall`(곧게 펴기 `straightenWall`) / `updateWall` / `removeWall`(붙은 문도 삭제), `addOpening`(문 기본 900×2100, 창문 1200×1200 문턱 900) / `updateOpening` / `removeOpening`, `addLabel` / `updateLabel` / `removeLabel`, `wallPreview` / `setWallPreview`(그리는 중, 기록 안 함). 끄는 중 연속 이동(벽 a·b, 문 offset, 이름표 at)은 되돌리기 한 단계로 묶인다.
+- 포인터: `StructureHandlers`(types.ts). 구조 모드에서 장면은 벽·문·이름표·바깥 벽을 눌린 대상으로 보내고, 평면 뷰의 빈 바닥 누름은 `onBackgroundPointerDown`(벽 그리기), 짧은 탭은 `onBackgroundTap`. 가구는 보이기만 하고 눌리지 않는다. 3D 뷰에서는 구조물 누르기(선택·문 끌기)만, 벽 그리기는 평면 뷰에서만.
+- SceneView props 추가: `structureHandlers?: StructureHandlers`.
+- probe: `snapshot().walls`, `.openings`, `.labels`, `.editMode`.
+- 모듈: src/structure/ (room-input 소유) — `StructurePanel()`, `useStructureHandlers(): StructureHandlers`. App 왼쪽 탭 "벽·문"을 고르면 `editMode = 'structure'`.

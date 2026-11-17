@@ -109,7 +109,7 @@ export function parseSavedProject(text: string): Project | null {
   return {
     version: 1,
     displayUnit: p.displayUnit as Project['displayUnit'],
-    room: { ceilingHeight: room.ceilingHeight, corners, openings, photos: [] },
+    room: { ceilingHeight: room.ceilingHeight, corners, openings, walls: [], labels: [], photos: [] }, // 칸막이 벽·이름표 저장은 T-034에서
     items,
   };
 }

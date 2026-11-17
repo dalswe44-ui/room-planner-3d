@@ -111,18 +111,18 @@ describe('isOutsideRoom (방 이탈)', () => {
 describe('computeItemStatuses', () => {
   it('W-1: 같은 자리의 B 두 개는 둘 다 overlap', () => {
     const s = computeItemStatuses([B('B1'), B('B2')], ROOM, null);
-    expect(s).toEqual({ B1: { overlap: true, outside: false }, B2: { overlap: true, outside: false } });
+    expect(s).toEqual({ B1: { overlap: true, outside: false, wall: false, door: false }, B2: { overlap: true, outside: false, wall: false, door: false } });
   });
 
   it('W-2: 하나를 (600, 600)으로 옮기면 둘 다 경고 없음', () => {
     const s = computeItemStatuses([B('B1'), B('B2', 600, 600)], ROOM, null);
-    expect(s.B1).toEqual({ overlap: false, outside: false });
-    expect(s.B2).toEqual({ overlap: false, outside: false });
+    expect(s.B1).toEqual({ overlap: false, outside: false, wall: false, door: false });
+    expect(s.B2).toEqual({ overlap: false, outside: false, wall: false, door: false });
   });
 
   it('W-7: 겹침과 방 밖이 함께', () => {
     const s = computeItemStatuses([B('B1'), B('B2')], room(2000, 3000), null);
-    expect(s.B2).toEqual({ overlap: true, outside: true });
+    expect(s.B2).toEqual({ overlap: true, outside: true, wall: false, door: false });
   });
 
   it('끄는 중이면 dragPreview 위치로 판정한다', () => {
@@ -131,12 +131,12 @@ describe('computeItemStatuses', () => {
     expect(s.B1.overlap).toBe(false);
     expect(s.B2.overlap).toBe(false);
     const out = computeItemStatuses(items, ROOM, { itemId: 'B2', x: 100, z: 600 });
-    expect(out.B2).toEqual({ overlap: false, outside: true });
-    expect(out.B1).toEqual({ overlap: false, outside: false });
+    expect(out.B2).toEqual({ overlap: false, outside: true, wall: false, door: false });
+    expect(out.B1).toEqual({ overlap: false, outside: false, wall: false, door: false });
   });
 
   it('가구가 하나면 overlap은 false', () => {
-    expect(computeItemStatuses([A()], ROOM, null)).toEqual({ A: { overlap: false, outside: false } });
+    expect(computeItemStatuses([A()], ROOM, null)).toEqual({ A: { overlap: false, outside: false, wall: false, door: false } });
   });
 });
 
@@ -323,8 +323,8 @@ describe('settleCenter', () => {
     const at = settleCenter(mine, { x: 1800 + near, z: 1500 }, ROOM, [footprint(o)]);
     expect(at).toEqual({ x: 1800, z: 1500 });
     const st = computeItemStatuses([o, { ...mine, ...at }], ROOM, null);
-    expect(st.o).toEqual({ overlap: false, outside: false });
-    expect(st.m).toEqual({ overlap: false, outside: false });
+    expect(st.o).toEqual({ overlap: false, outside: false, wall: false, door: false });
+    expect(st.m).toEqual({ overlap: false, outside: false, wall: false, door: false });
   });
 
   it('벽에 붙은 홀수 치수 가구는 반올림해도 이탈 경고가 없다', () => {

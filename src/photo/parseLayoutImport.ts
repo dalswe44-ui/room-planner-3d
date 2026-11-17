@@ -182,7 +182,7 @@ export function parseLayoutImport(text: string, base: ParseBase): ParseResult {
     project: {
       version: 1,
       displayUnit: base.displayUnit,
-      room: { ceilingHeight, corners: rectCorners(width, depth), openings: [], photos: [] },
+      room: { ceilingHeight, corners: rectCorners(width, depth), openings: [], walls: [], labels: [], photos: [] },
       items,
     },
   };

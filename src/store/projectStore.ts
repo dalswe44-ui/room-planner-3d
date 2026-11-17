@@ -2,13 +2,34 @@
 import { create } from 'zustand';
 import { rectCorners, roomBounds } from '../contracts/room';
 import type {
+  AreaLabel,
   DisplayUnit,
   DragPreview,
   FurnitureItem,
+  InteriorWall,
   Mm,
+  Opening,
+  PointMm,
   Project,
+  StructureTarget,
   ViewMode,
 } from '../contracts/types';
+
+/** 고를 수 있는 구조물: 칸막이 벽, 문·창문(개구부), 구역 이름표 */
+export type StructureSelection = StructureTarget | null;
+/** 'furniture': 가구 배치(기본). 'structure': 벽·문·이름표 편집(빈 곳을 끌면 벽을 그린다) */
+export type EditMode = 'furniture' | 'structure';
+
+export const DEFAULT_WALL_THICKNESS: Mm = 100;
+export const DEFAULT_DOOR = { width: 900, height: 2100, sill: 0 } as const;
+export const DEFAULT_WINDOW = { width: 1200, height: 1200, sill: 900 } as const;
+
+export interface NewWallInput {
+  a: PointMm;
+  b: PointMm;
+  thickness?: Mm;
+}
+export type NewOpeningInput = Pick<Opening, 'type' | 'wall' | 'offset'> & Partial<Omit<Opening, 'id' | 'type' | 'wall' | 'offset'>>;
 
 export interface RoomSizeInput {
   width: Mm;
@@ -55,6 +76,27 @@ export interface ProjectState {
   /** 불러오기용. 프로젝트 전체를 바꾸고 선택과 끌기 상태를 지운다. */
   replaceProject(project: Project): void;
 
+  // ---- 벽·문·이름표 (2026-11-17 사용자 요청) ----
+  editMode: EditMode;
+  setEditMode(mode: EditMode): void;
+  /** 고른 구조물. 가구 선택·미리보기와 함께 있을 수 없다(하나를 고르면 다른 쪽이 풀린다). */
+  selectedStructure: StructureSelection;
+  selectStructure(sel: StructureSelection): void;
+  /** 칸막이 벽을 넣는다. 가로·세로가 아니면 긴 쪽 축에 맞춰 곧게 편다. 길이가 0이면 넣지 않고 null. 넣은 벽이 선택된다. */
+  addWall(input: NewWallInput): string | null;
+  updateWall(id: string, patch: Partial<Omit<InteriorWall, 'id'>>): void;
+  /** 벽을 지우면 그 벽에 붙은 문·창문도 지운다(되돌리기 한 단계). */
+  removeWall(id: string): void;
+  addOpening(input: NewOpeningInput): string;
+  updateOpening(id: string, patch: Partial<Omit<Opening, 'id'>>): void;
+  removeOpening(id: string): void;
+  addLabel(input: { name: string; at: PointMm }): string;
+  updateLabel(id: string, patch: Partial<Omit<AreaLabel, 'id'>>): void;
+  removeLabel(id: string): void;
+  /** 그리는 중인 벽(아직 넣지 않음). 장면이 점선으로 그린다. 기록하지 않는다. */
+  wallPreview: { a: PointMm; b: PointMm } | null;
+  setWallPreview(p: { a: PointMm; b: PointMm } | null): void;
+
   /** 되돌리기용 이전 상태들(가장 최근이 끝). 표시 단위·선택·뷰·끌기 미리보기는 기록하지 않는다. */
   past: Project[];
   future: Project[];
@@ -87,6 +129,8 @@ export function createDefaultProject(): Project {
       ceilingHeight: 2400,
       corners: rectCorners(3600, 3000),
       openings: [],
+      walls: [],
+      labels: [],
       photos: [],
     },
     items: [],
@@ -126,6 +170,9 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   viewMode: '2d',
   dragPreview: null,
   draft: null,
+  editMode: 'furniture',
+  selectedStructure: null,
+  wallPreview: null,
   past: [],
   future: [],
 
@@ -184,8 +231,13 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       dragPreview: s.dragPreview?.itemId === id ? null : s.dragPreview,
     })),
 
-  // 다른 가구를 고르면 확정하지 않은 미리보기는 버린다.
-  selectItem: (id) => set((s) => ({ selectedItemId: id, draft: id !== null ? null : s.draft })),
+  // 다른 가구를 고르면 확정하지 않은 미리보기는 버린다. 가구를 고르면 구조물 선택은 풀린다.
+  selectItem: (id) =>
+    set((s) => ({
+      selectedItemId: id,
+      draft: id !== null ? null : s.draft,
+      selectedStructure: id !== null ? null : s.selectedStructure,
+    })),
 
   startDraft: (input) => {
     const id = newId();
@@ -204,7 +256,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       color: input.color ?? DEFAULT_COLORS[project.items.length % DEFAULT_COLORS.length],
       ...(input.kind && input.kind !== 'box' ? { kind: input.kind } : {}),
     });
-    set({ draft, selectedItemId: null, dragPreview: null });
+    set({ draft, selectedItemId: null, selectedStructure: null, dragPreview: null });
     return id;
   },
 
@@ -224,6 +276,123 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   },
 
   cancelDraft: () => set((s) => ({ draft: null, dragPreview: s.dragPreview && s.draft && s.dragPreview.itemId === s.draft.id ? null : s.dragPreview })),
+
+  setEditMode: (mode) => set({ editMode: mode, selectedStructure: null, wallPreview: null, selectedItemId: null, draft: null, dragPreview: null }),
+  setWallPreview: (p) => set({ wallPreview: p }),
+
+  selectStructure: (sel) =>
+    set((s) => ({
+      selectedStructure: sel,
+      selectedItemId: sel ? null : s.selectedItemId,
+      draft: sel ? null : s.draft,
+    })),
+
+  addWall: ({ a, b, thickness }) => {
+    const w = straightenWall(a, b);
+    if (!w) return null;
+    const id = newId();
+    const wall: InteriorWall = { id, a: w.a, b: w.b, thickness: toMm(thickness ?? DEFAULT_WALL_THICKNESS) };
+    set((s) => ({
+      ...commit(s, { ...s.project, room: { ...s.project.room, walls: [...s.project.room.walls, wall] } }),
+      selectedStructure: { kind: 'wall', id },
+      selectedItemId: null,
+      draft: null,
+    }));
+    return id;
+  },
+
+  updateWall: (id, patch) =>
+    set((s) => {
+      const walls = s.project.room.walls.map((w) => {
+        if (w.id !== id) return w;
+        const next = { ...w, ...patch, id };
+        const st = straightenWall(next.a, next.b);
+        return st ? { ...next, a: st.a, b: st.b, thickness: toMm(next.thickness) } : w;
+      });
+      const moveOnly = Object.keys(patch).every((k) => k === 'a' || k === 'b');
+      return commit(s, { ...s.project, room: { ...s.project.room, walls } }, moveOnly ? `wall:${id}` : null);
+    }),
+
+  removeWall: (id) =>
+    set((s) => ({
+      ...commit(s, {
+        ...s.project,
+        room: {
+          ...s.project.room,
+          walls: s.project.room.walls.filter((w) => w.id !== id),
+          openings: s.project.room.openings.filter((o) => o.wall !== id),
+        },
+      }),
+      selectedStructure: s.selectedStructure && 'id' in s.selectedStructure && s.selectedStructure.id === id ? null : s.selectedStructure,
+    })),
+
+  addOpening: (input) => {
+    const id = newId();
+    const base = input.type === 'window' ? DEFAULT_WINDOW : DEFAULT_DOOR;
+    const opening: Opening = {
+      id,
+      type: input.type,
+      wall: input.wall,
+      offset: toMm(input.offset),
+      width: toMm(input.width ?? base.width),
+      height: toMm(input.height ?? base.height),
+      sill: toMm(input.sill ?? base.sill),
+      ...(input.type === 'door' ? { hinge: input.hinge ?? 'start', swing: input.swing ?? 'normal' } : {}),
+    };
+    set((s) => ({
+      ...commit(s, { ...s.project, room: { ...s.project.room, openings: [...s.project.room.openings, opening] } }),
+      selectedStructure: { kind: 'opening', id },
+      selectedItemId: null,
+      draft: null,
+    }));
+    return id;
+  },
+
+  updateOpening: (id, patch) =>
+    set((s) => {
+      const openings = s.project.room.openings.map((o) => {
+        if (o.id !== id) return o;
+        const n = { ...o, ...patch, id };
+        return { ...n, offset: toMm(n.offset), width: toMm(n.width), height: toMm(n.height), sill: toMm(n.sill) };
+      });
+      const moveOnly = Object.keys(patch).every((k) => k === 'offset');
+      return commit(s, { ...s.project, room: { ...s.project.room, openings } }, moveOnly ? `opening:${id}` : null);
+    }),
+
+  removeOpening: (id) =>
+    set((s) => ({
+      ...commit(s, { ...s.project, room: { ...s.project.room, openings: s.project.room.openings.filter((o) => o.id !== id) } }),
+      selectedStructure: s.selectedStructure && 'id' in s.selectedStructure && s.selectedStructure.id === id ? null : s.selectedStructure,
+    })),
+
+  addLabel: ({ name, at }) => {
+    const id = newId();
+    const label: AreaLabel = { id, name: name.trim() || '구역', at: { x: toMm(at.x), z: toMm(at.z) } };
+    set((s) => ({
+      ...commit(s, { ...s.project, room: { ...s.project.room, labels: [...s.project.room.labels, label] } }),
+      selectedStructure: { kind: 'label', id },
+      selectedItemId: null,
+      draft: null,
+    }));
+    return id;
+  },
+
+  updateLabel: (id, patch) =>
+    set((s) => {
+      const labels = s.project.room.labels.map((l) => {
+        if (l.id !== id) return l;
+        const n = { ...l, ...patch, id };
+        return { ...n, name: n.name.trim() || '구역', at: { x: toMm(n.at.x), z: toMm(n.at.z) } };
+      });
+      const moveOnly = Object.keys(patch).every((k) => k === 'at');
+      return commit(s, { ...s.project, room: { ...s.project.room, labels } }, moveOnly ? `label:${id}` : null);
+    }),
+
+  removeLabel: (id) =>
+    set((s) => ({
+      ...commit(s, { ...s.project, room: { ...s.project.room, labels: s.project.room.labels.filter((l) => l.id !== id) } }),
+      selectedStructure: s.selectedStructure && 'id' in s.selectedStructure && s.selectedStructure.id === id ? null : s.selectedStructure,
+    })),
   setViewMode: (mode) => set({ viewMode: mode }),
   setDragPreview: (preview) => set({ dragPreview: preview }),
 
@@ -252,11 +421,34 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
     }),
 }));
 
+/** 두 점을 가로 또는 세로 벽으로 곧게 편다(긴 쪽 축을 따른다). 정수 mm. 길이가 0이면 null. */
+export function straightenWall(a: PointMm, b: PointMm): { a: PointMm; b: PointMm } | null {
+  const ax = toMm(a.x);
+  const az = toMm(a.z);
+  const bx = toMm(b.x);
+  const bz = toMm(b.z);
+  const horizontal = Math.abs(bx - ax) >= Math.abs(bz - az);
+  const end = horizontal ? { x: bx, z: az } : { x: ax, z: bz };
+  if (end.x === ax && end.z === az) return null;
+  return { a: { x: ax, z: az }, b: end };
+}
+
 /** 되돌린 상태에 없는 가구를 가리키는 선택·끌기 상태를 지운다. */
 function clearMissing(s: ProjectState, p: Project): Partial<ProjectState> {
   const has = (id: string | null | undefined) => id != null && p.items.some((it) => it.id === id);
+  const sel = s.selectedStructure;
+  const structureExists =
+    sel !== null &&
+    (sel.kind === 'outerWall'
+      ? sel.index < p.room.corners.length
+      : sel.kind === 'wall'
+        ? p.room.walls.some((w) => w.id === sel.id)
+        : sel.kind === 'opening'
+          ? p.room.openings.some((o) => o.id === sel.id)
+          : p.room.labels.some((l) => l.id === sel.id));
   return {
     selectedItemId: has(s.selectedItemId) ? s.selectedItemId : null,
+    selectedStructure: structureExists ? sel : null,
     dragPreview: null,
   };
 }

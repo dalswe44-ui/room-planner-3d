@@ -280,9 +280,9 @@ describe('useItemStatuses', () => {
     const a = store().addItem({ name: 'A', w: 1000, d: 1000, h: 500 });
     const b = store().addItem({ name: 'B', w: 1000, d: 1000, h: 500 });
     const { result } = renderHook(() => useItemStatuses());
-    expect(result.current[a]).toEqual({ overlap: true, outside: false });
+    expect(result.current[a]).toEqual({ overlap: true, outside: false, wall: false, door: false });
     act(() => store().setDragPreview({ itemId: b, x: 600, z: 600 }));
-    expect(result.current[a]).toEqual({ overlap: false, outside: false });
+    expect(result.current[a]).toEqual({ overlap: false, outside: false, wall: false, door: false });
     act(() => store().setRoomSize({ width: 1000, depth: 3000, ceilingHeight: 2400 }));
     expect(result.current[a].outside).toBe(true);
   });
@@ -336,7 +336,7 @@ describe('기본 가구 (T-011)', () => {
     for (const id of ['bed', 'desk', 'chair', 'wardrobe', 'shelf', 'sofa', 'table']) await addPreset(id);
     expect(items()).toHaveLength(7);
     const { result } = renderHook(() => useItemStatuses());
-    for (const it of items()) expect(result.current[it.id]).toEqual({ overlap: false, outside: false });
+    for (const it of items()) expect(result.current[it.id]).toEqual({ overlap: false, outside: false, wall: false, door: false });
     expect(store().selectedItemId).toBe(items()[6].id);
   });
 
@@ -346,7 +346,7 @@ describe('기본 가구 (T-011)', () => {
     const { result } = renderHook(() => useItemStatuses());
     expect(items()[0]).toMatchObject({ x: 1800, z: 1500 });
     expect(items()[1]).not.toMatchObject({ x: 1800, z: 1500 });
-    expect(result.current[items()[1].id]).toEqual({ overlap: false, outside: false });
+    expect(result.current[items()[1].id]).toEqual({ overlap: false, outside: false, wall: false, door: false });
   });
 
   it('이름이 종류 이름과 같으면 목록에 종류를 다시 보이지 않는다', async () => {
@@ -461,11 +461,11 @@ describe('미리보기 가구 (T-030)', () => {
     const id = store().draft!.id;
     act(() => store().updateDraft({ x: 1800, z: 1500 }));
     const { result } = renderHook(() => useItemStatuses());
-    expect(result.current[id]).toEqual({ overlap: true, outside: false });
-    expect(result.current[a]).toEqual({ overlap: false, outside: false });
+    expect(result.current[id]).toEqual({ overlap: true, outside: false, wall: false, door: false });
+    expect(result.current[a]).toEqual({ overlap: false, outside: false, wall: false, door: false });
     act(() => store().updateDraft({ x: 100, z: 1500 }));
-    expect(result.current[id]).toEqual({ overlap: false, outside: true });
+    expect(result.current[id]).toEqual({ overlap: false, outside: true, wall: false, door: false });
     act(() => store().setDragPreview({ itemId: id, x: 3000, z: 500 }));
-    expect(result.current[id]).toEqual({ overlap: false, outside: false });
+    expect(result.current[id]).toEqual({ overlap: false, outside: false, wall: false, door: false });
   });
 });

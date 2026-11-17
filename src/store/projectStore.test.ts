@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { roomBounds } from '../contracts/room';
-import { createDefaultProject, useProjectStore } from './projectStore';
+import { createDefaultProject, straightenWall, useProjectStore } from './projectStore';
 
 const store = () => useProjectStore.getState();
 
@@ -161,5 +161,75 @@ describe('미리보기 가구 (draft)', () => {
     expect(st().selectedItemId).toBeNull();
     st().selectItem(a);
     expect(st().draft).toBeNull();
+  });
+});
+
+describe('칸막이 벽·문·이름표', () => {
+  const st = () => useProjectStore.getState();
+  beforeEach(() => {
+    useProjectStore.setState({ project: createDefaultProject(), selectedItemId: null, selectedStructure: null, dragPreview: null, draft: null, editMode: 'furniture', past: [], future: [] });
+  });
+
+  it('벽은 가로·세로로 곧게 펴서 넣고, 길이 0이면 넣지 않는다', () => {
+    expect(straightenWall({ x: 0, z: 0 }, { x: 1000, z: 120 })).toEqual({ a: { x: 0, z: 0 }, b: { x: 1000, z: 0 } });
+    expect(straightenWall({ x: 500, z: 0 }, { x: 560, z: 2000 })).toEqual({ a: { x: 500, z: 0 }, b: { x: 500, z: 2000 } });
+    expect(st().addWall({ a: { x: 1, z: 1 }, b: { x: 1, z: 1 } })).toBeNull();
+    const id = st().addWall({ a: { x: 1800, z: 0 }, b: { x: 1810.4, z: 1500.6 } })!;
+    expect(st().project.room.walls).toEqual([{ id, a: { x: 1800, z: 0 }, b: { x: 1800, z: 1501 }, thickness: 100 }]);
+    expect(st().selectedStructure).toEqual({ kind: 'wall', id });
+    expect(st().past).toHaveLength(1);
+  });
+
+  it('벽을 지우면 그 벽의 문도 지우고, 되돌리면 둘 다 돌아온다', () => {
+    const w = st().addWall({ a: { x: 1800, z: 0 }, b: { x: 1800, z: 3000 } })!;
+    const d = st().addOpening({ type: 'door', wall: w, offset: 1000 });
+    const o = st().addOpening({ type: 'window', wall: 0, offset: 500 });
+    expect(st().project.room.openings.find((x) => x.id === d)).toMatchObject({ width: 900, height: 2100, sill: 0, hinge: 'start', swing: 'normal' });
+    expect(st().project.room.openings.find((x) => x.id === o)).toMatchObject({ width: 1200, sill: 900 });
+    expect(st().project.room.openings.find((x) => x.id === o)).not.toHaveProperty('hinge');
+    st().removeWall(w);
+    expect(st().project.room.walls).toHaveLength(0);
+    expect(st().project.room.openings.map((x) => x.id)).toEqual([o]);
+    st().undo();
+    expect(st().project.room.walls).toHaveLength(1);
+    expect(st().project.room.openings).toHaveLength(2);
+  });
+
+  it('문을 벽 따라 연달아 옮기면 한 단계로 묶인다', () => {
+    const d = st().addOpening({ type: 'door', wall: 1, offset: 100 });
+    for (let i = 1; i <= 5; i += 1) st().updateOpening(d, { offset: 100 + i * 10 });
+    expect(st().project.room.openings[0].offset).toBe(150);
+    st().undo();
+    expect(st().project.room.openings[0].offset).toBe(100);
+  });
+
+  it('이름표는 이름이 비면 "구역", 위치는 정수 mm', () => {
+    const l = st().addLabel({ name: '  ', at: { x: 900.6, z: 700.2 } });
+    expect(st().project.room.labels).toEqual([{ id: l, name: '구역', at: { x: 901, z: 700 } }]);
+    st().updateLabel(l, { name: '거실' });
+    expect(st().project.room.labels[0].name).toBe('거실');
+  });
+
+  it('구조물을 고르면 가구 선택·미리보기가 풀리고, 가구를 고르면 구조물 선택이 풀린다', () => {
+    const a = st().addItem({ name: 'A', w: 100, d: 100, h: 100 });
+    const w = st().addWall({ a: { x: 0, z: 1500 }, b: { x: 1000, z: 1500 } })!;
+    expect(st().selectedItemId).toBeNull();
+    st().startDraft({ name: '의자', w: 450, d: 500, h: 850 });
+    expect(st().selectedStructure).toBeNull();
+    st().selectStructure({ kind: 'wall', id: w });
+    expect(st().draft).toBeNull();
+    st().selectItem(a);
+    expect(st().selectedStructure).toBeNull();
+  });
+
+  it('편집 모드를 바꾸면 구조물 선택이 풀리고, 되돌린 상태에 없는 구조물 선택도 풀린다', () => {
+    const w = st().addWall({ a: { x: 0, z: 1500 }, b: { x: 1000, z: 1500 } })!;
+    st().undo();
+    expect(st().selectedStructure).toBeNull();
+    st().redo();
+    st().selectStructure({ kind: 'wall', id: w });
+    st().setEditMode('structure');
+    expect(st().editMode).toBe('structure');
+    expect(st().selectedStructure).toBeNull();
   });
 });

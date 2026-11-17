@@ -9,17 +9,40 @@ export interface PointMm {
   z: Mm;
 }
 
+/**
+ * 벽을 가리키는 값. 숫자는 바깥 벽 번호(corners[i] → corners[i + 1]), 문자열은 칸막이 벽 id.
+ * 벽의 "시작"은 바깥 벽이면 corners[i], 칸막이 벽이면 a. "방향"은 시작에서 끝으로.
+ */
+export type WallRef = number | string;
+
 export interface Opening {
   id: string;
   type: 'door' | 'window' | 'opening';
-  /** corners[wall] → corners[wall + 1] 변 */
-  wall: number;
-  /** 그 벽의 시작 꼭짓점에서 개구부 시작까지 */
+  wall: WallRef;
+  /** 그 벽의 시작에서 개구부 시작까지 */
   offset: Mm;
   width: Mm;
   height: Mm;
   /** 바닥에서 개구부 하단까지. 문은 0 */
   sill: Mm;
+  /** 문만: 경첩이 개구부의 어느 끝에 있는지. 'start'는 벽 시작에 가까운 끝. 기본 'start' */
+  hinge?: 'start' | 'end';
+  /**
+   * 문만: 문짝이 벽의 어느 쪽으로 열리는지. 'normal'은 벽 방향 (dx, dz)를 +90도 돌린 (−dz, dx) 쪽.
+   * 직사각형 방의 바깥 벽에서는 'normal'이 방 안쪽이다. 기본 'normal'
+   */
+  swing?: 'normal' | 'opposite';
+}
+
+/**
+ * 방 안의 칸막이 벽(2026-11-17 사용자 요청). 가로나 세로로만 놓인다: a.x === b.x 또는 a.z === b.z.
+ * a, b는 벽 중심선의 양 끝(mm). 두께는 중심선 양쪽으로 반씩. 높이는 천장 높이와 같다.
+ */
+export interface InteriorWall {
+  id: string;
+  a: PointMm;
+  b: PointMm;
+  thickness: Mm;
 }
 
 export interface PhotoRef {
@@ -27,11 +50,22 @@ export interface PhotoRef {
   blobKey: string;
 }
 
+/** 바닥 위 구역 이름표(거실, 침실 등). 평면 뷰에 글자로 그린다. */
+export interface AreaLabel {
+  id: string;
+  name: string;
+  at: PointMm;
+}
+
 export interface Room {
   ceilingHeight: Mm;
   /** 안목치수 기준 바닥 다각형. 이번 버전의 UI는 4개(직사각형)만 만든다. */
   corners: PointMm[];
   openings: Opening[];
+  /** 칸막이 벽. 바깥 테두리(corners) 안에 그린다 */
+  walls: InteriorWall[];
+  /** 구역 이름표 */
+  labels: AreaLabel[];
   photos: PhotoRef[];
 }
 
@@ -75,6 +109,10 @@ export interface ItemStatus {
   overlap: boolean;
   /** 방 경계 밖으로 나감 */
   outside: boolean;
+  /** 칸막이 벽과 겹침(1 mm 이상) */
+  wall: boolean;
+  /** 문이 열리는 자리(문짝이 그리는 사분원의 바운딩 사각형)와 겹침 */
+  door: boolean;
 }
 
 /** 끄는 동안의 임시 위치. 손을 떼면 정수 mm로 확정해 items에 반영하고 null로 되돌린다. */
@@ -97,4 +135,25 @@ export interface PlacementHandlers {
    */
   onFloorPointerMove(floor: PointMm, mmPerPx?: number): void;
   onPointerUp(): void;
+}
+
+/** 구조 편집 모드에서 누를 수 있는 것. 바깥 벽은 번호, 나머지는 id. */
+export type StructureTarget =
+  | { kind: 'outerWall'; index: number }
+  | { kind: 'wall' | 'opening' | 'label'; id: string };
+
+/**
+ * 구조 편집 모드(store.editMode === 'structure')의 포인터 처리. 장면이 부르고 구조 편집 모듈이 구현한다.
+ * 이 모드에서는 가구를 누를 수 없고(보이기만 한다), 빈 곳을 끌면 카메라 대신 벽을 그린다(평면 뷰).
+ */
+export interface StructureHandlers {
+  /** 벽·문·창문·이름표를 누름. floor는 누른 바닥 위치 */
+  onTargetPointerDown(target: StructureTarget, floor: PointMm): void;
+  /** 평면 뷰에서 빈 바닥을 누름(벽 그리기 시작) */
+  onBackgroundPointerDown(floor: PointMm): void;
+  /** 누른 채 움직임. mmPerPx는 onFloorPointerMove와 같다 */
+  onPointerMove(floor: PointMm, mmPerPx?: number): void;
+  onPointerUp(): void;
+  /** 빈 곳을 짧게 누름(움직임 6 px 이내) */
+  onBackgroundTap(): void;
 }

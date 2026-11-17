@@ -30,7 +30,7 @@
 |---|---|
 | CLAUDE.md, .claude/, docs/HEAD.md, package.json, 설정 파일, api/(서버 함수), src/contracts/, src/store/, src/app/, docs/CONTRACT.md, docs/DECISIONS.md, docs/TASKS.md, docs/log/ | 헤드 |
 | docs/SPEC.md, docs/submission/, README.md | spec-report |
-| src/ui/, src/room/, src/photo/, src/persistence/ | room-input |
+| src/ui/, src/room/, src/photo/, src/persistence/, src/structure/ | room-input |
 | src/scene/ | scene-engine |
 | src/furniture/ | furniture-placement |
 | tests/e2e/, docs/reports/qa/, docs/evidence/ | qa-verifier |

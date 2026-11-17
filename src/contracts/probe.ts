@@ -26,6 +26,14 @@ export interface SceneProbeSnapshot {
   items: SceneProbeItem[];
   /** 확정하지 않은 미리보기 가구(store.draft). 없으면 null. items에는 들어 있지 않다. */
   draft: SceneProbeItem | null;
+  /** 그려진 칸막이 벽(장면 객체에서 읽은 중심선 양 끝과 두께, mm). selected는 구조 선택 여부 */
+  walls: { id: string; a: { x: Mm; z: Mm }; b: { x: Mm; z: Mm }; thickness: Mm; selected: boolean }[];
+  /** 그려진 문·창문. from/to는 벽 위 구간의 두 끝(mm) */
+  openings: { id: string; type: 'door' | 'window' | 'opening'; from: { x: Mm; z: Mm }; to: { x: Mm; z: Mm }; selected: boolean }[];
+  /** 그려진 구역 이름표 */
+  labels: { id: string; name: string; at: { x: Mm; z: Mm } }[];
+  /** 장면이 지금 받는 편집 모드 */
+  editMode: 'furniture' | 'structure';
 }
 
 export interface SceneProbe {

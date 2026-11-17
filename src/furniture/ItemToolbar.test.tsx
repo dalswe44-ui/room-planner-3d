@@ -51,8 +51,8 @@ describe('ItemToolbar', () => {
     expect(copy).toMatchObject({ name: '책상', kind: 'desk', w: 1000, d: 600, h: 700, color: '#aabbcc', rotationDeg: 90 });
     expect(orig.id).toBe(id);
     const { result } = renderHook(() => useItemStatuses());
-    expect(result.current[orig.id]).toEqual({ overlap: false, outside: false });
-    expect(result.current[copy.id]).toEqual({ overlap: false, outside: false });
+    expect(result.current[orig.id]).toEqual({ overlap: false, outside: false, wall: false, door: false });
+    expect(result.current[copy.id]).toEqual({ overlap: false, outside: false, wall: false, door: false });
   });
 
   it('복제본은 방 가운데가 아니라 원본 옆에 놓인다', async () => {

@@ -285,3 +285,5 @@ T-001에서 하위 에이전트의 보고서 파일 쓰기가 막혔으므로 �
 - 사용자 질문 (13:25): 자동 읽기를 Claude 화면 밖에서도 할 다른 방법 → 헤드가 4가지 선택지 제시(서버+API 키 추천, 개인 키, 브라우저 OCR, 현행). 사용자 질문 (13:26): "이 OCR를 학습시켜서 쓰는건?"
 - T-031 결과 저장(배치도 사진 자동 읽기, 아티팩트 sample 기능, 모의로만 검증). T-032(qa) 위임: draft 흐름과 자동 읽기 e2e.
 - 사용자 결정 (13:27): "그래 일단공모전이니까 그쪽으로 진행하자" → 헤드는 직전 추천(1번: 작은 서버 + 사용자 API 키)으로 해석. Vercel 함수 형식을 문서 검색으로 확인. 헤드 작성: api/read-layout.ts(+테스트 7개: 키 미설정 503, 키 값 비노출, 요청 형식, 형식·크기·출처 거절, 상위 오류 변환, 횟수 제한), CLAUDE.md 스택·소유 갱신, docs/DEPLOY.md(사용자가 할 일). T-033(room-input) 위임: 앱이 서버 경로를 쓰도록.
+- 사용자 지시 (13:34): "그리고 벽을 만드는 메뉴도 있어야할거같아". 헤드가 범위를 물음 → 사용자 선택: 칸막이 벽, 문·창문, 방 여러 개(집 전체). 방식 질문 → "위에꺼"(바깥 벽 + 칸막이 + 문 + 이름표).
+- 헤드: 계약(types: WallRef·InteriorWall·AreaLabel·문 hinge/swing·ItemStatus wall/door·StructureTarget·StructureHandlers, probe 확장), contracts/structure.ts 기하 + 테스트 13개, store 구조 편집 상태·동작 + 테스트 6개. 다른 소유 파일의 컴파일만 풀기 위한 최소 변경(placement의 상태 기본값 false, savedProject의 walls·labels 빈 배열, furniture 테스트의 상태 단언에 새 필드) — 실제 구현은 각 소유자. SPEC 4-4, CLAUDE.md 소유(src/structure → room-input).

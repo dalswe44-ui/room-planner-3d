@@ -73,7 +73,7 @@ export function computeItemStatuses(
   const result: Record<string, ItemStatus> = {};
   items.forEach((it, i) => {
     const overlap = fps.some((other, j) => j !== i && footprintsOverlap(fps[i], other));
-    result[it.id] = { overlap, outside: isOutsideRoom(fps[i], room) };
+    result[it.id] = { overlap, outside: isOutsideRoom(fps[i], room), wall: false, door: false };
   });
   return result;
 }
@@ -89,6 +89,8 @@ export function computeDraftStatus(
   return {
     overlap: items.some((it) => footprintsOverlap(fp, footprint(it))),
     outside: isOutsideRoom(fp, room),
+    wall: false,
+    door: false,
   };
 }
 
