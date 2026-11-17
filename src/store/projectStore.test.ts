@@ -120,6 +120,35 @@ describe('되돌리기', () => {
   });
 });
 
+describe('추천 배치 적용 (applyArrangement)', () => {
+  it('여러 가구를 한 번에 옮기고 돌리며, 되돌리기 한 번으로 전부 돌아온다', () => {
+    useProjectStore.setState({ project: createDefaultProject(), past: [], future: [], selectedItemId: null, draft: null });
+    const s = () => useProjectStore.getState();
+    const a = s().addItem({ name: 'A', w: 1000, d: 600, h: 700 });
+    const b = s().addItem({ name: 'B', w: 500, d: 500, h: 700 });
+    const before = s().project.items.map((it) => ({ x: it.x, z: it.z, rotationDeg: it.rotationDeg }));
+    const pastLength = s().past.length;
+    s().applyArrangement([
+      { id: a, x: 500.4, z: 300, rotationDeg: 90 },
+      { id: b, x: 2000, z: 2000, rotationDeg: 270 },
+      { id: '없는-id', x: 1, z: 1, rotationDeg: 0 },
+    ]);
+    const after = s().project.items;
+    expect(after.map((it) => [it.x, it.z, it.rotationDeg])).toEqual([
+      [500, 300, 90],
+      [2000, 2000, 270],
+    ]);
+    expect(after.map((it) => [it.w, it.d, it.h, it.name])).toEqual([
+      [1000, 600, 700, 'A'],
+      [500, 500, 700, 'B'],
+    ]);
+    expect(s().past.length).toBe(pastLength + 1);
+    expect(s().selectedItemId).toBeNull();
+    s().undo();
+    expect(s().project.items.map((it) => ({ x: it.x, z: it.z, rotationDeg: it.rotationDeg }))).toEqual(before);
+  });
+});
+
 describe('미리보기 가구 (draft)', () => {
   const st = () => useProjectStore.getState();
   beforeEach(() => {

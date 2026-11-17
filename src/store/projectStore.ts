@@ -56,6 +56,11 @@ export interface ProjectState {
   addItem(input: NewFurnitureInput): string;
   updateItem(id: string, patch: FurniturePatch): void;
   removeItem(id: string): void;
+  /**
+   * 여러 가구의 자리와 방향을 한 번에 바꾼다(AI 추천 배치). 되돌리기 한 번으로 전부 돌아온다.
+   * 없는 id는 무시한다. 선택과 미리보기 가구는 푼다.
+   */
+  applyArrangement(moves: readonly { id: string; x: number; z: number; rotationDeg: number }[]): void;
   selectItem(id: string | null): void;
 
   /**
@@ -223,6 +228,16 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
         { ...s.project, items: s.project.items.map((it) => (it.id === id ? normalizeItem({ ...it, ...patch, id }) : it)) },
         moveOnly ? `move:${id}` : null,
       );
+    }),
+
+  applyArrangement: (moves) =>
+    set((s) => {
+      const byId = new Map(moves.map((m) => [m.id, m]));
+      const items = s.project.items.map((it) => {
+        const m = byId.get(it.id);
+        return m ? normalizeItem({ ...it, x: m.x, z: m.z, rotationDeg: m.rotationDeg }) : it;
+      });
+      return { ...commit(s, { ...s.project, items }), selectedItemId: null, draft: null };
     }),
 
   removeItem: (id) =>

@@ -142,3 +142,10 @@ e2e 테스트가 화면 요소를 찾을 때 쓴다. 모듈은 아래 이름을 
 - 이름표 DOM은 `data-testid="area-label"`, `data-label-id`, `data-at-x`, `data-at-z`. 구조 모드 표시는 `structure-mode-badge`.
 - 경고 규칙: `overlap || outside || wall || door` (scene/geometry.ts `isWarningStatus`). 확정 가구와 draft가 같은 규칙.
 - 탭: `tab-main`, `tab-structure`("벽·문"), `tab-photo`. 벽·문 탭에 있을 때만 editMode가 'structure'.
+
+### 2026-11-17 AI 추천 배치 (사용자 요청 16:32)
+- 계약: `src/contracts/layoutSuggest.ts`. `buildSuggestPrompt(goal, room, items)`가 지시문을 만든다(가구 번호는 project.items 순서, 1부터). 답은 `LayoutSuggestion`: 가구마다 `back`(뒤가 향하는 벽), `left`, `top`.
+- `BACK_TO_ROTATION`: top 0, left 90, bottom 180, right 270. 차지하는 사각형은 `footprintOfBack`. 중심 x = left + fw / 2, z = top + fd / 2.
+- store: `applyArrangement(moves)` — 한 번의 기록으로 여러 가구의 x, z, rotationDeg를 바꾼다.
+- 서버: `api/suggest-layout.ts`. GET → {available}. POST JSON {goal, room:{corners,walls,openings}, items:[{name,kind,w,d,h,x,z,rotationDeg}], repair?:{previous, problems}} → {text}. 서버가 같은 지시문을 만든다(앱이 보낸 글을 그대로 AI에 넘기지 않는다). 오류 코드는 read-layout과 같다(503 no_key, 429 rate_limited, 413 too_large, 400 bad_request, 403 bad_origin, 502 upstream).
+- 탭: `tab-suggest`("AI 추천"). 패널 testid: `suggest-panel`, `suggest-goal`, `suggest-example`(여러 개), `suggest-run`, `suggest-stop`, `suggest-retry`, `suggest-status`, `suggest-reasons`, `suggest-tips`, `suggest-warnings`, `suggest-revert`, `suggest-keep`, `suggest-manual`, `suggest-copy`, `suggest-paste`, `suggest-paste-apply`.

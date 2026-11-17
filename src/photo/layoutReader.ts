@@ -2,8 +2,8 @@
 // 사진은 보는 사람 자신의 Claude 계정으로만 가고, 앱은 결과 JSON을 parseLayoutImport에 넘겨 검사·미리보기한다.
 import { LAYOUT_READER_PROMPT } from '../contracts/layoutImport';
 
-interface Sample {
-  json(prompt: string, options: { images: Blob[]; modelTier: 'complex'; signal: AbortSignal }): Promise<unknown>;
+export interface Sample {
+  json(prompt: string, options: { images?: Blob[]; modelTier: 'complex'; signal: AbortSignal }): Promise<unknown>;
   limits(): Promise<{ images?: unknown } | null | undefined>;
 }
 

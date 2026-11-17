@@ -4,9 +4,9 @@
 이 파일은 헤드와 모든 하위 에이전트가 함께 읽는다. 여기 적힌 규약이 어긋나면 모듈이 서로 맞지 않으므로, 바꿔야 한다면 직접 고치지 말고 헤드에게 요청한다.
 
 ## 스택
-- Vite + React 19 + TypeScript (공개 호스팅은 Vercel: 정적 파일 + api/ 서버 함수 하나), three 0.187.x(고정), @react-three/fiber 9.x, @react-three/drei 10.x, zustand 5.x
+- Vite + React 19 + TypeScript (공개 호스팅은 Vercel: 정적 파일 + api/ 서버 함수), three 0.187.x(고정), @react-three/fiber 9.x, @react-three/drei 10.x, zustand 5.x
 - 렌더러는 WebGLRenderer. WebGPU 렌더러와 alpha 버전 패키지는 쓰지 않는다.
-- 로그인 없음. 저장은 브라우저 저장소와 JSON 파일. 서버는 배치도 사진 읽기 함수(api/read-layout.ts) 하나뿐이고, API 키는 그 서버의 환경 변수에만 둔다. 앱 코드(src/)에 키를 넣지 않는다.
+- 로그인 없음. 저장은 브라우저 저장소와 JSON 파일. 서버는 AI를 부르는 함수 둘(api/read-layout.ts 배치도 사진 읽기, api/suggest-layout.ts 추천 배치)뿐이고, API 키는 그 서버의 환경 변수에만 둔다. 앱 코드(src/)에 키를 넣지 않는다.
 
 ## 명령
 - npm run dev / npm run typecheck / npm run lint / npm run test / npm run build / npm run e2e
@@ -32,7 +32,7 @@
 | docs/SPEC.md, docs/submission/, README.md | spec-report |
 | src/ui/, src/room/, src/photo/, src/persistence/, src/structure/ | room-input |
 | src/scene/ | scene-engine |
-| src/furniture/ | furniture-placement |
+| src/furniture/, src/suggest/ | furniture-placement |
 | tests/e2e/, docs/reports/qa/, docs/evidence/ | qa-verifier |
 | docs/reports/<task-id>.md | 그 작업을 맡은 에이전트 |
 
