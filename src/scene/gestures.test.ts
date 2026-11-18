@@ -27,7 +27,7 @@ describe('가구 끌기', () => {
     const { router, handlers, setCameraEnabled } = setup();
     router.pointerDown(1, 10, 10, true, hit);
     expect(setCameraEnabled).toHaveBeenNthCalledWith(1, false);
-    expect(handlers.onItemPointerDown).toHaveBeenCalledWith('A', floor);
+    expect(handlers.onItemPointerDown).toHaveBeenCalledWith('A', floor, false);
   });
 
   it('끄는 동안 움직임은 onFloorPointerMove로, 뗄 때 onPointerUp과 카메라 켜기로 끝난다', () => {

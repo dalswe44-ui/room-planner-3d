@@ -149,25 +149,15 @@ body,
   }
 }
 
-/* 좁은 휴대폰: 헤더가 화면보다 넓어지지 않게 한다(T-025에서 발견: 390px에서 단위 버튼이 잘림) */
+/* 좁은 휴대폰: 헤더가 화면보다 넓어지지 않게 한다(T-025에서 발견: 390px에서 단위 버튼이 잘림).
+   2026-11-19: 파일 메뉴가 늘어 420px 이하는 제목 글자를, 372px 이하는 제목 전체를 화면에서 감춘다(낭독기에는 남김). */
 @media (max-width: 420px) {
-  .app-title-mark {
-    display: none;
-  }
-
   .app-header .unit-toggle__button {
     min-width: 44px;
     padding-left: 0;
     padding-right: 0;
   }
-}
 
-@media (max-width: 372px) {
-  .app-title-mark {
-    display: inline-flex;
-  }
-
-  /* 화면에서는 감추고 읽기 프로그램에는 남긴다 */
   .app-title-text {
     position: absolute;
     width: 1px;
@@ -175,6 +165,28 @@ body,
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+
+  .app-header-tools {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 372px) {
+  .app-title-mark {
+    display: none;
+  }
+
+  .app-header h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .app-tab {
+    font-size: 14px;
   }
 }
 
@@ -380,4 +392,36 @@ body,
   background: var(--warn-soft);
   font-size: 14px;
   line-height: 1.45;
+}
+
+/* 화면에서는 감추고 낭독기에는 남긴다 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 글 속의 버튼(링크처럼 보임) */
+.link-btn {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.link-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }

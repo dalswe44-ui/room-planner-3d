@@ -8,7 +8,7 @@ import { wallSegment } from '../contracts/structure';
 import { formatLength, formatLengthWithUnit } from '../contracts/units';
 import { useProjectStore } from '../store/projectStore';
 import { WALL_THICKNESS_MM, wallSegments } from './geometry';
-import { itemScreenRect, placeOverlay, projectToPx, roomDimLines, wallDimLine, wallDistanceLines, type DimLine, type PxPoint } from './overlayMath';
+import { chooseOverlayPlacement, itemScreenRect, projectToPx, roomDimLines, wallDimLine, wallDistanceLines, type DimLine, type PxPoint } from './overlayMath';
 import { straightenPreview } from './structureGeometry';
 import type { SceneRuntime } from './sceneProbe';
 
@@ -47,6 +47,20 @@ const place = (el: HTMLElement | null, x: number, y: number, rotate = '') => {
   el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)${rotate}`;
   el.style.visibility = 'visible';
 };
+
+/** 도구 막대가 피할 화면 요소(거리·방 치수 글자, 확대 단추)의 사각형. 장면 영역 기준 px. */
+function overlayAvoidRects(holder: HTMLElement): { left: number; top: number; right: number; bottom: number }[] {
+  const root = holder.closest('.scene-root');
+  if (!root) return [];
+  const base = root.getBoundingClientRect();
+  return Array.from(root.querySelectorAll<HTMLElement>('.scene-dim-chip, .scene-zoom'))
+    .filter((el) => el.style.visibility !== 'hidden')
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left - base.left, top: r.top - base.top, right: r.right - base.left, bottom: r.bottom - base.top };
+    })
+    .filter((r) => r.right > r.left && r.bottom > r.top);
+}
 
 export function SceneOverlays({ runtime, selectionOverlay, wallDistances, onLabelPointerDown }: SceneOverlaysProps) {
   const project = useProjectStore((s) => s.project);
@@ -105,7 +119,10 @@ export function SceneOverlays({ runtime, selectionOverlay, wallDistances, onLabe
     const holder = holderRef.current;
     if (holder && at) {
       const box = { width: holder.offsetWidth, height: holder.offsetHeight };
-      const p = placeOverlay(itemScreenRect(camera, size, at), box, size);
+      // 다른 가구와, 평면 뷰에서는 거리 글자·방 치수 글자·확대 단추를 피해 놓는다(QA 4-9). 글자는 지난 그림의 자리를 쓴다.
+      const others = [...st.project.items, ...(st.draft ? [st.draft] : [])].filter((it) => it.id !== at.id).map((it) => itemScreenRect(camera, size, it));
+      const avoid = cur.plan ? [...overlayAvoidRects(holder), ...others] : others;
+      const p = chooseOverlayPlacement(itemScreenRect(camera, size, at), box, size, avoid);
       holder.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
       holder.style.visibility = 'visible';
       holderRect = { left: p.x, top: p.y, right: p.x + box.width, bottom: p.y + box.height };

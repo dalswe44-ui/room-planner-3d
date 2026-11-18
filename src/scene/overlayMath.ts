@@ -86,6 +86,49 @@ export function placeOverlay(rect: PxRect, box: PxSize, view: PxSize, gap = 8, p
   };
 }
 
+/** 두 사각형이 겹친 넓이(px²) */
+export function overlapArea(a: PxRect, b: PxRect): number {
+  return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+}
+
+/**
+ * 도구 막대 자리를 고른다(2026-11-19 QA 4-9). 가구 위, 아래, 네 대각선, 왼쪽, 오른쪽 중에서
+ * 가구 자신과 avoid(거리 글자, 방 치수 글자, 확대 단추, 다른 가구)를 덜 가리는 자리를 고른다. 같으면 앞의 자리(가구 위가 먼저).
+ * 장면 모서리는 후보가 아니다(모서리의 바닥을 덮어 그 자리를 누를 수 없게 된다).
+ * 아무것도 가리지 않는 자리가 있으면 그 자리다. 좁은 휴대폰에서 막대가 거리 글자를 덮던 문제를 막는다.
+ */
+export function chooseOverlayPlacement(item: PxRect, box: PxSize, view: PxSize, avoid: readonly PxRect[], gap = 8, pad = 4): OverlayPlacement {
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
+  const cx = (item.left + item.right) / 2 - box.width / 2;
+  const cy = (item.top + item.bottom) / 2 - box.height / 2;
+  const raw: [number, number, boolean][] = [
+    [cx, item.top - gap - box.height, false],
+    [cx, item.bottom + gap, true],
+    // 대각선 자리: 거리 글자는 가구 중심을 지나는 가로·세로 줄 위에 있으므로 비스듬한 자리는 대개 비어 있다.
+    [item.left - box.width, item.top - gap - box.height, false],
+    [item.right, item.top - gap - box.height, false],
+    [item.left - box.width, item.bottom + gap, true],
+    [item.right, item.bottom + gap, true],
+    [item.left - gap - box.width, cy, false],
+    [item.right + gap, cy, false],
+  ];
+  let best: OverlayPlacement | null = null;
+  let bestScore = Infinity;
+  for (const [x0, y0, below] of raw) {
+    const x = clamp(x0, pad, view.width - box.width - pad);
+    const y = clamp(y0, pad, view.height - box.height - pad);
+    const r = { left: x, top: y, right: x + box.width, bottom: y + box.height };
+    // 가구를 가리는 것은 두 배로 센다. 가구에서 멀어질수록 조금씩 손해(같은 점수면 가까운 자리).
+    const score = overlapArea(r, item) * 2 + avoid.reduce((sum, a) => sum + overlapArea(r, a), 0);
+    if (score < bestScore - 0.5) {
+      bestScore = score;
+      best = { x, y, below };
+    }
+    if (bestScore === 0) break;
+  }
+  return best ?? placeOverlay(item, box, view, gap, pad);
+}
+
 /** 한 방향의 치수선: 화면 선분(from → to), 가운데, 화면 단위 방향 */
 export interface DimLine {
   from: PxPoint;

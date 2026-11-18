@@ -366,3 +366,53 @@
   min-height: 44px;
   gap: 6px;
 }
+
+/* 2026-11-19 QA 4-4, 5-5, 5-6 */
+.furniture-editor__bring {
+  justify-self: start;
+}
+
+.furniture-editor__walkway {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 4px dashed var(--ink-soft);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  font-size: 14px;
+}
+
+.furniture-multi {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 10px 0 6px;
+}
+
+.furniture-multi .chip[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+
+.furniture-multi__hint {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.furniture-group {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+}
+
+.furniture-group__count {
+  margin: 0;
+  font-size: 14px;
+}
+
+.furniture-group__actions {
+  display: flex;
+  gap: 8px;
+}

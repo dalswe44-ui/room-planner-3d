@@ -1,7 +1,7 @@
 // 공용 길이 입력 칸. 입력 중인 글자는 이 컴포넌트의 상태로만 들고 있다가 Enter나 포커스 이탈 때 mm로 확정한다.
 import { useEffect, useId, useRef, useState } from 'react';
 import type { DisplayUnit, Mm } from '../contracts/types';
-import { formatLength, parseLength, UNIT_LABEL } from '../contracts/units';
+import { DISPLAY_UNITS, formatLength, normalizeLengthInput, parseLength, UNIT_LABEL } from '../contracts/units';
 import './ui.css';
 
 export interface LengthInputProps {
@@ -16,7 +16,19 @@ export interface LengthInputProps {
   onValidityChange?(valid: boolean): void;
 }
 
-type InputError = 'unreadable' | 'range';
+type InputError = 'empty' | 'unreadable' | 'range';
+
+/** 단위 없이 넣은 값이 범위를 벗어났을 때, 다른 단위를 붙이면 범위에 드는지 보고 예를 돌려준다(예: mm 칸의 3.5 → "3.5m"). */
+export function unitSuggestion(text: string, unit: DisplayUnit, min: Mm, max: Mm | undefined): string | null {
+  const t = text.trim();
+  if (!/^(\d+(\.\d*)?|\.\d+)$/.test(t)) return null;
+  for (const u of DISPLAY_UNITS) {
+    if (u === unit) continue;
+    const mm = parseLength(t + u, u);
+    if (mm !== null && mm >= min && (max === undefined || mm <= max)) return `${t}${UNIT_LABEL[u]}`;
+  }
+  return null;
+}
 
 export function LengthInput({
   label,
@@ -33,6 +45,8 @@ export function LengthInput({
   const shown = formatLength(valueMm, unit);
   const [text, setText] = useState(shown);
   const [error, setError] = useState<InputError | null>(null);
+  // 범위를 벗어난 값이 다른 단위로는 맞을 때 보여 줄 예("3.5m"). 2026-11-19 QA 4-5
+  const [suggestion, setSuggestion] = useState<string | null>(null);
 
   // valueMm이나 unit이 밖에서 바뀌면 칸의 글자를 새 값으로 맞춘다. 그 밖의 렌더에서는 입력 중인 글자를 건드리지 않는다.
   const [lastShown, setLastShown] = useState(shown);
@@ -57,7 +71,13 @@ export function LengthInput({
   });
 
   function commit() {
-    const mm = parseLength(text, unit);
+    const normalized = normalizeLengthInput(text);
+    if (normalized.trim() === '') {
+      setError('empty');
+      reportValidity(false);
+      return;
+    }
+    const mm = parseLength(normalized, unit);
     if (mm === null) {
       setError('unreadable');
       reportValidity(false);
@@ -65,6 +85,7 @@ export function LengthInput({
     }
     if (mm < min || (max !== undefined && mm > max)) {
       setError('range');
+      setSuggestion(unitSuggestion(normalized, unit, min, max));
       reportValidity(false);
       return;
     }
@@ -80,9 +101,11 @@ export function LengthInput({
       ? `${formatLength(min, unit)} ${unitLabel} 이상`
       : `${formatLength(min, unit)} ~ ${formatLength(max, unit)} ${unitLabel}`;
   const message =
-    error === 'unreadable'
-      ? `읽을 수 없는 값입니다. 허용 범위: ${range}`
-      : `범위를 벗어났습니다. 허용 범위: ${range}`;
+    error === 'empty'
+      ? `값을 넣어 주세요. 허용 범위: ${range}`
+      : error === 'unreadable'
+        ? `읽을 수 없는 값입니다. 숫자만 넣거나 360cm, 3.6m처럼 단위를 붙이세요. 허용 범위: ${range}`
+        : `범위를 벗어났습니다. 허용 범위: ${range}${suggestion ? `. ${suggestion}처럼 단위를 붙여 보세요` : ''}`;
 
   return (
     <div className="length-input">

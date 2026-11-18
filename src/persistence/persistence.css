@@ -1,0 +1,161 @@
+/* 헤더의 파일 메뉴와 자동 저장 표시 (2026-11-19 QA 4-2) */
+.save-status {
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.save-status--failed {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.project-menu {
+  position: relative;
+}
+
+.project-menu__button {
+  padding: 0 10px;
+}
+
+.project-menu__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(300px, calc(100vw - 24px));
+  padding: 10px;
+  box-shadow: var(--shadow-float);
+}
+
+.project-menu__panel > .btn {
+  justify-content: flex-start;
+}
+
+.project-menu__rule {
+  width: 100%;
+  margin: 2px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.project-menu__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  opacity: 0;
+}
+
+.project-menu__confirm {
+  padding: 10px;
+  border-radius: var(--r-sm);
+  background: var(--warn-soft);
+  font-size: 14px;
+}
+
+.project-menu__confirm p {
+  margin: 0 0 8px;
+}
+
+.project-menu__confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.project-menu__note {
+  margin: 0;
+  font-size: 14px;
+}
+
+.project-menu__note--error {
+  color: var(--warn);
+}
+
+.project-menu__share {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: 13px;
+}
+
+.share-note {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  font-size: 14px;
+}
+
+.share-note--broken {
+  background: var(--warn-soft);
+}
+
+/* 처음 화면의 세 단계 안내 (QA 4-1) */
+.first-steps {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.first-steps__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.first-steps__title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.first-steps ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.first-steps li + li {
+  margin-top: 4px;
+}
+
+.first-steps__close {
+  width: 36px;
+  height: 36px;
+}
+
+@media (max-width: 760px) {
+  .project-menu__label {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .save-status {
+    display: none;
+  }
+}
+
+/* 휴대폰: 메뉴 단추가 왼쪽에 있어 오른쪽 맞춤 메뉴가 화면 밖으로 나갔다. 화면 폭에 맞춰 헤더 아래에 띄운다. */
+@media (max-width: 760px) {
+  .project-menu {
+    position: static;
+  }
+
+  .project-menu__panel {
+    position: fixed;
+    top: 64px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: calc(100dvh - 76px);
+    overflow-y: auto;
+  }
+}

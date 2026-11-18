@@ -48,3 +48,14 @@ export function lengthToMm(value: number, unit: DisplayUnit): Mm | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
   return Math.round(value * MM_PER_UNIT[unit]) + 0;
 }
+
+/**
+ * 입력 칸의 흔한 실수를 parseLength가 읽을 수 있게 고친다(2026-11-19 QA 4-5).
+ * - 전각 숫자·마침표·영문자("３６００", "３．６ｍ")를 반각으로 바꾼다.
+ * - 천 단위 쉼표("3,600", "12,000mm")를 지운다. 쉼표가 세 자리마다 있을 때만이고, "1,2" 같은 것은 그대로 둔다(그대로 읽을 수 없다).
+ * parseLength 자체는 바꾸지 않는다(계약 테스트가 쉼표·전각을 null로 고정한다).
+ */
+export function normalizeLengthInput(input: string): string {
+  const half = input.normalize('NFKC');
+  return /^\s*\d{1,3}(,\d{3})+(\.\d*)?\s*[a-zA-Z]*\s*$/.test(half) ? half.replace(/,/g, '') : half;
+}

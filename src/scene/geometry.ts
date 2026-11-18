@@ -22,7 +22,7 @@ export const WINDOW_LINE_COLOR = '#8aa7bd';
 
 /** 경고색으로 표시할지: 겹침, 방 이탈, 칸막이 벽과 겹침, 문 열림 자리와 겹침 중 하나라도 있으면. */
 export function isWarningStatus(status: ItemStatus | undefined): boolean {
-  return status !== undefined && (status.overlap || status.outside || status.wall || status.door);
+  return status !== undefined && (status.overlap || status.outside || status.wall || status.door || status.ceiling === true);
 }
 
 /** "#rrggbb" 두 색을 sRGB 값 그대로 섞는다(t = b의 비율). 눈에 보이는 색 그대로 섞이도록 선형 변환을 거치지 않는다. */
@@ -35,7 +35,7 @@ export function mixHex(a: string, b: string, t: number): string {
 /** 그려진 three.js 객체에 붙여 두는 표식. 검증 조회와 카메라 처리가 이 값을 읽는다. */
 export interface SceneUserData {
   /** wall: 바깥 벽 조각, partition: 칸막이 벽 조각, partitionFootprint: 칸막이 벽 전체 자리(보이지 않음, 검증 조회용), opening: 문·창문의 눌림 상자·문짝·유리 */
-  kind?: 'floor' | 'wall' | 'furniture' | 'partition' | 'partitionFootprint' | 'opening';
+  kind?: 'floor' | 'wall' | 'furniture' | 'partition' | 'partitionFootprint' | 'opening' | 'underlay';
   /** 구조 편집 모드에서 눌리면 보낼 대상 */
   structure?: StructureTarget;
   /** opening: 구간 전체를 덮는 눌림 상자이면 'span'(검증 조회가 from/to를 여기서 읽는다) */

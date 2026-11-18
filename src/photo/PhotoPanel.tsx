@@ -10,6 +10,35 @@ import { parseLayoutImport } from './parseLayoutImport';
 import { usePhotoStore } from './photoStore';
 import './photo.css';
 
+/** 평면 뷰 밑그림 켜기와 불투명도(2026-11-19 QA 5-3) */
+function UnderlayControls() {
+  const underlay = usePhotoStore((s) => s.underlay);
+  const setUnderlay = usePhotoStore((s) => s.setUnderlay);
+  return (
+    <div className="photo-underlay" data-testid="underlay-controls">
+      <label className="photo-underlay__toggle">
+        <input type="checkbox" checked={underlay.visible} data-testid="underlay-toggle" onChange={(e) => setUnderlay({ visible: e.target.checked })} />
+        평면 뷰에 밑그림으로 깔기
+      </label>
+      <label className="photo-underlay__opacity" htmlFor="underlay-opacity">
+        진하기 <span className="num" data-testid="underlay-opacity-value">{Math.round(underlay.opacity * 100)}%</span>
+      </label>
+      <input
+        id="underlay-opacity"
+        type="range"
+        min={10}
+        max={100}
+        step={5}
+        value={Math.round(underlay.opacity * 100)}
+        disabled={!underlay.visible}
+        data-testid="underlay-opacity"
+        onChange={(e) => setUnderlay({ opacity: Number(e.target.value) / 100 })}
+      />
+      <p className="photo-hint">사진을 방의 폭·깊이에 맞춰 늘려 깝니다. 사진을 방 벽 안쪽에 맞춰 잘라 올리면 잘 맞아요.</p>
+    </div>
+  );
+}
+
 export function PhotoPanel() {
   const unit = useProjectStore((s) => s.project.displayUnit);
   const ceilingHeight = useProjectStore((s) => s.project.room.ceilingHeight);
@@ -201,6 +230,9 @@ export function PhotoPanel() {
       <section className="photo-section">
         <h3 className="photo-title">배치도 사진</h3>
         <p className="photo-hint">배치도 사진을 올리면 적힌 치수를 읽어 방과 가구를 만들어요. 확인한 뒤 적용하세요.</p>
+        <p className="photo-hint photo-hint--strong" data-testid="photo-kind-hint">
+          치수(숫자)를 적은 배치도나 평면도 그림이어야 해요. 손으로 그려도 됩니다. 방을 찍은 실내 사진에서는 치수를 읽지 못해요.
+        </p>
         <p className="photo-hint">
           {auto === 'unavailable'
             ? '사진은 이 기기에서만 보이고 밖으로 보내지 않습니다. 긴 변 2048px 이하로 줄여 이 브라우저에 보관하므로 새로고침해도 남습니다.'
@@ -213,18 +245,28 @@ export function PhotoPanel() {
             이 브라우저가 보관을 막아 지금 탭에서만 보입니다. 새로고침하면 사라집니다.
           </p>
         )}
-        <input
-          type="file"
-          accept="image/*"
-          className="photo-file"
-          data-testid="photo-file"
-          aria-label="배치도 사진 고르기"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void pickPhoto(file);
-            e.target.value = '';
-          }}
-        />
+        {/* 브라우저 기본 파일 칸은 보관된 사진이 있어도 "선택된 파일 없음"이라 적어 헷갈린다(QA 4-11). 칸은 감추고 단추와 상태 글을 직접 보인다. */}
+        <div className="photo-pick">
+          <label className="btn photo-pick__button" htmlFor="photo-file-input">
+            {hasPhoto ? '다른 사진 고르기' : '배치도 사진 고르기'}
+          </label>
+          <span className="photo-pick__state" data-testid="photo-file-state">
+            {hasPhoto ? '올린 사진이 이 브라우저에 있어요' : '아직 올린 사진이 없어요'}
+          </span>
+          <input
+            id="photo-file-input"
+            type="file"
+            accept="image/*"
+            className="photo-file photo-pick__input"
+            data-testid="photo-file"
+            aria-label="배치도 사진 고르기"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void pickPhoto(file);
+              e.target.value = '';
+            }}
+          />
+        </div>
         {photoError && (
           <p className="photo-error" role="alert" data-testid="photo-file-error">
             {photoError}
@@ -255,6 +297,7 @@ export function PhotoPanel() {
             >
               사진 지우기
             </button>
+            <UnderlayControls />
           </div>
         )}
         {status && (

@@ -20,6 +20,10 @@ export interface SceneRuntime {
   controlsRef: RefObject<ControlsHandle | null>;
   /** 장면을 그릴 때마다 DOM 겹침(도구 막대, 치수선)의 위치를 다시 잡는 함수. SceneOverlays가 채운다. */
   syncOverlays?: (() => void) | null;
+  /** 방 전체가 보이게 카메라를 처음 자리로(CameraRig가 채운다, 2026-11-19 QA 4-7) */
+  fitView?: (() => void) | null;
+  /** 확대(factor > 1)·축소(factor < 1). 평면·3D 뷰에서만 */
+  zoomBy?: ((factor: number) => void) | null;
 }
 
 function normalizeDeg(value: number): number {
@@ -63,10 +67,16 @@ export function readSnapshot(scene: Object3D, camera: Camera, extras: SnapshotEx
   let draft: SceneProbeItem | null = null;
   const wallOut: SceneProbeSnapshot['walls'] = [];
   const openingOut: SceneProbeSnapshot['openings'] = [];
+  let underlay: SceneProbeSnapshot['underlay'] = null;
   scene.traverse((obj) => {
     if (!(obj instanceof Mesh)) return;
     const data = sceneDataOf(obj);
     if (data.kind === 'floor') floors.push(obj);
+    else if (data.kind === 'underlay' && obj.visible) {
+      const box = new Box3().setFromObject(obj);
+      const material = obj.material as { opacity?: number };
+      underlay = { width: worldToMm(box.max.x - box.min.x), depth: worldToMm(box.max.z - box.min.z), opacity: Math.round((material.opacity ?? 1) * 100) / 100 };
+    }
     else if (data.kind === 'wall' && obj.geometry instanceof BoxGeometry) walls.push(obj.geometry);
     else if (data.kind === 'partitionFootprint' && obj.geometry instanceof BoxGeometry) {
       // 상자의 로컬 x축이 벽 방향(시작 → 끝), 로컬 z 크기가 두께다.
@@ -119,6 +129,7 @@ export function readSnapshot(scene: Object3D, camera: Camera, extras: SnapshotEx
     labels: readLabels(extras.labelRoot ?? (typeof document === 'undefined' ? null : document)),
     editMode: extras.editMode ?? 'furniture',
     eye: isWalkCamera(camera) ? readEye(camera) : null,
+    underlay,
   };
 }
 

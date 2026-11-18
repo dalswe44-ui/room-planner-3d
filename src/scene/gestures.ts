@@ -34,7 +34,7 @@ export class PlacementRouter {
    * primary: 왼쪽 버튼, 터치, 펜이면 true. 가구 조작과 빈 곳 탭은 primary일 때만 생긴다.
    * hit: 그 자리에 있는 가구(primary일 때만 확인한다).
    */
-  pointerDown(pointerId: number, clientX: number, clientY: number, primary: boolean, hit: FurnitureHit | null): void {
+  pointerDown(pointerId: number, clientX: number, clientY: number, primary: boolean, hit: FurnitureHit | null, additive = false): void {
     this.pointers.set(pointerId, { x: clientX, y: clientY });
     if (this.pointers.size > 1 || !primary) {
       // 두 번째 포인터나 보조 버튼은 카메라 조작이다. 진행 중이던 탭도 취소한다.
@@ -45,7 +45,7 @@ export class PlacementRouter {
       this.furnitureDrag = pointerId;
       this.tapCandidate = null;
       this.deps.setCameraEnabled(false);
-      this.deps.handlers.onItemPointerDown(hit.itemId, this.deps.toFloor(clientX, clientY) ?? hit.center);
+      this.deps.handlers.onItemPointerDown(hit.itemId, this.deps.toFloor(clientX, clientY) ?? hit.center, additive);
       return;
     }
     this.tapCandidate = { pointerId, x: clientX, y: clientY };

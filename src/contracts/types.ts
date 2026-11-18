@@ -119,6 +119,8 @@ export interface ItemStatus {
   wall: boolean;
   /** 문이 열리는 자리(문짝이 그리는 사분원의 바운딩 사각형)와 겹침 */
   door: boolean;
+  /** 가구 높이(바닥에서 띄운 높이 포함)가 천장보다 높음(2026-11-19 QA 4-8). 아니면 없거나 false */
+  ceiling?: boolean;
 }
 
 /** 끄는 동안의 임시 위치. 손을 떼면 정수 mm로 확정해 items에 반영하고 null로 되돌린다. */
@@ -130,8 +132,11 @@ export interface DragPreview {
 
 /** scene-engine → furniture-placement 로 넘기는 포인터 이벤트. 좌표는 모두 방 좌표 mm. */
 export interface PlacementHandlers {
-  /** 가구 위에서 포인터를 누름. floor는 그 순간 포인터가 가리키는 바닥 위의 점. */
-  onItemPointerDown(itemId: string, floor: PointMm): void;
+  /**
+   * 가구 위에서 포인터를 누름. floor는 그 순간 포인터가 가리키는 바닥 위의 점.
+   * additive: Shift·Ctrl·Cmd를 누른 채 눌렀으면 true(선택에 더하거나 빼기, 2026-11-19 QA 5-6). 없으면 false로 본다.
+   */
+  onItemPointerDown(itemId: string, floor: PointMm, additive?: boolean): void;
   /** 가구가 없는 곳을 짧게 누름(끌지 않고 뗌). 선택 해제에 쓴다. */
   onBackgroundTap(): void;
   /**

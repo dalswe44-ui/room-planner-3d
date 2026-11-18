@@ -9,12 +9,13 @@ export function useItemStatuses(): Record<string, ItemStatus> {
   const corners = useProjectStore((s) => s.project.room.corners);
   const walls = useProjectStore((s) => s.project.room.walls);
   const openings = useProjectStore((s) => s.project.room.openings);
+  const ceilingHeight = useProjectStore((s) => s.project.room.ceilingHeight);
   const preview = useProjectStore((s) => s.dragPreview);
   const draft = useProjectStore((s) => s.draft);
   return useMemo(() => {
-    const room = { corners, walls, openings };
+    const room = { corners, walls, openings, ceilingHeight };
     const result = computeItemStatuses(items, room, preview);
     if (draft) result[draft.id] = computeDraftStatus(draft, items, room, preview);
     return result;
-  }, [items, corners, walls, openings, preview, draft]);
+  }, [items, corners, walls, openings, ceilingHeight, preview, draft]);
 }

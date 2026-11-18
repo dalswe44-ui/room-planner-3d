@@ -113,6 +113,7 @@ export function FurnitureBox({ item, preview, warning, selected, draft = false, 
       {plan && !draft && <FootprintOutline size={t.size} />}
       {draft && <DraftOutline size={t.size} plan={plan} />}
       {(selected || warning) && <FurnitureOutline size={t.size} plan={plan} selected={selected} warning={warning} />}
+      {warning && <WarningHatch size={t.size} plan={plan} />}
       {plan && <FurnitureLabel name={item.name} size={t.size} rotationY={t.rotationY} />}
     </mesh>
   );
@@ -163,6 +164,34 @@ function FurnitureOutline({ size, plan, selected, warning }: FurnitureOutlinePro
       <Line {...common} depthTest={!plan} color={SELECTED_EDGE_COLOR} lineWidth={plan ? 3 : 2} renderOrder={21} />
     </>
   );
+}
+
+/** 빗금 간격(m) */
+const HATCH_SPACING = 0.12;
+
+/**
+ * 경고 빗금(2026-11-19 QA 4-12): 경고 가구의 윗면에 먹색 사선을 긋는다. 가구 색을 빨강 계열로 골라도 색이 아닌 무늬로 구별된다.
+ * 선은 윗면 가운데를 지나지 않게 반 칸 비켜 긋는다(가운데 픽셀은 경고 색 그대로, SPEC C-1).
+ */
+function WarningHatch({ size, plan }: { size: [number, number, number]; plan: boolean }) {
+  const [w, h, d] = size;
+  const points = useMemo(() => {
+    const hw = w / 2;
+    const hd = d / 2;
+    const y = h / 2 + (plan ? OUTLINE_LIFT * 1.5 : 0.003);
+    const out: [number, number, number][] = [];
+    const reach = hw + hd;
+    for (let k = -Math.ceil(reach / HATCH_SPACING); k <= Math.ceil(reach / HATCH_SPACING); k++) {
+      const c = (k + 0.5) * HATCH_SPACING; // 선: x - z = c
+      const z0 = Math.max(-hd, -hw - c);
+      const z1 = Math.min(hd, hw - c);
+      if (z1 - z0 < 0.01) continue;
+      out.push([z0 + c, y, z0], [z1 + c, y, z1]);
+    }
+    return out;
+  }, [w, h, d, plan]);
+  if (points.length === 0) return null;
+  return <Line points={points} segments color={INK_COLOR} transparent opacity={0.6} lineWidth={1.6} renderOrder={19} />;
 }
 
 /** 확정 전 표시: 바닥 둘레(평면 뷰는 윗면 둘레)에 먹색 바탕 위 노랑 점선. */

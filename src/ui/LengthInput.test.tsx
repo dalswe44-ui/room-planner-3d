@@ -77,7 +77,7 @@ describe('LengthInput', () => {
     expect(onCommit).toHaveBeenCalledWith(4200);
   });
 
-  it.each(['', '   ', 'abc', '-100', '1m20cm', '12 34', '1,200', '10km'])(
+  it.each(['', '   ', 'abc', '-100', '1m20cm', '12 34', '1,2', '10km'])(
     '읽을 수 없는 값 "%s"은 확정하지 않고 허용 범위가 든 오류를 보여 준다',
     async (text) => {
       const onCommit = vi.fn();
@@ -89,6 +89,30 @@ describe('LengthInput', () => {
       expect(field().getAttribute('aria-invalid')).toBe('true');
     },
   );
+
+  // 2026-11-19 QA 4-5: 천 단위 쉼표, 전각 숫자, 빈 칸 문구, 단위 힌트
+  it('천 단위 쉼표("3,600")와 전각 숫자("３６００", "３．６ｍ")를 읽는다', async () => {
+    for (const [text, mm] of [['3,600', 3600], ['３６００', 3600], ['３．６ｍ', 3600], ['12,000mm', 12000]] as const) {
+      const onCommit = vi.fn();
+      const { unmount } = render(<Harness initial={1000} min={500} max={20000} onCommit={onCommit} />);
+      await enter(text);
+      expect(onCommit, text).toHaveBeenCalledWith(mm);
+      unmount();
+    }
+  });
+
+  it('빈 칸은 "값을 넣어 주세요"를 보인다', async () => {
+    render(<Harness min={500} max={20000} onCommit={vi.fn()} />);
+    await enter('');
+    expect(errorText()).toContain('값을 넣어 주세요');
+  });
+
+  it('mm 칸의 3.5는 범위 오류와 함께 "3.5m처럼 단위를 붙여 보세요"를 보인다', async () => {
+    render(<Harness min={500} max={20000} onCommit={vi.fn()} />);
+    await enter('3.5');
+    expect(errorText()).toContain('3.5m처럼 단위를 붙여 보세요');
+    expect(errorText()).toContain('500');
+  });
 
   it.each(['0', '499', '20001', '3.5'])('범위 밖의 값 "%s"은 확정하지 않고 오류를 보여 준다', async (text) => {
     const onCommit = vi.fn();

@@ -1,5 +1,5 @@
 // 가구 배치 규칙의 순수 계산. three.js와 React 없이 mm 숫자만 다룬다(docs/SPEC.md 2절).
-import { roomBounds, type RoomBounds } from '../contracts/room';
+import { roomBounds, roomNotches, type RoomBounds } from '../contracts/room';
 import { doorSwingRect, interiorWallRect } from '../contracts/structure';
 import type { DragPreview, FurnitureItem, ItemStatus, Mm, PointMm, Room } from '../contracts/types';
 
@@ -30,10 +30,76 @@ export interface Footprint {
   maxZ: number;
 }
 
-/** 회전을 반영한 바닥 사각형의 x방향·z방향 길이. 90·270도면 폭과 깊이가 바뀐다. */
+/** 회전이 90도의 배수인가 */
+export function isQuarterTurn(deg: number): boolean {
+  return ((Math.round(deg) % 90) + 90) % 90 === 0;
+}
+
+/**
+ * 회전을 반영한 바닥 사각형의 x방향·z방향 길이. 90·270도면 폭과 깊이가 바뀐다.
+ * 90도 배수가 아닌 회전(2026-11-19 QA 5-6)은 기울어진 사각형을 감싸는 축 정렬 사각형의 길이다.
+ * 자석·격자·벽까지 거리·방 이탈은 이 감싸는 사각형으로 따진다(방 이탈은 이것으로 정확하다).
+ */
 export function footprintSize(item: Pick<FurnitureItem, 'w' | 'd' | 'rotationDeg'>): { sx: Mm; sz: Mm } {
-  const quarter = (((Math.round(item.rotationDeg / 90) % 4) + 4) % 4) % 2 === 1;
-  return quarter ? { sx: item.d, sz: item.w } : { sx: item.w, sz: item.d };
+  if (isQuarterTurn(item.rotationDeg)) {
+    const quarter = (((Math.round(item.rotationDeg / 90) % 4) + 4) % 4) % 2 === 1;
+    return quarter ? { sx: item.d, sz: item.w } : { sx: item.w, sz: item.d };
+  }
+  const rad = (item.rotationDeg * Math.PI) / 180;
+  const c = Math.abs(Math.cos(rad));
+  const sn = Math.abs(Math.sin(rad));
+  return { sx: item.w * c + item.d * sn, sz: item.w * sn + item.d * c };
+}
+
+/** 바닥 사각형의 네 모서리(회전 반영, 위에서 볼 때 반시계가 양수인 three.js rotation.y와 같은 부호) */
+export function footprintPolygon(item: Placed, at: PointMm = { x: item.x, z: item.z }): PointMm[] {
+  const rad = (item.rotationDeg * Math.PI) / 180;
+  const c = Math.cos(rad);
+  const sn = Math.sin(rad);
+  return [
+    [-1, -1],
+    [1, -1],
+    [1, 1],
+    [-1, 1],
+  ].map(([kx, kz]) => {
+    const lx = (kx * item.w) / 2;
+    const lz = (kz * item.d) / 2;
+    return { x: at.x + lx * c + lz * sn, z: at.z - lx * sn + lz * c };
+  });
+}
+
+const rectPolygon = (f: Footprint): PointMm[] => [
+  { x: f.minX, z: f.minZ },
+  { x: f.maxX, z: f.minZ },
+  { x: f.maxX, z: f.maxZ },
+  { x: f.minX, z: f.maxZ },
+];
+
+/** 볼록 다각형 둘이 겹치는지(분리축). 모든 축에서 겹친 길이가 1 mm 이상이어야 겹침이다(맞닿음은 겹침이 아니다). */
+export function polygonsOverlap(a: readonly PointMm[], b: readonly PointMm[]): boolean {
+  for (const poly of [a, b]) {
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i];
+      const q = poly[(i + 1) % poly.length];
+      const len = Math.hypot(q.x - p.x, q.z - p.z);
+      if (len === 0) continue;
+      const ax = -(q.z - p.z) / len;
+      const az = (q.x - p.x) / len;
+      const proj = (pts: readonly PointMm[]) => pts.map((v) => v.x * ax + v.z * az);
+      const pa = proj(a);
+      const pb = proj(b);
+      const overlap = Math.min(Math.max(...pa), Math.max(...pb)) - Math.max(Math.min(...pa), Math.min(...pb));
+      if (overlap < WARN_MIN_MM - 1e-6) return false;
+    }
+  }
+  return true;
+}
+
+/** 가구(기울어질 수 있음)와 다른 사각형이 겹치는지. 둘 다 90도 배수면 감싸는 사각형 비교와 같다. */
+function itemOverlaps(item: Placed, at: PointMm, fp: Footprint, other: { fp: Footprint; poly: PointMm[] | null }): boolean {
+  if (!footprintsOverlap(fp, other.fp)) return false;
+  if (isQuarterTurn(item.rotationDeg) && other.poly === null) return true;
+  return polygonsOverlap(footprintPolygon(item, at), other.poly ?? rectPolygon(other.fp));
 }
 
 /** 바닥 사각형의 범위. at을 주면 중심을 그 점에 둔 것으로 계산한다(끄는 동안의 임시 위치). */
@@ -49,18 +115,22 @@ export function footprintsOverlap(a: Footprint, b: Footprint): boolean {
   return ox >= WARN_MIN_MM && oz >= WARN_MIN_MM;
 }
 
-/** 바닥 사각형의 일부가 방 경계 밖으로 1 mm 이상 나갔는지. 벽에 정확히 붙은 것은 이탈이 아니다. */
-export function isOutsideRoom(f: Footprint, room: RoomBounds): boolean {
+/**
+ * 바닥 사각형의 일부가 방 경계 밖으로 1 mm 이상 나갔는지. 벽에 정확히 붙은 것은 이탈이 아니다.
+ * shape(방 꼭짓점)를 주면 직사각형이 아닌 방(ㄱ자, 2026-11-19 QA 5-4)에서 둘러싼 사각형 안의 빈 곳(roomNotches)과 겹친 것도 이탈이다.
+ */
+export function isOutsideRoom(f: Footprint, room: RoomBounds, shape?: Pick<Room, 'corners'>): boolean {
   return (
     room.minX - f.minX >= WARN_MIN_MM ||
     f.maxX - room.maxX >= WARN_MIN_MM ||
     room.minZ - f.minZ >= WARN_MIN_MM ||
-    f.maxZ - room.maxZ >= WARN_MIN_MM
+    f.maxZ - room.maxZ >= WARN_MIN_MM ||
+    (shape !== undefined && roomNotches(shape.corners).some((n) => footprintsOverlap(f, n)))
   );
 }
 
-/** 상태 계산에 필요한 방 데이터: 바깥 테두리, 칸막이 벽, 문·창문 */
-export type PlacementRoom = Pick<Room, 'corners' | 'walls' | 'openings'>;
+/** 상태 계산에 필요한 방 데이터: 바깥 테두리, 칸막이 벽, 문·창문. 천장 높이가 있으면 천장보다 높은 가구도 알린다. */
+export type PlacementRoom = Pick<Room, 'corners' | 'walls' | 'openings'> & Partial<Pick<Room, 'ceilingHeight'>>;
 
 /** 칸막이 벽이 바닥에서 차지하는 사각형들(두께 포함) */
 export function wallRects(room: Pick<PlacementRoom, 'walls'>): Footprint[] {
@@ -77,24 +147,32 @@ export function currentFootprint(item: Placed & Pick<FurnitureItem, 'id'>, previ
   return preview && preview.itemId === item.id ? footprint(item, preview) : footprint(item);
 }
 
-/** 가구마다 겹침·이탈 상태. 높이는 따지지 않는다. */
+/** 천장 높이보다 높은 가구(바닥에서 띄운 높이 포함, 2026-11-19 QA 4-8)면 { ceiling: true }, 아니면 빈 객체 */
+function ceilingFlag(item: Pick<FurnitureItem, 'h' | 'elevation'>, room: Partial<Pick<Room, 'ceilingHeight'>>): { ceiling?: true } {
+  return room.ceilingHeight !== undefined && item.h + item.elevation > room.ceilingHeight ? { ceiling: true } : {};
+}
+
+/** 가구마다 겹침·이탈 상태. 겹침은 높이를 따지지 않는다. 천장보다 높으면 ceiling. */
 export function computeItemStatuses(
   items: FurnitureItem[],
   room: PlacementRoom,
   preview: DragPreview | null,
 ): Record<string, ItemStatus> {
   const bounds = roomBounds(room);
-  const walls = wallRects(room);
-  const doors = doorRects(room);
-  const fps = items.map((it) => currentFootprint(it, preview));
+  const walls = wallRects(room).map((fp) => ({ fp, poly: null }));
+  const doors = doorRects(room).map((fp) => ({ fp, poly: null }));
+  const ats = items.map((it) => (preview && preview.itemId === it.id ? { x: preview.x, z: preview.z } : { x: it.x, z: it.z }));
+  const fps = items.map((it, i) => footprint(it, ats[i]));
+  const shapes = items.map((it, i) => ({ fp: fps[i], poly: isQuarterTurn(it.rotationDeg) ? null : footprintPolygon(it, ats[i]) }));
   const result: Record<string, ItemStatus> = {};
   items.forEach((it, i) => {
-    const overlap = fps.some((other, j) => j !== i && footprintsOverlap(fps[i], other));
+    const overlap = shapes.some((other, j) => j !== i && itemOverlaps(it, ats[i], fps[i], other));
     result[it.id] = {
       overlap,
-      outside: isOutsideRoom(fps[i], bounds),
-      wall: walls.some((w) => footprintsOverlap(fps[i], w)),
-      door: doors.some((d) => footprintsOverlap(fps[i], d)),
+      outside: isOutsideRoom(fps[i], bounds, room),
+      wall: walls.some((w) => itemOverlaps(it, ats[i], fps[i], w)),
+      door: doors.some((d) => itemOverlaps(it, ats[i], fps[i], d)),
+      ...ceilingFlag(it, room),
     };
   });
   return result;
@@ -107,12 +185,15 @@ export function computeDraftStatus(
   room: PlacementRoom,
   preview: DragPreview | null,
 ): ItemStatus {
-  const fp = currentFootprint(draft, preview);
+  const at = preview && preview.itemId === draft.id ? { x: preview.x, z: preview.z } : { x: draft.x, z: draft.z };
+  const fp = footprint(draft, at);
+  const shape = (it: FurnitureItem) => ({ fp: footprint(it), poly: isQuarterTurn(it.rotationDeg) ? null : footprintPolygon(it) });
   return {
-    overlap: items.some((it) => footprintsOverlap(fp, footprint(it))),
-    outside: isOutsideRoom(fp, roomBounds(room)),
-    wall: wallRects(room).some((w) => footprintsOverlap(fp, w)),
-    door: doorRects(room).some((d) => footprintsOverlap(fp, d)),
+    overlap: items.some((it) => itemOverlaps(draft, at, fp, shape(it))),
+    outside: isOutsideRoom(fp, roomBounds(room), room),
+    wall: wallRects(room).some((w) => itemOverlaps(draft, at, fp, { fp: w, poly: null })),
+    door: doorRects(room).some((d) => itemOverlaps(draft, at, fp, { fp: d, poly: null })),
+    ...ceilingFlag(draft, room),
   };
 }
 
@@ -237,6 +318,32 @@ export function wallDistances(f: Footprint, room: RoomBounds, walls: Footprint[]
     }
   }
   return d;
+}
+
+/** 방 밖에 있는 가구를 방 안으로 들이는 가장 가까운 중심(정수 mm, 2026-11-19 QA 4-4). 방보다 큰 쪽은 방 가운데에 맞춘다. */
+export function bringInsideCenter(item: Placed, room: RoomBounds): PointMm {
+  const { sx, sz } = footprintSize(item);
+  const axis = (c: number, size: number, min: number, max: number) => {
+    if (size >= max - min) return (min + max) / 2;
+    return Math.min(Math.max(c, min + size / 2), max - size / 2);
+  };
+  return { x: Math.round(axis(item.x, sx, room.minX, room.maxX)) + 0, z: Math.round(axis(item.z, sz, room.minZ, room.maxZ)) + 0 };
+}
+
+/** 통로로 보는 최소 폭(mm, 2026-11-19 QA 5-5). 이보다 좁은 틈은 사람이 지나가기 어렵다. */
+export const WALKWAY_MIN_MM = 600;
+
+/**
+ * 가구 둘레(위·오른쪽·아래·왼쪽, 벽 0 ~ 3 순서)의 빈 틈. 그 방향의 가장 가까운 벽 면이나 다른 가구까지의 거리다.
+ * 다른 가구는 다른 축에서 1 mm 이상 겹칠 때만 그 방향의 이웃이다. 맞닿은(0) 쪽과 방 밖으로 나간 쪽(음수)은 그대로 돌려준다.
+ */
+export function clearances(f: Footprint, room: RoomBounds, walls: Footprint[], others: Footprint[]): [number, number, number, number] {
+  return wallDistances(f, room, [...walls, ...others]);
+}
+
+/** 통로가 좁은 방향: 틈이 0보다 크고 WALKWAY_MIN_MM보다 작은 방향의 번호와 틈 */
+export function narrowSides(gaps: readonly number[]): { side: number; gap: number }[] {
+  return gaps.flatMap((gap, side) => (gap > 0 && gap < WALKWAY_MIN_MM ? [{ side, gap: Math.round(gap) }] : []));
 }
 
 /** 새 가구를 찾을 때 방 가운데에서 바깥으로 훑는 간격 */

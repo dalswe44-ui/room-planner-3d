@@ -3,11 +3,14 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { MathUtils, Vector3, type PerspectiveCamera } from 'three';
-import { mmToWorld, roomToWorld } from '../contracts/coords';
+import { mmToWorld, roomToWorld, worldToMm } from '../contracts/coords';
 import type { PointMm } from '../contracts/types';
 import { WALK_EYE_HEIGHT } from '../contracts/types';
 import { pickWalkFloor, screenRectOf } from './pointer';
-import { WALK_MOVE_SECONDS, clampPitchRad, pullInside, walkStart } from './walk';
+import { WALK_MOVE_SECONDS, clampPitchRad, headingDegOf, pullInside, stepFrom, walkKeyAction, walkStart, type Blocked } from './walk';
+
+const NO_DOORS: readonly { at: PointMm; inward: PointMm }[] = [];
+const NO_BLOCKED: readonly Blocked[] = [];
 
 /** 짧은 누름으로 볼 최대 이동 거리(px). 가구 조작의 탭과 같은 값이다. */
 const TAP_SLOP_PX = 6;
@@ -18,7 +21,16 @@ interface Move {
   t: number;
 }
 
-export function WalkControls({ camera, corners }: { camera: PerspectiveCamera; corners: readonly PointMm[] }) {
+interface WalkControlsProps {
+  camera: PerspectiveCamera;
+  corners: readonly PointMm[];
+  /** 바깥 벽의 문(가운데 점과 방 안쪽 방향). 들어갈 때 문 안쪽에 선다 */
+  doors?: readonly { at: PointMm; inward: PointMm }[];
+  /** 가구 발자국. 들어갈 때 가구 위에 서지 않는다 */
+  blocked?: readonly Blocked[];
+}
+
+export function WalkControls({ camera, corners, doors = NO_DOORS, blocked = NO_BLOCKED }: WalkControlsProps) {
   const get = useThree((s) => s.get);
   const invalidate = useThree((s) => s.invalidate);
   const dom = useThree((s) => s.gl.domElement);
@@ -26,17 +38,43 @@ export function WalkControls({ camera, corners }: { camera: PerspectiveCamera; c
   const cornersRef = useRef(corners);
   cornersRef.current = corners;
 
-  // 들어갈 때(또는 방이 바뀔 때) 방 가운데에 선다.
+  // 들어갈 때(또는 방이 바뀔 때) 문 안쪽이나 방 모서리에 서서 방 가운데를 내려다본다(QA 4-3).
   useLayoutEffect(() => {
-    const start = walkStart(corners);
+    const start = walkStart(corners, doors, blocked);
     camera.rotation.order = 'YXZ';
     const [x, y, z] = roomToWorld({ x: start.x, z: start.z }, WALK_EYE_HEIGHT);
     camera.position.set(x, y, z);
-    camera.rotation.set(0, MathUtils.degToRad(start.headingDeg), 0);
+    camera.rotation.set(MathUtils.degToRad(start.pitchDeg), MathUtils.degToRad(start.headingDeg), 0);
     move.current = null;
     camera.updateMatrixWorld();
     invalidate();
-  }, [camera, corners, invalidate]);
+  }, [camera, corners, doors, blocked, invalidate]);
+
+  // 방향키·WASD로 걷고 돈다(QA 4-3). 입력 칸에 포커스가 있으면 글자 입력이므로 무시한다.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target;
+      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) return;
+      const act = walkKeyAction(e.key);
+      if (!act) return;
+      e.preventDefault();
+      if (act.turnDeg !== 0) {
+        camera.rotation.y += MathUtils.degToRad(act.turnDeg);
+        invalidate();
+        return;
+      }
+      const from = move.current ? move.current.to : camera.position;
+      const forward = camera.getWorldDirection(new Vector3());
+      const here = { x: worldToMm(from.x), z: worldToMm(from.z) };
+      const next = pullInside(stepFrom(here, headingDegOf(forward.x, forward.z), act.forward, act.side), cornersRef.current);
+      if (!next) return;
+      move.current = { from: camera.position.clone(), to: new Vector3(mmToWorld(next.x), camera.position.y, mmToWorld(next.z)), t: 0 };
+      invalidate();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [camera, invalidate]);
 
   useEffect(() => {
     let active: { id: number; x: number; y: number; dragging: boolean; tap: boolean } | null = null;

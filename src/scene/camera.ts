@@ -8,7 +8,7 @@ export const FOV_DEG = 45;
 /** 평면 뷰의 카메라 높이(m). 방 위에 떠 있을 뿐이고 근·원 평면 안에 들어가면 된다. */
 const ORTHO_HEIGHT_M = 20;
 /** 평면 뷰에서 화면 가장자리에 남기는 여백(px). 위쪽은 폭 치수선, 왼쪽은 깊이 치수선이 들어갈 자리다. */
-export const PLAN_MARGIN_PX = { left: 60, top: 52, right: 16, bottom: 16 } as const;
+export const PLAN_MARGIN_PX = { left: 60, top: 52, right: 60, bottom: 16 } as const;
 /** 벽 두께(m)는 방 바깥으로 덧붙으므로 맞춤 범위에 양쪽 두께를 더한다. */
 const WALL_EXTRA_M = mmToWorld(WALL_THICKNESS_MM) * 2;
 /** 3D 뷰의 처음 시선 방향(카메라 쪽은 +x, +z, 위). 이 쪽의 벽은 가려진다. */

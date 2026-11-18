@@ -3,7 +3,7 @@ import { Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Group, BoxGe
 import { rectCorners } from '../contracts/room';
 import { mmToWorld } from '../contracts/coords';
 import { pickWalkFloor } from './pointer';
-import { headingDegOf, pointInPolygon, pullInside, walkFovDeg, walkStart, WALK_WALL_MARGIN_MM } from './walk';
+import { headingDegOf, pointInPolygon, pullInside, stepFrom, walkFovDeg, walkKeyAction, walkStart, WALK_WALL_MARGIN_MM } from './walk';
 
 describe('headingDegOf: 0은 -z(위쪽 벽), 반시계가 양수', () => {
   it('네 방향', () => {
@@ -47,10 +47,37 @@ describe('pullInside', () => {
   });
 });
 
-describe('walkStart', () => {
-  it('방 가운데에서 긴 쪽을 본다', () => {
-    expect(walkStart(rectCorners(5000, 4000))).toEqual({ x: 2500, z: 2000, headingDeg: 270 });
-    expect(walkStart(rectCorners(3000, 4000))).toEqual({ x: 1500, z: 2000, headingDeg: 0 });
+describe('walkStart (2026-11-19 QA 4-3)', () => {
+  it('문이 없으면 왼쪽 아래 모서리에서 벽 600 mm 안쪽에 서서 방 가운데를 보고 12도 내려다본다', () => {
+    expect(walkStart(rectCorners(5000, 4000))).toEqual({ x: 600, z: 3400, headingDeg: 306, pitchDeg: -12 });
+  });
+  it('바깥 벽에 문이 있으면 문 안쪽 600 mm에 선다', () => {
+    const s = walkStart(rectCorners(5000, 4000), [{ at: { x: 2500, z: 4000 }, inward: { x: 0, z: -1 } }]);
+    expect(s).toEqual({ x: 2500, z: 3400, headingDeg: 0, pitchDeg: -12 });
+  });
+  it('가구 위 자리는 건너뛰고 다음 모서리에 선다', () => {
+    const s = walkStart(rectCorners(5000, 4000), [], [{ minX: 0, maxX: 1200, minZ: 3000, maxZ: 4000 }]);
+    expect({ x: s.x, z: s.z }).toEqual({ x: 600, z: 600 });
+  });
+  it('설 곳이 없으면 방 가운데에서 긴 쪽을 본다', () => {
+    const all = [{ minX: 0, maxX: 5000, minZ: 0, maxZ: 4000 }];
+    expect(walkStart(rectCorners(5000, 4000), [], all)).toEqual({ x: 2500, z: 2000, headingDeg: 270, pitchDeg: -12 });
+  });
+});
+
+describe('사람 뷰 키 조작', () => {
+  it('↑·W는 앞으로, A·D는 옆으로, ←·→는 돌기', () => {
+    expect(walkKeyAction('ArrowUp')).toEqual({ forward: 300, side: 0, turnDeg: 0 });
+    expect(walkKeyAction('W')).toEqual({ forward: 300, side: 0, turnDeg: 0 });
+    expect(walkKeyAction('s')).toEqual({ forward: -300, side: 0, turnDeg: 0 });
+    expect(walkKeyAction('a')).toEqual({ forward: 0, side: -300, turnDeg: 0 });
+    expect(walkKeyAction('ArrowLeft')).toEqual({ forward: 0, side: 0, turnDeg: 15 });
+    expect(walkKeyAction('x')).toBeNull();
+  });
+  it('stepFrom: heading 0은 -z로, 오른쪽은 +x', () => {
+    expect(stepFrom({ x: 1000, z: 1000 }, 0, 300, 0)).toEqual({ x: 1000, z: 700 });
+    expect(stepFrom({ x: 1000, z: 1000 }, 0, 0, 300)).toEqual({ x: 1300, z: 1000 });
+    expect(stepFrom({ x: 1000, z: 1000 }, 90, 300, 0)).toEqual({ x: 700, z: 1000 });
   });
 });
 

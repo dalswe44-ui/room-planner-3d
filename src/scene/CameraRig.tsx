@@ -7,7 +7,7 @@ import type { PointMm, ViewMode } from '../contracts/types';
 import { FOV_DEG, applyWallVisibility, orthoFitShift, orthoView, orthoZoomToFit, perspectiveView } from './camera';
 import type { SceneRuntime } from './sceneProbe';
 import { WalkControls } from './WalkControls';
-import { WALK_FOV_DEG, walkFovDeg } from './walk';
+import { WALK_FOV_DEG, walkFovDeg, type Blocked } from './walk';
 
 // 평면 뷰: 회전 없이 이동과 확대만. 한 손가락 끌기도 이동이다.
 const ORTHO_MOUSE = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN };
@@ -23,10 +23,13 @@ interface CameraRigProps {
   ceilingHeight: number;
   /** 사람 뷰가 이동할 자리를 방 안쪽으로 당길 때 쓴다 */
   corners: readonly PointMm[];
+  /** 사람 뷰가 들어갈 때 설 자리를 고르는 데 쓴다(문 안쪽, 가구 피하기) */
+  walkDoors?: readonly { at: PointMm; inward: PointMm }[];
+  walkBlocked?: readonly Blocked[];
   runtime: SceneRuntime;
 }
 
-export function CameraRig({ viewMode, width, depth, ceilingHeight, corners, runtime }: CameraRigProps) {
+export function CameraRig({ viewMode, width, depth, ceilingHeight, corners, walkDoors, walkBlocked, runtime }: CameraRigProps) {
   const [ortho] = useState(() => new OrthographicCamera(-1, 1, 1, -1, 0.1, 200));
   const [persp] = useState(() => new PerspectiveCamera(FOV_DEG, 1, 0.05, 200));
   // 사람 뷰는 3D 뷰와 따로 둔 원근 카메라를 쓴다(3D 뷰의 시점을 건드리지 않고, probe가 둘을 구별한다).
@@ -67,8 +70,8 @@ export function CameraRig({ viewMode, width, depth, ceilingHeight, corners, runt
     invalidate();
   }, [size, get, ortho, persp, walk, invalidate]);
 
-  // 방이 바뀌거나 화면을 바꾸면 방 전체가 보이도록 맞춘다.
-  useEffect(() => {
+  // 방이 바뀌거나 화면을 바꾸면 방 전체가 보이도록 맞춘다. "방 전체 보기" 버튼(QA 4-7)은 forceFit으로 3D 시점 기억도 버린다.
+  const fit = useCallback((forceFit: boolean) => {
     const controls = controlsRef.current;
     if (!controls) return;
     const extent = { width, depth, ceilingHeight };
@@ -86,7 +89,7 @@ export function CameraRig({ viewMode, width, depth, ceilingHeight, corners, runt
       controls.maxZoom = ortho.zoom * 20;
     } else if (viewMode === '3d') {
       const view = perspectiveView(extent, w / h);
-      const keep = saved3d.current?.key === extentKey ? saved3d.current.target : null;
+      const keep = !forceFit && saved3d.current?.key === extentKey ? saved3d.current.target : null;
       if (keep) {
         controls.target.copy(keep);
       } else {
@@ -102,6 +105,31 @@ export function CameraRig({ viewMode, width, depth, ceilingHeight, corners, runt
     if (viewMode !== 'walk') controls.update();
     invalidate();
   }, [viewMode, width, depth, ceilingHeight, extentKey, ortho, persp, get, invalidate, controlsRef]);
+
+  useEffect(() => fit(false), [fit]);
+
+  // 화면 위 버튼(방 전체 보기, 확대·축소, QA 4-7)이 부르는 함수. 확대는 평면 뷰는 배율, 3D 뷰는 거리로 한다.
+  useEffect(() => {
+    runtime.fitView = () => fit(true);
+    runtime.zoomBy = (factor: number) => {
+      const controls = controlsRef.current;
+      if (!controls) return;
+      if (viewMode === '2d') {
+        ortho.zoom = Math.min(controls.maxZoom, Math.max(controls.minZoom, ortho.zoom * factor));
+        ortho.updateProjectionMatrix();
+      } else if (viewMode === '3d') {
+        const offset = persp.position.clone().sub(controls.target);
+        const dist = Math.min(controls.maxDistance, Math.max(controls.minDistance, offset.length() / factor));
+        persp.position.copy(controls.target).add(offset.setLength(dist));
+      } else return;
+      controls.update();
+      invalidate();
+    };
+    return () => {
+      runtime.fitView = null;
+      runtime.zoomBy = null;
+    };
+  }, [runtime, fit, viewMode, ortho, persp, controlsRef, invalidate]);
 
   // 벽 가림은 카메라가 움직일 때마다 다시 정한다. 장면의 벽 메시는 방이 바뀌면 새로 만들어지므로 그때도 맞춘다.
   const onCameraChange = useCallback(() => {
@@ -125,7 +153,7 @@ export function CameraRig({ viewMode, width, depth, ceilingHeight, corners, runt
       <primitive object={ortho} />
       <primitive object={persp} />
       <primitive object={walk} />
-      {viewMode === 'walk' && <WalkControls camera={walk} corners={corners} />}
+      {viewMode === 'walk' && <WalkControls camera={walk} corners={corners} doors={walkDoors} blocked={walkBlocked} />}
       <OrbitControls
         ref={controlsRef}
         camera={viewMode === '2d' ? ortho : persp}

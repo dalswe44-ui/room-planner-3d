@@ -1,8 +1,8 @@
 // 가구 추가 폼, 가구 목록, 선택한 가구의 수정·회전·삭제와 벽까지 거리. store를 직접 읽고 쓴다.
-import { useEffect, useRef, useState, type FormEvent, type MutableRefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MutableRefObject } from 'react';
 import { roomBounds } from '../contracts/room';
 import { FURNITURE_PRESETS, guessKindFromName, KIND_LABEL, type FurniturePreset } from '../contracts/furniturePresets';
-import { DEFAULT_ITEM_NAME, ITEM_SIZE_MAX, ITEM_SIZE_MIN } from '../contracts/limits';
+import { DEFAULT_ITEM_NAME, ITEM_SIZE_MAX, ITEM_SIZE_MIN, ROOM_SIDE_MAX } from '../contracts/limits';
 import type { DisplayUnit, FurnitureItem, FurnitureKind, ItemStatus, Mm, PointMm } from '../contracts/types';
 import { formatLength, UNIT_LABEL } from '../contracts/units';
 import { useProjectStore } from '../store/projectStore';
@@ -10,7 +10,19 @@ import { LengthInput } from '../ui/LengthInput';
 import { IconDuplicate, IconPlus, IconRotateLeft, IconRotateRight, IconTrash } from '../ui/icons';
 import { duplicateItem } from './duplicateItem';
 import { IconCheck, IconClose } from './DraftIcons';
-import { doorRects, findFreeSpot, footprint, nextRotation, ROTATE_STEP_DEG, wallRects } from './placement';
+import {
+  bringInsideCenter,
+  clearances,
+  currentFootprint,
+  doorRects,
+  findFreeSpot,
+  footprint,
+  narrowSides,
+  nextRotation,
+  ROTATE_STEP_DEG,
+  WALKWAY_MIN_MM,
+  wallRects,
+} from './placement';
 import { useItemStatuses } from './useItemStatuses';
 import { useSelectedWallDistances } from './useSelectedWallDistances';
 import './furniture.css';
@@ -51,11 +63,35 @@ function nameOrDefault(text: string): string {
   return text.trim() || DEFAULT_ITEM_NAME;
 }
 
+function hasWarning(st: ItemStatus | undefined): boolean {
+  return st !== undefined && (st.overlap || st.outside || st.wall || st.door || st.ceiling === true);
+}
+
+/** 경고 문구. 겹침·방 밖·칸막이·문 자리·천장(2026-11-19 QA 4-8). 경고가 없으면 아무것도 그리지 않는다. */
+function StatusLines({ status, item, unit, testId }: { status: ItemStatus | undefined; item: FurnitureItem; unit: DisplayUnit; testId: string }) {
+  const ceiling = useProjectStore((s) => s.project.room.ceilingHeight);
+  if (!status || !hasWarning(status)) return null;
+  return (
+    <p className="furniture-editor__status" role="status" data-testid={testId}>
+      {status.overlap && <span>겹침: 다른 가구와 겹칩니다.</span>}
+      {status.outside && <span>방 밖: 방 경계를 벗어났습니다.</span>}
+      {status.wall && <span>칸막이 벽과 겹쳐요.</span>}
+      {status.door && <span>문이 열리는 자리예요.</span>}
+      {status.ceiling && (
+        <span data-testid={`${testId}-ceiling`}>
+          천장보다 높아요: 높이 {formatLength(item.h + item.elevation, unit)} {UNIT_LABEL[unit]}, 천장 {formatLength(ceiling, unit)} {UNIT_LABEL[unit]}.
+        </span>
+      )}
+    </p>
+  );
+}
+
 export function FurniturePanel() {
   const unit = useProjectStore((s) => s.project.displayUnit);
   const items = useProjectStore((s) => s.project.items);
   const selectedItemId = useProjectStore((s) => s.selectedItemId);
   const draft = useProjectStore((s) => s.draft);
+  const extraCount = useProjectStore((s) => s.extraSelectedIds.length);
   const statuses = useItemStatuses();
   const selected = items.find((it) => it.id === selectedItemId) ?? null;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -77,6 +113,7 @@ export function FurniturePanel() {
       <AddForm unit={unit} addedIdRef={addedIdRef} />
       {draft && <DraftCard key={draft.id} draft={draft} unit={unit} addedIdRef={addedIdRef} />}
       <ItemList items={items} selectedItemId={selectedItemId} statuses={statuses} unit={unit} />
+      {selected && extraCount > 0 && <GroupCard count={extraCount + 1} />}
       {selected && <ItemEditor key={selected.id} item={selected} unit={unit} status={statuses[selected.id]} />}
     </div>
   );
@@ -218,14 +255,7 @@ function DraftCard({ draft, unit, addedIdRef }: { draft: FurnitureItem; unit: Di
           <p className="furniture-editor__size num">{sizeSummary(draft, unit)}</p>
         </div>
       </header>
-      {status && (status.overlap || status.outside || status.wall || status.door) && (
-        <p className="furniture-editor__status" role="status" data-testid="draft-status">
-          {status.overlap && <span>겹침: 다른 가구와 겹칩니다.</span>}
-          {status.outside && <span>방 밖: 방 경계를 벗어났습니다.</span>}
-          {status.wall && <span>칸막이 벽과 겹쳐요.</span>}
-          {status.door && <span>문이 열리는 자리예요.</span>}
-        </p>
-      )}
+      <StatusLines status={status} item={draft} unit={unit} testId="draft-status" />
       <div className="furniture-field">
         <label className="furniture-field__label" htmlFor="draft-name">
           이름
@@ -271,6 +301,101 @@ function DraftCard({ draft, unit, addedIdRef }: { draft: FurnitureItem; unit: Di
   );
 }
 
+/** 회전 각도 칸(2026-11-19 QA 5-6): 0 ~ 359 정수 도, 위에서 볼 때 반시계가 양수. */
+function AngleInput({ deg, onCommit }: { deg: number; onCommit(deg: number): void }) {
+  const [text, setText] = useState(String(deg));
+  const [error, setError] = useState(false);
+  const commit = () => {
+    const t = text.trim().replace(/°$/, '');
+    const n = /^-?\d+$/.test(t) ? Number(t) : NaN;
+    if (!Number.isInteger(n) || n < 0 || n > 359) {
+      setError(true);
+      return;
+    }
+    setError(false);
+    if (n !== deg) onCommit(n);
+  };
+  return (
+    <div className="length-input">
+      <label className="length-input__label" htmlFor="item-angle">
+        회전 (반시계, 도)
+      </label>
+      <div className="length-input__box" data-invalid={error}>
+        <input
+          id="item-angle"
+          className="length-input__field"
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          enterKeyHint="done"
+          value={text}
+          aria-invalid={error}
+          aria-describedby={error ? 'item-angle-error' : undefined}
+          data-testid="item-angle"
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit();
+          }}
+        />
+        <span className="length-input__unit">°</span>
+      </div>
+      <div className="length-input__error-line">
+        {error && (
+          <p id="item-angle-error" className="length-input__error" role="alert" data-testid="item-angle-error">
+            0부터 359까지의 정수로 넣어 주세요. 예: 45
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const SIDE_NAMES = ['위쪽', '오른쪽', '아래쪽', '왼쪽'] as const;
+
+/** 가구 둘레의 틈이 통로로 쓰기에 좁으면(0 < 틈 < 600 mm) 알린다(2026-11-19 QA 5-5). 막지 않는다. */
+function WalkwayNote({ item, unit }: { item: FurnitureItem; unit: DisplayUnit }) {
+  const room = useProjectStore((s) => s.project.room);
+  const items = useProjectStore((s) => s.project.items);
+  const preview = useProjectStore((s) => s.dragPreview);
+  const narrow = useMemo(() => {
+    const others = items.filter((it) => it.id !== item.id).map((it) => currentFootprint(it, preview));
+    return narrowSides(clearances(currentFootprint(item, preview), roomBounds(room), wallRects(room), others));
+  }, [item, items, room, preview]);
+  if (narrow.length === 0) return null;
+  return (
+    <p className="furniture-editor__walkway" role="status" data-testid="item-walkway">
+      통로가 좁아요({formatLength(WALKWAY_MIN_MM, unit)} {UNIT_LABEL[unit]}보다 좁음):{' '}
+      {narrow.map((n) => `${SIDE_NAMES[n.side]} ${formatLength(n.gap, unit)} ${UNIT_LABEL[unit]}`).join(', ')}
+    </p>
+  );
+}
+
+/** 여러 가구를 함께 골랐을 때의 카드(2026-11-19 QA 5-6): 몇 개인지, 함께 지우기, 선택 풀기. */
+function GroupCard({ count }: { count: number }) {
+  const removeItems = useProjectStore((s) => s.removeItems);
+  const selectItem = useProjectStore((s) => s.selectItem);
+  const ids = () => {
+    const s = useProjectStore.getState();
+    return s.selectedItemId === null ? [] : [s.selectedItemId, ...s.extraSelectedIds];
+  };
+  return (
+    <section className="furniture-group card" aria-label="함께 고른 가구" data-testid="group-card">
+      <p className="furniture-group__count">
+        가구 <strong className="num" data-testid="group-count">{count}</strong>개를 함께 골랐어요. 하나를 끌거나 방향키를 누르면 함께 움직여요.
+      </p>
+      <div className="furniture-group__actions">
+        <button type="button" className="btn btn--danger" data-testid="group-delete" onClick={() => removeItems(ids())}>
+          함께 지우기
+        </button>
+        <button type="button" className="btn btn--quiet" data-testid="group-clear" onClick={() => selectItem(null)}>
+          선택 풀기
+        </button>
+      </div>
+    </section>
+  );
+}
+
 interface ItemListProps {
   items: FurnitureItem[];
   selectedItemId: string | null;
@@ -280,22 +405,49 @@ interface ItemListProps {
 
 function ItemList({ items, selectedItemId, statuses, unit }: ItemListProps) {
   const selectItem = useProjectStore((s) => s.selectItem);
+  const toggle = useProjectStore((s) => s.toggleItemSelection);
+  const extra = useProjectStore((s) => s.extraSelectedIds);
+  const multi = useProjectStore((s) => s.multiSelect);
+  const setMulti = useProjectStore((s) => s.setMultiSelect);
   if (items.length === 0) return <p className="furniture-panel__empty">아직 가구가 없습니다.</p>;
+  return (
+    <>
+      {items.length > 1 && (
+        <div className="furniture-multi">
+          <button type="button" className="chip" data-testid="multi-select-toggle" aria-pressed={multi} onClick={() => setMulti(!multi)}>
+            여러 개 고르기
+          </button>
+          <span className="furniture-multi__hint">{multi ? '누르는 가구마다 선택에 더하거나 뺍니다.' : 'Shift나 Ctrl을 누른 채 눌러도 됩니다.'}</span>
+        </div>
+      )}
+      <ItemRows items={items} selectedItemId={selectedItemId} extra={extra} statuses={statuses} unit={unit} onPick={(id, additive) => (additive || multi ? toggle(id) : selectItem(id))} />
+    </>
+  );
+}
+
+function ItemRows({
+  items,
+  selectedItemId,
+  extra,
+  statuses,
+  unit,
+  onPick,
+}: ItemListProps & { extra: string[]; onPick(id: string, additive: boolean): void }) {
   return (
     <ul className="furniture-list" aria-label="가구 목록">
       {items.map((it) => {
         const st = statuses[it.id];
-        const warn = st !== undefined && (st.overlap || st.outside);
+        const warn = hasWarning(st);
         return (
           <li key={it.id}>
             <button
               type="button"
               className="furniture-list__row"
-              aria-pressed={it.id === selectedItemId}
+              aria-pressed={it.id === selectedItemId || extra.includes(it.id)}
               data-testid="item-row"
               data-item-id={it.id}
               data-warning={warn}
-              onClick={() => selectItem(it.id)}
+              onClick={(e) => onPick(it.id, e.shiftKey || e.ctrlKey || e.metaKey)}
             >
               <span className="furniture-list__swatch" style={{ background: it.color }} aria-hidden="true" />
               <span className="furniture-list__name">
@@ -380,14 +532,18 @@ function ItemEditor({ item, unit, status }: ItemEditorProps) {
         </button>
       </div>
 
-      {status && (status.overlap || status.outside || status.wall || status.door) && (
-        <p className="furniture-editor__status" role="status" data-testid="item-status">
-          {status.overlap && <span>겹침: 다른 가구와 겹칩니다.</span>}
-          {status.outside && <span>방 밖: 방 경계를 벗어났습니다.</span>}
-          {status.wall && <span>칸막이 벽과 겹쳐요.</span>}
-          {status.door && <span>문이 열리는 자리예요.</span>}
-        </p>
+      <StatusLines status={status} item={item} unit={unit} testId="item-status" />
+      {status?.outside && (
+        <button
+          type="button"
+          className="btn furniture-editor__bring"
+          data-testid="item-bring-inside"
+          onClick={() => updateItem(item.id, bringInsideCenter(item, roomBounds(useProjectStore.getState().project.room)), { merge: false })}
+        >
+          방 안으로 가져오기
+        </button>
       )}
+      <WalkwayNote item={item} unit={unit} />
 
       <div className="furniture-editor__fields">
         <div className="furniture-field">
@@ -454,6 +610,30 @@ function ItemEditor({ item, unit, status }: ItemEditorProps) {
             onChange={(e) => updateItem(item.id, { color: e.target.value })}
           />
         </div>
+      </div>
+
+      <h4 className="furniture-editor__subtitle">위치와 방향</h4>
+      <div className="furniture-editor__fields">
+        {/* 중심 위치를 숫자로(2026-11-19 QA 4-4). 왼쪽 벽·위쪽 벽에서 가구 중심까지. */}
+        <LengthInput
+          label="가로 위치 (왼쪽 벽 → 중심)"
+          valueMm={item.x}
+          unit={unit}
+          min={0}
+          max={ROOM_SIDE_MAX}
+          testId="item-x"
+          onCommit={(mm) => updateItem(item.id, { x: mm }, { merge: false })}
+        />
+        <LengthInput
+          label="세로 위치 (위쪽 벽 → 중심)"
+          valueMm={item.z}
+          unit={unit}
+          min={0}
+          max={ROOM_SIDE_MAX}
+          testId="item-z"
+          onCommit={(mm) => updateItem(item.id, { z: mm }, { merge: false })}
+        />
+        <AngleInput key={item.rotationDeg} deg={item.rotationDeg} onCommit={(deg) => updateItem(item.id, { rotationDeg: deg })} />
       </div>
 
       <h4 className="furniture-editor__subtitle">벽까지 거리</h4>

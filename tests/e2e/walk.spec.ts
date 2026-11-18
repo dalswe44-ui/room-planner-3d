@@ -86,14 +86,13 @@ for (const vp of VIEWPORTS) {
       const box = await canvasBox(page);
       const inCanvas = (p: { x: number; y: number }) => p.x > box.x + 5 && p.x < box.x + box.width - 5 && p.y > box.y + 5 && p.y < box.y + box.height - 5;
 
-      // 바라보는 방향(헤딩 270이면 +x)의 앞 바닥을 누른다
-      const dir = eye0.headingDeg === 270 ? { x: 1, z: 0 } : eye0.headingDeg === 0 ? { x: 0, z: -1 } : null;
-      expect(dir, `처음 방향 ${eye0.headingDeg}`).not.toBeNull();
-      const target = { x: Math.round(eye0.x + dir!.x * 2500), z: Math.round(eye0.z + dir!.z * 2500) };
+      // 바라보는 방향의 앞 바닥(2000 mm 앞)을 누른다. 처음 방향은 방 가운데를 보는 대각선이다(2026-11-19 QA 4-3).
+      const h = (eye0.headingDeg * Math.PI) / 180;
+      const dir = { x: -Math.sin(h), z: -Math.cos(h) };
+      const target = { x: Math.round(eye0.x + dir.x * 2000), z: Math.round(eye0.z + dir.z * 2000) };
       const c = await floorToClient(page, target);
       expect(inCanvas(c), `목표 ${JSON.stringify(c)}가 화면 안`).toBe(true);
       await page.mouse.click(c.x, c.y);
-      await expect.poll(async () => (await eyeOf(page))!.x, { timeout: 5000 }).not.toBe(eye0.x === target.x ? -1 : eye0.x);
       await expect.poll(async () => {
         const e = (await eyeOf(page))!;
         return Math.abs(e.x - target.x) <= 150 && Math.abs(e.z - target.z) <= 150;
@@ -102,21 +101,24 @@ for (const vp of VIEWPORTS) {
       expect(eye1.height).toBe(1500);
       expect(eye1.headingDeg, '탭은 방향을 바꾸지 않는다').toBe(eye0.headingDeg);
 
-      // 들어갈 때마다 처음 자리로 선다. 앞쪽 벽 가까이(x 5900)를 누르면 벽에서 400 mm 안쪽(x 5600)으로 당겨진다.
+      // 들어갈 때마다 처음 자리로 선다. 앞쪽 벽 가까이(오른쪽 벽 x 5900, 시선 위의 점)를 누르면 벽에서 400 mm 안쪽으로 당겨진다.
       await page.getByTestId('view-2d').click();
       await expect.poll(async () => (await snapshot(page)).view).toBe('2d');
       const eye2 = await enterWalk(page);
-      expect(eye2.headingDeg).toBe(270);
-      const near = { x: 5900, z: eye2.z };
+      expect({ x: eye2.x, z: eye2.z, h: eye2.headingDeg }).toEqual({ x: eye0.x, z: eye0.z, h: eye0.headingDeg });
+      const t = (5900 - eye2.x) / dir.x;
+      const near = { x: 5900, z: Math.round(eye2.z + dir.z * t) };
       const cn = await floorToClient(page, near);
       expect(inCanvas(cn), `벽 가까운 점 ${JSON.stringify(cn)}가 화면 안`).toBe(true);
       await page.mouse.click(cn.x, cn.y);
-      // 이동 애니메이션(약 0.45초)이 끝나 멈춘 자리를 본다. 도중 값을 한 번 읽으면 5300~5450 사이가 나와 실패한다(T-1118-01).
+      const expected = { x: 5600, z: Math.min(Math.max(near.z, 400), 3600) };
+      // 이동 애니메이션(약 0.45초)이 끝나 멈춘 자리를 본다. 도중 값을 한 번 읽으면 덜 간 값이 나와 실패한다(T-1118-01).
       await expect
         .poll(async () => (await eyeOf(page))!.x, { timeout: 5000 })
         .toBeGreaterThanOrEqual(5600 - 150);
       const e = (await eyeOf(page))!;
       expect(e.x).toBeLessThanOrEqual(5600 + 5);
+      expect(Math.abs(e.z - expected.z)).toBeLessThanOrEqual(150);
     });
 
     test('WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜)', async ({ page }) => {
@@ -125,8 +127,9 @@ for (const vp of VIEWPORTS) {
       await dragItemTo(page, a, { x: 5300, z: 2000 });
       await expect.poll(async () => (await itemById(page, a)).center.x).toBeGreaterThan(5000);
       const A0 = await itemById(page, a);
+      // 처음 자리는 왼쪽 아래 모서리(600, 3400)에서 방 가운데를 보는 방향(SPEC WK-6). 가구 (5300, 2000)은 시야 안이다.
       const eye0 = await enterWalk(page);
-      expect(eye0.headingDeg).toBe(270);
+      expect({ x: eye0.x, z: eye0.z }).toEqual({ x: 600, z: 3400 });
       const box = await canvasBox(page);
       const c = await floorToClient(page, { x: A0.center.x, z: A0.center.z });
       expect(c.x > box.x + 5 && c.x < box.x + box.width - 60 && c.y > box.y + 5 && c.y < box.y + box.height - 5, `가구가 화면 안 ${JSON.stringify(c)}`).toBe(true);

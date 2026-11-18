@@ -13,8 +13,15 @@ import { dragCenter, footprint, grabOffset, settleCenter, snapDistanceMm, snapTo
  * - 미리보기(draft)도 같은 규칙으로 끌고, 놓으면 updateDraft로 위치만 바꾼다. 다른 가구들이 자석 후보다.
  * - 움직이지 않고 떼면(임시 위치가 없거나 원래 위치와 같으면) 그대로 둔다.
  */
-function othersOf(s: ProjectState, itemId: string): Footprint[] {
-  return s.project.items.filter((it) => it.id !== itemId).map((it) => footprint(it));
+function othersOf(s: ProjectState, itemId: string, group: readonly string[] = []): Footprint[] {
+  return s.project.items.filter((it) => it.id !== itemId && !group.includes(it.id)).map((it) => footprint(it));
+}
+
+/** itemId가 함께 고른 가구 묶음에 들어 있으면 나머지 가구의 id들. 아니면 빈 배열. */
+function groupOf(s: ProjectState, itemId: string): string[] {
+  if (s.selectedItemId === null || s.extraSelectedIds.length === 0) return [];
+  const all = [s.selectedItemId, ...s.extraSelectedIds];
+  return all.includes(itemId) ? all.filter((id) => id !== itemId) : [];
 }
 
 /** 끄는 대상: 미리보기(draft)이거나 확정 가구. */
@@ -23,17 +30,24 @@ function findTarget(s: ProjectState, itemId: string) {
 }
 
 export function createPlacementHandlers(getState: () => ProjectState): PlacementHandlers {
-  let drag: { itemId: string; offset: PointMm; raw: PointMm | null; snapMm: number } | null = null;
+  let drag: { itemId: string; offset: PointMm; raw: PointMm | null; snapMm: number; group: string[] } | null = null;
 
   return {
-    onItemPointerDown(itemId, floor) {
+    onItemPointerDown(itemId, floor, additive = false) {
       const s = getState();
       const isDraft = s.draft?.id === itemId;
-      if (!isDraft) s.selectItem(itemId); // 확정 가구를 누르면 미리보기는 store가 버린다
       drag = null;
+      // Shift·Ctrl·Cmd를 누르거나 "여러 개 고르기"가 켜져 있으면 선택에 더하거나 뺄 뿐 끌지 않는다(QA 5-6).
+      if (!isDraft && (additive || s.multiSelect)) {
+        s.toggleItemSelection(itemId);
+        return;
+      }
+      // 함께 고른 가구 중 하나를 누르면 묶음을 그대로 두고 함께 끈다. 아니면 그 가구 하나만 고른다.
+      const group = isDraft ? [] : groupOf(s, itemId);
+      if (!isDraft && group.length === 0) s.selectItem(itemId); // 확정 가구를 누르면 미리보기는 store가 버린다
       const item = isDraft ? s.draft : s.project.items.find((it) => it.id === itemId);
       if (!item) return;
-      drag = { itemId, offset: grabOffset({ x: item.x, z: item.z }, floor), raw: null, snapMm: snapDistanceMm() };
+      drag = { itemId, offset: grabOffset({ x: item.x, z: item.z }, floor), raw: null, snapMm: snapDistanceMm(), group };
     },
 
     onFloorPointerMove(floor, mmPerPx) {
@@ -44,20 +58,21 @@ export function createPlacementHandlers(getState: () => ProjectState): Placement
       const raw = dragCenter(floor, drag.offset);
       drag.snapMm = snapDistanceMm(mmPerPx);
       drag.raw = raw; // 확정은 자석 맞춤 전의 포인터 위치에서 다시 계산한다
-      const at = snapToEdges(item, raw, roomBounds(s.project.room), othersOf(s, item.id), drag.snapMm, wallRects(s.project.room));
+      const at = snapToEdges(item, raw, roomBounds(s.project.room), othersOf(s, item.id, drag.group), drag.snapMm, wallRects(s.project.room));
       s.setDragPreview({ itemId: drag.itemId, x: at.x, z: at.z });
     },
 
     onPointerUp() {
       if (!drag) return;
-      const { itemId, raw, snapMm } = drag;
+      const { itemId, raw, snapMm, group } = drag;
       drag = null;
       const s = getState();
       const preview = s.dragPreview;
       const item = findTarget(s, itemId);
       if (item && preview && preview.itemId === itemId && (preview.x !== item.x || preview.z !== item.z)) {
-        const at = settleCenter(item, raw ?? preview, roomBounds(s.project.room), othersOf(s, itemId), snapMm, wallRects(s.project.room));
+        const at = settleCenter(item, raw ?? preview, roomBounds(s.project.room), othersOf(s, itemId, group), snapMm, wallRects(s.project.room));
         if (s.draft?.id === itemId) s.updateDraft(at);
+        else if (group.length > 0) s.moveItems([itemId, ...group], at.x - item.x, at.z - item.z); // 묶음 전체가 한 단계
         else s.updateItem(itemId, at, { merge: false }); // 끌기는 한 번이 되돌리기 한 단계(D-1118-05)
       }
       if (preview) s.setDragPreview(null);

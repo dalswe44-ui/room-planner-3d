@@ -106,3 +106,31 @@ export function IconPlan(p: IconProps) {
     </Svg>
   );
 }
+
+/** 파일: 모서리가 접힌 종이 */
+export function IconFile(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M14 3.5H7a1.5 1.5 0 0 0-1.5 1.5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z" />
+      <path d="M14 3.5V8h4.5" />
+    </Svg>
+  );
+}
+
+/** 맞춤: 네 모서리 괄호(방 전체 보기) */
+export function IconFit(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4" />
+    </Svg>
+  );
+}
+
+/** 빼기 */
+export function IconMinus(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M5 12h14" />
+    </Svg>
+  );
+}

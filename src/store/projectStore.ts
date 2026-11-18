@@ -58,6 +58,23 @@ export interface ProjectState {
   /** 위치만 바꾸는 연속 변경(방향키 반복)은 1초 안이면 한 단계로 묶는다. 끌기처럼 따로 기록할 변경은 merge: false. */
   updateItem(id: string, patch: FurniturePatch, opts?: { merge?: boolean }): void;
   removeItem(id: string): void;
+  /** 여러 가구를 한 번에 지운다(되돌리기 한 단계). 선택에서도 뺀다. */
+  removeItems(ids: readonly string[]): void;
+  /**
+   * 여러 가구를 같은 거리만큼 옮긴다(함께 고른 가구 끌기·방향키, 2026-11-19 QA 5-6). 되돌리기 한 단계.
+   * merge가 true면 같은 가구 묶음의 1초 안 연속 이동을 한 단계로 묶는다(방향키 반복).
+   */
+  moveItems(ids: readonly string[], dx: number, dz: number, opts?: { merge?: boolean }): void;
+  /**
+   * 주 선택(selectedItemId) 말고 함께 고른 가구들(2026-11-19 QA 5-6). 주 선택이 없으면 빈 배열이다.
+   * selectItem은 이것을 비운다. 저장·되돌리기 대상이 아니다.
+   */
+  extraSelectedIds: string[];
+  /** Shift·Ctrl 누르기나 "여러 개 고르기"에서 가구 하나를 선택에 더하거나 뺀다. */
+  toggleItemSelection(id: string): void;
+  /** 켜져 있으면 가구를 누를 때 선택에 더하거나 뺀다(터치 화면용). */
+  multiSelect: boolean;
+  setMultiSelect(on: boolean): void;
   /**
    * 여러 가구의 자리와 방향을 한 번에 바꾼다(AI 추천 배치). 되돌리기 한 번으로 전부 돌아온다.
    * 없는 id는 무시한다. 선택과 미리보기 가구는 푼다.
@@ -210,6 +227,8 @@ function normalizeItem(item: FurnitureItem): FurnitureItem {
 export const useProjectStore = create<ProjectState>()((set, get) => ({
   project: createDefaultProject(),
   selectedItemId: null,
+  extraSelectedIds: [],
+  multiSelect: false,
   viewMode: '2d',
   dragPreview: null,
   draft: null,
@@ -250,7 +269,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       color: input.color ?? DEFAULT_COLORS[project.items.length % DEFAULT_COLORS.length],
       ...(input.kind && input.kind !== 'box' ? { kind: input.kind } : {}),
     });
-    set((s) => ({ ...commit(s, { ...s.project, items: [...s.project.items, item] }), selectedItemId: id }));
+    set((s) => ({ ...commit(s, { ...s.project, items: [...s.project.items, item] }), selectedItemId: id, extraSelectedIds: [] }));
     return id;
   },
 
@@ -271,20 +290,46 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
         const m = byId.get(it.id);
         return m ? normalizeItem({ ...it, x: m.x, z: m.z, rotationDeg: m.rotationDeg }) : it;
       });
-      return { ...commit(s, { ...s.project, items }), selectedItemId: null, draft: null };
+      return { ...commit(s, { ...s.project, items }), selectedItemId: null, extraSelectedIds: [], draft: null };
     }),
 
-  removeItem: (id) =>
-    set((s) => ({
-      ...commit(s, { ...s.project, items: s.project.items.filter((it) => it.id !== id) }),
-      selectedItemId: s.selectedItemId === id ? null : s.selectedItemId,
-      dragPreview: s.dragPreview?.itemId === id ? null : s.dragPreview,
-    })),
+  removeItem: (id) => get().removeItems([id]),
+
+  removeItems: (ids) =>
+    set((s) => {
+      const gone = new Set(ids);
+      const extras = s.extraSelectedIds.filter((x) => !gone.has(x));
+      const primary = s.selectedItemId !== null && gone.has(s.selectedItemId) ? (extras[0] ?? null) : s.selectedItemId;
+      return {
+        ...commit(s, { ...s.project, items: s.project.items.filter((it) => !gone.has(it.id)) }),
+        selectedItemId: primary,
+        extraSelectedIds: primary === null ? [] : extras.filter((x) => x !== primary),
+        dragPreview: s.dragPreview && gone.has(s.dragPreview.itemId) ? null : s.dragPreview,
+      };
+    }),
+
+  moveItems: (ids, dx, dz, opts) =>
+    set((s) => {
+      const moving = new Set(ids);
+      const items = s.project.items.map((it) => (moving.has(it.id) ? normalizeItem({ ...it, x: it.x + dx, z: it.z + dz }) : it));
+      return commit(s, { ...s.project, items }, opts?.merge ? `moveMany:${[...ids].sort().join(',')}` : null);
+    }),
+
+  toggleItemSelection: (id) =>
+    set((s) => {
+      if (s.selectedItemId === null) return { selectedItemId: id, extraSelectedIds: [], draft: null, selectedStructure: null };
+      if (s.selectedItemId === id) return { selectedItemId: s.extraSelectedIds[0] ?? null, extraSelectedIds: s.extraSelectedIds.slice(1) };
+      if (s.extraSelectedIds.includes(id)) return { extraSelectedIds: s.extraSelectedIds.filter((x) => x !== id) };
+      return { extraSelectedIds: [...s.extraSelectedIds, id], draft: null, selectedStructure: null };
+    }),
+
+  setMultiSelect: (on) => set({ multiSelect: on }),
 
   // 다른 가구를 고르면 확정하지 않은 미리보기는 버린다. 가구를 고르면 구조물 선택은 풀린다.
   selectItem: (id) =>
     set((s) => ({
       selectedItemId: id,
+      extraSelectedIds: [],
       draft: id !== null ? null : s.draft,
       selectedStructure: id !== null ? null : s.selectedStructure,
     })),
@@ -306,7 +351,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       color: input.color ?? DEFAULT_COLORS[project.items.length % DEFAULT_COLORS.length],
       ...(input.kind && input.kind !== 'box' ? { kind: input.kind } : {}),
     });
-    set({ draft, selectedItemId: null, selectedStructure: null, dragPreview: null });
+    set({ draft, selectedItemId: null, extraSelectedIds: [], selectedStructure: null, dragPreview: null });
     return id;
   },
 
@@ -319,6 +364,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
     set((s) => ({
       ...commit(s, { ...s.project, items: [...s.project.items, d] }),
       selectedItemId: d.id,
+      extraSelectedIds: [],
       draft: null,
       dragPreview: null,
     }));
@@ -327,13 +373,14 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
 
   cancelDraft: () => set((s) => ({ draft: null, dragPreview: s.dragPreview && s.draft && s.dragPreview.itemId === s.draft.id ? null : s.dragPreview })),
 
-  setEditMode: (mode) => set({ editMode: mode, selectedStructure: null, wallPreview: null, selectedItemId: null, draft: null, dragPreview: null }),
+  setEditMode: (mode) => set({ editMode: mode, selectedStructure: null, wallPreview: null, selectedItemId: null, extraSelectedIds: [], draft: null, dragPreview: null }),
   setWallPreview: (p) => set({ wallPreview: p }),
 
   selectStructure: (sel) =>
     set((s) => ({
       selectedStructure: sel,
       selectedItemId: sel ? null : s.selectedItemId,
+      extraSelectedIds: sel ? [] : s.extraSelectedIds,
       draft: sel ? null : s.draft,
     })),
 
@@ -346,6 +393,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       ...commit(s, { ...s.project, room: { ...s.project.room, walls: [...s.project.room.walls, wall] } }),
       selectedStructure: { kind: 'wall', id },
       selectedItemId: null,
+      extraSelectedIds: [],
       draft: null,
     }));
     return id;
@@ -393,6 +441,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       ...commit(s, { ...s.project, room: { ...s.project.room, openings: [...s.project.room.openings, opening] } }),
       selectedStructure: { kind: 'opening', id },
       selectedItemId: null,
+      extraSelectedIds: [],
       draft: null,
     }));
     return id;
@@ -422,6 +471,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       ...commit(s, { ...s.project, room: { ...s.project.room, labels: [...s.project.room.labels, label] } }),
       selectedStructure: { kind: 'label', id },
       selectedItemId: null,
+      extraSelectedIds: [],
       draft: null,
     }));
     return id;
@@ -445,13 +495,18 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
     })),
   // 사람 뷰는 둘러보기 전용이라 들어갈 때 선택과 미리보기를 푼다.
   setViewMode: (mode) =>
-    set(mode === 'walk' ? { viewMode: mode, selectedItemId: null, selectedStructure: null, draft: null, dragPreview: null, wallPreview: null } : { viewMode: mode }),
+    set(
+      mode === 'walk'
+        ? { viewMode: mode, selectedItemId: null, extraSelectedIds: [], selectedStructure: null, draft: null, dragPreview: null, wallPreview: null }
+        : { viewMode: mode },
+    ),
   setDragPreview: (preview) => set({ dragPreview: preview }),
 
   replaceProject: (project) =>
     set((s) => ({
       ...commit(s, { ...project, items: project.items.map(normalizeItem) }),
       selectedItemId: null,
+      extraSelectedIds: [],
       dragPreview: null,
       draft: null,
     })),
@@ -498,8 +553,10 @@ function clearMissing(s: ProjectState, p: Project): Partial<ProjectState> {
         : sel.kind === 'opening'
           ? p.room.openings.some((o) => o.id === sel.id)
           : p.room.labels.some((l) => l.id === sel.id));
+  const primary = has(s.selectedItemId) ? s.selectedItemId : null;
   return {
-    selectedItemId: has(s.selectedItemId) ? s.selectedItemId : null,
+    selectedItemId: primary,
+    extraSelectedIds: primary === null ? [] : s.extraSelectedIds.filter(has),
     selectedStructure: structureExists ? sel : null,
     dragPreview: null,
   };

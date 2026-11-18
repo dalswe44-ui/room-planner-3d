@@ -39,6 +39,11 @@ export interface SceneProbeSnapshot {
    * headingDeg는 정수 도(0 이상 360 미만): 0이면 위쪽 벽(-z)을 보고, 위에서 볼 때 반시계가 양수(90이면 왼쪽 벽 -x).
    */
   eye: { x: Mm; z: Mm; height: Mm; headingDeg: number } | null;
+  /**
+   * 평면 뷰에 깔린 배치도 사진 밑그림(2026-11-19 QA 5-3). 그려진 판의 크기(mm)와 불투명도(0 ~ 1). 없으면 null.
+   * 3D·사람 뷰에서는 그리지 않으므로 null이다.
+   */
+  underlay?: { width: Mm; depth: Mm; opacity: number } | null;
 }
 
 export interface SceneProbe {

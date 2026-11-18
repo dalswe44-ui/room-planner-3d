@@ -154,3 +154,32 @@ e2e 테스트가 화면 요소를 찾을 때 쓴다. 모듈은 아래 이름을 
 - `ViewMode`에 'walk' 추가, `WALK_EYE_HEIGHT` 1500 mm. store `setViewMode('walk')`는 선택·미리보기를 푼다.
 - probe `eye`: 사람 뷰에서만 {x, z, height, headingDeg}, 다른 뷰는 null. headingDeg 0은 위쪽 벽(-z)을 봄, 반시계 양수.
 - 사람 뷰에서 장면은 PlacementHandlers와 StructureHandlers를 부르지 않는다. 뷰 전환 버튼 testid는 `view-walk`.
+
+### 2026-11-19 처음 사용자 보완과 추가 기능 (사용자 직접 요청, SPEC 4-8)
+- 데이터(types.ts): `ItemStatus.ceiling?: boolean`(가구 높이 + 띄운 높이 > 천장 높이). 경고 규칙은 `overlap || outside || wall || door || ceiling`(scene/geometry.ts `isWarningStatus`). `PlacementHandlers.onItemPointerDown(itemId, floor, additive?)`: Shift·Ctrl·Cmd를 누른 채 누르면 true. `FurnitureItem.rotationDeg`는 0 ~ 359 정수 아무 값이나 된다(전에는 90도 배수만 만들었다).
+- 단위(units.ts): `normalizeLengthInput(text)`가 전각 문자를 반각으로, 천 단위 쉼표를 지운다. 길이 칸은 이것을 거친 뒤 `parseLength`를 부른다. `parseLength` 자체는 그대로다.
+- 방(room.ts): `pointInRoom(p, corners)`, `roomNotches(corners)`(둘러싼 사각형 안의 방이 아닌 칸들. 직사각형이면 []).
+- store: `extraSelectedIds: string[]`(주 선택 말고 함께 고른 가구), `toggleItemSelection(id)`, `multiSelect`·`setMultiSelect(on)`, `removeItems(ids)`(한 단계), `moveItems(ids, dx, dz, opts?: { merge })`(한 단계, merge면 방향키 반복을 묶음). `selectItem`은 `extraSelectedIds`를 비운다. `removeItem(id)`는 `removeItems([id])`와 같다.
+- probe: `snapshot().underlay?: { width, depth, opacity } | null`(평면 뷰의 배치도 사진 밑그림, 그려진 판에서 읽음).
+- 파일·공유(src/persistence): `projectFileText(project)`, `parseProjectFile(text)`(저장 형식과 Project만 담은 형식 둘 다), `createExampleProject()`, `makeShareLink(project)`(`#p=<base64url(저장 형식 JSON)>`), `parseShareHash(hash)`. 시작할 때 주소에 `#p=`가 있으면 저장본을 불러온 뒤 그 배치로 바꾸고(되돌리기 한 단계) 주소의 #을 지운다.
+- 장면 연결점: `src/scene/capture.ts`의 `captureScene(): Promise<Blob | null>`(지금 장면 PNG). SceneRuntime에 `fitView()`, `zoomBy(factor)`.
+- 사진(photoStore): `underlay: { visible, opacity }`, `setUnderlay(patch)`. 이 브라우저의 설정(localStorage `room-planner-3d/underlay`)이고 프로젝트에 들어가지 않는다.
+
+| data-testid | 어디 | 뜻 |
+|---|---|---|
+| `first-steps`, `first-steps-close`, `first-steps-photo` | 방·가구 탭 맨 위 | 세 단계 안내, 닫기, 배치도 사진 탭 열기 |
+| `save-status` (`data-status` idle·pending·saved·failed) | 헤더 | 자동 저장 표시 |
+| `project-menu`, `project-menu-panel` | 헤더 | 파일 메뉴 단추와 내용 |
+| `project-new`, `project-example`, `project-confirm`, `project-confirm-ok`, `project-confirm-cancel` | 파일 메뉴 | 새로 시작, 예시 방, 화면 안 확인 줄 |
+| `project-export`, `project-import`, `project-import-file`, `project-note` | 파일 메뉴 | JSON 저장·불러오기, 결과 문구 |
+| `project-png`, `project-share`, `share-link-url` | 파일 메뉴 | PNG 저장, 공유 링크 만들기와 그 링크 |
+| `share-note` | 패널 맨 위 | 공유 링크로 열었을 때(또는 링크가 깨졌을 때)의 안내 |
+| `tabpanel` (role=tabpanel) | 패널 | 고른 탭의 내용. 탭 버튼의 id는 `tab-main` 등 testid와 같다 |
+| `warning-live` | 패널 | 선택한 가구의 경고를 읽는 aria-live 영역(화면에는 안 보임) |
+| `scene-label` | 장면 | aria-label에 뷰·방 크기·가구 수·경고 수 |
+| `zoom-in`, `zoom-out`, `view-fit` | 장면 오른쪽 | 확대, 축소, 방 전체 보기(사람 뷰에서는 없음) |
+| `item-bring-inside`, `item-x`, `item-z`, `item-angle`, `item-angle-error` | 선택한 가구 카드 | 방 안으로 가져오기, 중심 위치, 회전 각도 |
+| `item-status-ceiling`, `draft-status-ceiling` | 경고 문구 안 | 천장보다 높음 |
+| `item-walkway` | 선택한 가구 카드 | 통로가 600 mm보다 좁은 방향 |
+| `multi-select-toggle`, `group-card`, `group-count`, `group-delete`, `group-clear` | 가구 목록 | 여러 개 고르기 |
+| `photo-kind-hint`, `photo-file-state`, `underlay-controls`, `underlay-toggle`, `underlay-opacity`, `underlay-opacity-value` | 배치도 사진 탭 | 사진 종류 안내, 파일 상태 글, 평면 밑그림 |
