@@ -14,6 +14,21 @@ export const WALL_THICKNESS_MIN = 50;
 export const WALL_THICKNESS_MAX = 300;
 const MIN_LENGTH = 100;
 export const OUTER_WALL_NAMES = ['위쪽 벽', '오른쪽 벽', '아래쪽 벽', '왼쪽 벽'] as const;
+/**
+ * 바깥 벽 이름. 직사각형 방은 벽 번호 순서대로, ㄱ자 방(벽 6개, 2026-11-19 QA 5-4)은 벽이 바라보는 쪽으로 정하고
+ * 같은 쪽 벽이 둘이면 방 둘레 안쪽에 있는 벽에 "(꺾인 곳)"을 붙인다.
+ */
+export function outerWallName(room: Pick<Room, 'corners' | 'walls'>, index: number): string {
+  if (room.corners.length === 4) return OUTER_WALL_NAMES[index] ?? `바깥 벽 ${index + 1}`;
+  const seg = wallSegment(room, index);
+  if (!seg) return `바깥 벽 ${index + 1}`;
+  const b = roomBounds(room);
+  const horizontal = seg.start.z === seg.end.z;
+  const side = horizontal ? (seg.start.z === b.minZ ? 0 : seg.start.z === b.maxZ ? 2 : seg.normal.z > 0 ? 0 : 2) : seg.start.x === b.maxX ? 1 : seg.start.x === b.minX ? 3 : seg.normal.x < 0 ? 1 : 3;
+  const onEdge = horizontal ? seg.start.z === b.minZ || seg.start.z === b.maxZ : seg.start.x === b.minX || seg.start.x === b.maxX;
+  return onEdge ? OUTER_WALL_NAMES[side] : `${OUTER_WALL_NAMES[side]} (꺾인 곳)`;
+}
+
 const OPENING_TYPE_LABEL: Record<Opening['type'], string> = { door: '문', window: '창문', opening: '뚫린 문틈' };
 const DEFAULT_LABEL_NAME = '구역';
 
@@ -210,7 +225,7 @@ function OuterWallCard({ index, room, unit }: { index: number; room: Room; unit:
   const seg = wallSegment(room, index);
   return (
     <section className="card structure-card" aria-label="바깥 벽" data-testid="outer-wall-card">
-      <h3 className="structure-card__title">{OUTER_WALL_NAMES[index] ?? `바깥 벽 ${index + 1}`}</h3>
+      <h3 className="structure-card__title">{outerWallName(room, index)}</h3>
       <p className="structure-card__info num">
         길이 {formatLength(Math.round(seg?.length ?? 0), unit)} {UNIT_LABEL[unit]}
       </p>

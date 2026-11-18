@@ -1,7 +1,7 @@
 // 앱 전체가 함께 쓰는 상태. 모듈은 이 store의 값과 액션만으로 서로 연결된다. 이 파일은 헤드만 고친다.
 import { create } from 'zustand';
-import { rectCorners, roomBounds } from '../contracts/room';
-import { wallSegment } from '../contracts/structure';
+import { notchOf, rectCorners, roomBounds, roomCorners, type RoomNotch } from '../contracts/room';
+import { openingSpan, wallSegment } from '../contracts/structure';
 import type {
   AreaLabel,
   DisplayUnit,
@@ -51,8 +51,10 @@ export interface ProjectState {
   dragPreview: DragPreview | null;
 
   setDisplayUnit(unit: DisplayUnit): void;
-  /** 직사각형 방의 크기를 정한다. 저장은 corners(다각형)로 한다. */
+  /** 방의 크기(둘러싼 사각형)를 정한다. ㄱ자 방이면 빠진 모서리를 그대로 두고 크기에 맞춘다. 저장은 corners(다각형)로 한다. */
   setRoomSize(size: RoomSizeInput): void;
+  /** 방 모양을 직사각형(null)이나 ㄱ자(빠진 모서리)로 바꾼다(2026-11-19 QA 5-4). 바깥 벽의 문·창문은 같은 자리의 새 벽으로 옮긴다. 한 단계. */
+  setRoomNotch(notch: RoomNotch | null): void;
   /** 가구를 추가하고 새 id를 돌려준다. 위치를 주지 않으면 방 가운데에 놓는다. */
   addItem(input: NewFurnitureInput): string;
   /** 위치만 바꾸는 연속 변경(방향키 반복)은 1초 안이면 한 단계로 묶는다. 끌기처럼 따로 기록할 변경은 merge: false. */
@@ -163,6 +165,63 @@ function fitOpeningsToRoom(room: Project['room']): Opening[] {
   return out;
 }
 
+/** ㄱ자 방의 빠진 길이 최소값과, 빠지고 남는 쪽의 최소 길이(mm) */
+export const NOTCH_MIN: Mm = 100;
+export const NOTCH_REST_MIN: Mm = 300;
+
+/** 빠진 모서리를 방 크기에 맞춰 줄인다. 들어갈 수 없으면 null(직사각형). */
+function fitNotch(notch: RoomNotch | null, width: Mm, depth: Mm): RoomNotch | null {
+  if (!notch) return null;
+  const w = Math.min(Math.round(notch.w), width - NOTCH_REST_MIN);
+  const d = Math.min(Math.round(notch.d), depth - NOTCH_REST_MIN);
+  return w >= NOTCH_MIN && d >= NOTCH_MIN ? { corner: notch.corner, w, d } : null;
+}
+
+/**
+ * 방 모양이 바뀌어 바깥 벽 번호가 달라질 때, 바깥 벽의 문·창문을 같은 줄(가로·세로, 같은 좌표) 위에서 그 가운데를 품는 새 벽으로 옮긴다.
+ * 그런 벽이 없으면(빠진 쪽에 있던 문) 지운다. 칸막이 벽의 개구부는 그대로 둔다.
+ */
+function remapOuterOpenings(prev: Project['room'], next: Project['room']): Opening[] {
+  const out: Opening[] = [];
+  for (const o of prev.openings) {
+    if (typeof o.wall !== 'number') {
+      out.push(o);
+      continue;
+    }
+    const span = openingSpan(prev, o);
+    if (!span) continue;
+    const mid = { x: (span.from.x + span.to.x) / 2, z: (span.from.z + span.to.z) / 2 };
+    const horizontal = span.from.z === span.to.z;
+    let placed: Opening | null = null;
+    for (let j = 0; j < next.corners.length && !placed; j++) {
+      const seg = wallSegment(next, j);
+      if (!seg || (seg.start.z === seg.end.z) !== horizontal) continue;
+      if (horizontal ? seg.start.z !== mid.z : seg.start.x !== mid.x) continue;
+      const t = (p: { x: number; z: number }) => (p.x - seg.start.x) * seg.dir.x + (p.z - seg.start.z) * seg.dir.z;
+      const tm = t(mid);
+      if (tm <= 0 || tm >= seg.length) continue;
+      placed = { ...o, wall: j, offset: Math.round(Math.min(t(span.from), t(span.to))) };
+    }
+    if (placed) out.push(placed);
+  }
+  return out;
+}
+
+/** 방 크기·모양 바꾸기의 공통 부분. 칸막이는 둘러싼 사각형 안으로 자르고, 문·창문은 벽 안으로 맞춘다. */
+function resizeRoom(s: ProjectState, width: number, depth: number, ceilingHeight: number, notch: RoomNotch | null) {
+  const w = toMm(width);
+  const d = toMm(depth);
+  const prev = s.project.room;
+  const fitted = fitNotch(notch, w, d);
+  const before = notchOf(prev.corners);
+  const corners = roomCorners(w, d, fitted);
+  const walls = fitWallsToRoom(prev.walls, w, d);
+  const room = { ...prev, ceilingHeight: toMm(ceilingHeight), corners, walls };
+  const sameShape = prev.corners.length === corners.length && (before?.corner ?? null) === (fitted?.corner ?? null);
+  const openings = sameShape ? prev.openings : remapOuterOpenings(prev, room);
+  return commit(s, { ...s.project, room: { ...room, openings: fitOpeningsToRoom({ ...room, openings }) } });
+}
+
 /** 되돌리기 기록의 최대 개수 */
 export const HISTORY_LIMIT = 100;
 /** 같은 가구의 위치만 바뀌는 연속 변경(방향키 반복 등)을 한 단계로 묶는 시간(ms) */
@@ -240,13 +299,12 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
 
   setDisplayUnit: (unit) => set((s) => ({ project: { ...s.project, displayUnit: unit } })),
 
-  setRoomSize: ({ width, depth, ceilingHeight }) =>
+  setRoomSize: ({ width, depth, ceilingHeight }) => set((s) => resizeRoom(s, width, depth, ceilingHeight, notchOf(s.project.room.corners))),
+
+  setRoomNotch: (notch) =>
     set((s) => {
-      const w = toMm(width);
-      const d = toMm(depth);
-      const walls = fitWallsToRoom(s.project.room.walls, w, d);
-      const room = { ...s.project.room, ceilingHeight: toMm(ceilingHeight), corners: rectCorners(w, d), walls };
-      return commit(s, { ...s.project, room: { ...room, openings: fitOpeningsToRoom(room) } });
+      const b = roomBounds(s.project.room);
+      return resizeRoom(s, b.width, b.depth, s.project.room.ceilingHeight, notch);
     }),
 
   addItem: (input) => {

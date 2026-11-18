@@ -183,3 +183,11 @@ e2e 테스트가 화면 요소를 찾을 때 쓴다. 모듈은 아래 이름을 
 | `item-walkway` | 선택한 가구 카드 | 통로가 600 mm보다 좁은 방향 |
 | `multi-select-toggle`, `group-card`, `group-count`, `group-delete`, `group-clear` | 가구 목록 | 여러 개 고르기 |
 | `photo-kind-hint`, `photo-file-state`, `underlay-controls`, `underlay-toggle`, `underlay-opacity`, `underlay-opacity-value` | 배치도 사진 탭 | 사진 종류 안내, 파일 상태 글, 평면 밑그림 |
+
+### 2026-11-19 ㄱ자 방 (SPEC 4-8 LS-1)
+- room.ts: `NotchCorner`('tl'|'tr'|'br'|'bl'), `RoomNotch { corner, w, d }`, `roomCorners(width, depth, notch | null)`(notch가 없으면 `rectCorners`와 같다, 있으면 6개), `notchOf(corners)`(ㄱ자면 빠진 모서리, 아니면 null).
+- store: `setRoomNotch(notch | null)`(되돌리기 한 단계). `setRoomSize`는 ㄱ자를 유지한다. 빠진 길이는 100 이상, 방에서 300 이상 남게 줄인다(`NOTCH_MIN`, `NOTCH_REST_MIN`). 모양이 바뀌면 바깥 벽의 개구부를 같은 줄 위의 새 벽으로 옮기고, 맞는 벽이 없으면 지운다.
+- 벽 번호: ㄱ자 방의 벽 i도 corners[i] → corners[i+1]이다. 벽 0은 위쪽 변 중 첫째. "벽 0 ~ 3까지 거리"(`item-dist-*`, `scene-dist-*`)는 벽 번호가 아니라 위·오른쪽·아래·왼쪽 네 방향의 가장 가까운 벽 면이다(직사각형 방에서는 전과 같다).
+- placement: `obstacleRects(room)` = 칸막이 + 빠진 칸. 자석·거리·통로·빈 자리에 쓴다. `isOutsideRoom(f, bounds, room?)`는 빠진 칸과 겹친 것도 이탈이다.
+- probe: `snapshot().floorCorners?: { x, z }[]`(그려진 바닥 다각형). `room.width`·`depth`는 둘러싼 사각형이다.
+- data-testid: `room-shape-rect`, `room-shape-l`(aria-pressed), `room-notch-fields`, `room-notch-corner`(select), `room-notch-w`, `room-notch-d`.

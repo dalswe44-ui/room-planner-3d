@@ -137,6 +137,14 @@ export function wallRects(room: Pick<PlacementRoom, 'walls'>): Footprint[] {
   return room.walls.map(interiorWallRect);
 }
 
+/**
+ * 가구가 붙거나 거리를 잴 벽 면들: 칸막이 벽과, ㄱ자 방에서 둘러싼 사각형 안의 방이 아닌 칸(2026-11-19 QA 5-4).
+ * 자석 맞춤·벽까지 거리·통로 폭·빈 자리 찾기에 쓴다. 겹침 경고(wall)는 칸막이만이다(빠진 칸은 방 밖으로 센다).
+ */
+export function obstacleRects(room: Pick<PlacementRoom, 'walls' | 'corners'>): Footprint[] {
+  return [...wallRects(room), ...roomNotches(room.corners)];
+}
+
 /** 문이 열리는 자리의 사각형들. 창문·문틈은 없다. */
 export function doorRects(room: Pick<PlacementRoom, 'corners' | 'walls' | 'openings'>): Footprint[] {
   return room.openings.flatMap((o) => doorSwingRect(room, o) ?? []);

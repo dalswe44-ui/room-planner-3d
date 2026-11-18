@@ -7,7 +7,7 @@ import type { Mm } from '../contracts/types';
 import { wallSegment } from '../contracts/structure';
 import { formatLength, formatLengthWithUnit } from '../contracts/units';
 import { useProjectStore } from '../store/projectStore';
-import { WALL_THICKNESS_MM, wallSegments } from './geometry';
+import { WALL_THICKNESS_MM } from './geometry';
 import { chooseOverlayPlacement, itemScreenRect, projectToPx, roomDimLines, wallDimLine, wallDistanceLines, type DimLine, type PxPoint } from './overlayMath';
 import { straightenPreview } from './structureGeometry';
 import type { SceneRuntime } from './sceneProbe';
@@ -17,6 +17,12 @@ const TICK_PX = 10;
 /** 방 치수선을 벽 바깥 면에서 띄우는 거리(px) */
 const ROOM_DIM_OFFSET_PX = 20;
 const WALL_INDEXES = [0, 1, 2, 3] as const;
+const FOUR_DIRECTIONS = [
+  { x: 0, z: -1 },
+  { x: 1, z: 0 },
+  { x: 0, z: 1 },
+  { x: -1, z: 0 },
+] as const;
 /** 벽 길이 치수선을 벽 면에서 띄우는 거리(px) */
 const WALL_DIM_OFFSET_PX = 16;
 
@@ -80,7 +86,8 @@ export function SceneOverlays({ runtime, selectionOverlay, wallDistances, onLabe
   const showDists = plan && selected !== null && wallDistances != null;
 
   const bounds = useMemo(() => roomBounds(project.room), [project.room]);
-  const outward = useMemo(() => wallSegments(project.room.corners).map((w) => w.outward), [project.room.corners]);
+  // 거리는 위·오른쪽·아래·왼쪽 네 방향이다(ㄱ자 방은 바깥 벽이 6개라 벽 번호로 정하지 않는다, 2026-11-19 QA 5-4).
+  const outward = FOUR_DIRECTIONS;
 
   const roomPathRef = useRef<SVGPathElement>(null);
   const distPathRef = useRef<SVGPathElement>(null);

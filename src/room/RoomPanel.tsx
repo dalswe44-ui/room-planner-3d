@@ -8,9 +8,9 @@ import {
   ROOM_SIDE_USUAL_MIN,
 } from '../contracts/limits';
 import { useState } from 'react';
-import { roomBounds } from '../contracts/room';
+import { notchOf, roomBounds, type NotchCorner, type RoomNotch } from '../contracts/room';
 import { formatLength, UNIT_LABEL } from '../contracts/units';
-import { useProjectStore } from '../store/projectStore';
+import { NOTCH_MIN, NOTCH_REST_MIN, useProjectStore } from '../store/projectStore';
 import { LengthInput } from '../ui/LengthInput';
 import './room.css';
 
@@ -25,10 +25,11 @@ export function RoomPanel() {
   const { width, depth } = roomBounds(room);
   const ceilingHeight = room.ceilingHeight;
 
-  // 방을 줄이면 store가 칸막이 벽·문을 방 안으로 맞춘다. 무엇이 바뀌었는지 알린다(D-1118-02).
-  const setRoomSize = (size: { width: number; depth: number; ceilingHeight: number }) => {
+  const notch = notchOf(room.corners);
+  // 방을 줄이거나 모양을 바꾸면 store가 칸막이 벽·문을 방 안으로 맞춘다. 무엇이 바뀌었는지 알린다(D-1118-02).
+  const withFitNote = (change: () => void) => {
     const before = useProjectStore.getState().project.room;
-    useProjectStore.getState().setRoomSize(size);
+    change();
     const after = useProjectStore.getState().project.room;
     const wallsGone = before.walls.length - after.walls.length;
     const wallsCut = after.walls.filter((w) => !before.walls.includes(w)).length;
@@ -37,11 +38,14 @@ export function RoomPanel() {
     const parts = [
       wallsGone > 0 && `방 밖으로 나간 칸막이 벽 ${wallsGone}개를 지웠습니다`,
       wallsCut > 0 && `칸막이 벽 ${wallsCut}개를 방 안으로 잘랐습니다`,
-      openingsGone > 0 && `지운 벽에 있던 문·창문 ${openingsGone}개도 지웠습니다`,
+      openingsGone > 0 && `벽이 없어진 문·창문 ${openingsGone}개도 지웠습니다`,
       openingsMoved > 0 && `문·창문 ${openingsMoved}개를 벽 안으로 옮기거나 좁혔습니다`,
     ].filter(Boolean);
     setFitNote(parts.length > 0 ? `${parts.join('. ')}. 되돌리기로 되살릴 수 있습니다.` : null);
   };
+  const setRoomSize = (size: { width: number; depth: number; ceilingHeight: number }) => withFitNote(() => useProjectStore.getState().setRoomSize(size));
+  const setNotch = (n: RoomNotch | null) => withFitNote(() => useProjectStore.getState().setRoomNotch(n));
+  const half = (mm: number) => Math.round(mm / 20) * 10;
 
   return (
     <section className="room-panel" aria-label="방 치수">
@@ -76,6 +80,57 @@ export function RoomPanel() {
           onCommit={(mm) => setRoomSize({ width, depth, ceilingHeight: mm })}
         />
       </div>
+      <div className="room-panel__shape" role="group" aria-label="방 모양">
+        <span className="room-panel__shape-label">모양</span>
+        <button type="button" className="chip" data-testid="room-shape-rect" aria-pressed={notch === null} onClick={() => notch && setNotch(null)}>
+          직사각형
+        </button>
+        <button
+          type="button"
+          className="chip"
+          data-testid="room-shape-l"
+          aria-pressed={notch !== null}
+          onClick={() => !notch && setNotch({ corner: 'br', w: half(width), d: half(depth) })}
+        >
+          ㄱ자
+        </button>
+      </div>
+      {notch && (
+        <div className="room-panel__fields" data-testid="room-notch-fields">
+          <div className="room-panel__select">
+            <label htmlFor="room-notch-corner">빠진 모서리</label>
+            <select
+              id="room-notch-corner"
+              data-testid="room-notch-corner"
+              value={notch.corner}
+              onChange={(e) => setNotch({ ...notch, corner: e.target.value as NotchCorner })}
+            >
+              <option value="br">오른쪽 아래</option>
+              <option value="bl">왼쪽 아래</option>
+              <option value="tr">오른쪽 위</option>
+              <option value="tl">왼쪽 위</option>
+            </select>
+          </div>
+          <LengthInput
+            label="빠진 폭"
+            valueMm={notch.w}
+            unit={unit}
+            min={NOTCH_MIN}
+            max={width - NOTCH_REST_MIN}
+            testId="room-notch-w"
+            onCommit={(mm) => setNotch({ ...notch, w: mm })}
+          />
+          <LengthInput
+            label="빠진 깊이"
+            valueMm={notch.d}
+            unit={unit}
+            min={NOTCH_MIN}
+            max={depth - NOTCH_REST_MIN}
+            testId="room-notch-d"
+            onCommit={(mm) => setNotch({ ...notch, d: mm })}
+          />
+        </div>
+      )}
       {fitNote && (
         <p className="room-panel__warning" role="status" data-testid="room-fit-note">
           {fitNote}

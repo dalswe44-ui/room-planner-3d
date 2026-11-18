@@ -120,7 +120,8 @@ export function walkStart(corners: readonly PointMm[], doors: readonly { at: Poi
     x: Math.round(corners.reduce((s, c) => s + c.x, 0) / corners.length),
     z: Math.round(corners.reduce((s, c) => s + c.z, 0) / corners.length),
   };
-  const look = [center, mean].find((p) => pointInPolygon(p, corners)) ?? corners[0];
+  // 바라볼 곳: 다각형의 무게중심(ㄱ자 방에서는 넓은 쪽 안), 없으면 둘러싼 사각형의 가운데, 꼭짓점 평균
+  const look = [areaCentroid(corners), center, mean].find((p) => p !== null && pointInPolygon(p, corners)) ?? corners[0];
   const m = WALK_START_MARGIN_MM;
   const candidates: PointMm[] = [
     ...doors.map((d) => ({ x: d.at.x + d.inward.x * m, z: d.at.z + d.inward.z * m })),
@@ -133,6 +134,23 @@ export function walkStart(corners: readonly PointMm[], doors: readonly { at: Poi
   const at = candidates.find((p) => pointInPolygon(p, corners) && free(p) && Math.hypot(look.x - p.x, look.z - p.z) > 300);
   if (!at) return { x: look.x, z: look.z, headingDeg: b.width >= b.depth ? 270 : 0, pitchDeg: WALK_START_PITCH_DEG };
   return { x: at.x, z: at.z, headingDeg: headingDegOf(look.x - at.x, look.z - at.z), pitchDeg: WALK_START_PITCH_DEG };
+}
+
+/** 다각형 넓이의 무게중심(정수 mm). 넓이가 0이면 null */
+function areaCentroid(corners: readonly PointMm[]): PointMm | null {
+  let a2 = 0;
+  let cx = 0;
+  let cz = 0;
+  for (let i = 0; i < corners.length; i++) {
+    const p = corners[i];
+    const q = corners[(i + 1) % corners.length];
+    const cross = p.x * q.z - q.x * p.z;
+    a2 += cross;
+    cx += (p.x + q.x) * cross;
+    cz += (p.z + q.z) * cross;
+  }
+  if (a2 === 0) return null;
+  return { x: Math.round(cx / (3 * a2)), z: Math.round(cz / (3 * a2)) };
 }
 
 /** 키 하나에 움직이는 거리(mm)와 도는 각도(도) */

@@ -1,6 +1,7 @@
 // AI 추천 배치 계약 (2026-11-17 사용자 요청 16:32: "공부하는 환경처럼 배치하고 싶어" 같은 목적을 적으면 AI가 배치를 추천).
 // 앱(아티팩트의 sample)과 서버 함수(api/suggest-layout.ts)가 같은 지시문을 쓰도록 여기서 만든다.
 // AI는 지금 있는 가구를 옮기고 돌리기만 한다. 가구를 더하거나 빼거나 크기를 바꾸지 않는다.
+import { roomNotches } from './room';
 import { doorSwingRect, interiorWallRect, openingSpan } from './structure';
 import type { FurnitureItem, Mm, Room } from './types';
 
@@ -45,6 +46,16 @@ export type SuggestItem = Pick<FurnitureItem, 'name' | 'kind' | 'w' | 'd' | 'h' 
 const mm = (v: number): Mm => Math.round(v);
 
 /** 방 꼭짓점의 경계 상자 크기. 지금 방은 직사각형이다. */
+/**
+ * ㄱ자 방(2026-11-19 QA 5-4)이면 둘러싼 사각형 안에서 방이 아닌 칸을 알리는 줄(끝에 줄바꿈 포함). 직사각형이면 빈 글자라 지시문이 전과 같다.
+ */
+function notchLines(room: Pick<Room, 'corners'>): string {
+  const notches = roomNotches(room.corners);
+  if (notches.length === 0) return '';
+  const parts = notches.map((n) => `x ${n.minX} ~ ${n.maxX}, z ${n.minZ} ~ ${n.maxZ}`);
+  return `- 이 방은 직사각형이 아닙니다. 다음 사각형은 방이 아니므로 가구가 들어가면 안 됩니다: ${parts.join(' / ')}.\n`;
+}
+
 export function suggestRoomSize(room: Pick<Room, 'corners'>): { width: Mm; depth: Mm } {
   const xs = room.corners.map((c) => c.x);
   const zs = room.corners.map((c) => c.z);
@@ -99,7 +110,7 @@ export function buildSuggestPrompt(goal: string, room: SuggestRoom, items: reado
 - 왼쪽 위 모서리가 (0, 0)이고 오른쪽으로 갈수록 x가, 아래쪽으로 갈수록 z가 커집니다.
 - 방 크기는 가로(x) ${width}, 세로(z) ${depth}입니다.
 - 위쪽 벽은 z = 0, 아래쪽 벽은 z = ${depth}, 왼쪽 벽은 x = 0, 오른쪽 벽은 x = ${width}입니다.
-
+${notchLines(room)}
 방에 고정된 것
 ${fixed.length > 0 ? fixed.join('\n') : '- 없음 (문과 창문 위치를 모릅니다)'}
 

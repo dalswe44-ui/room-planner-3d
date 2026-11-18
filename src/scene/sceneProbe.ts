@@ -1,5 +1,5 @@
 // window.__sceneProbe 구현. store 값이 아니라 장면에 실제로 그려진 three.js 객체에서 읽는다.
-import { Box3, BoxGeometry, Camera, MathUtils, Mesh, Object3D, OrthographicCamera, Vector3 } from 'three';
+import { Box3, BoxGeometry, Camera, MathUtils, Mesh, Object3D, OrthographicCamera, Vector3, type ShapeGeometry } from 'three';
 import type { OrbitControls } from '@react-three/drei';
 import type { RootState } from '@react-three/fiber';
 import type { ComponentRef, RefObject } from 'react';
@@ -130,7 +130,20 @@ export function readSnapshot(scene: Object3D, camera: Camera, extras: SnapshotEx
     editMode: extras.editMode ?? 'furniture',
     eye: isWalkCamera(camera) ? readEye(camera) : null,
     underlay,
+    floorCorners: floors[0] ? readFloorCorners(floors[0]) : [],
   };
+}
+
+/** 바닥 메시(ShapeGeometry, x축으로 -90도 돌림)의 윤곽 꼭짓점. Shape의 y가 -z다. */
+function readFloorCorners(floor: Mesh): { x: Mm; z: Mm }[] {
+  const shapes = (floor.geometry as ShapeGeometry).parameters?.shapes;
+  const shape = Array.isArray(shapes) ? shapes[0] : shapes;
+  if (!shape) return [];
+  const pts = shape.getPoints();
+  const out = pts.map((p) => ({ x: worldToMm(p.x + floor.position.x), z: worldToMm(-p.y + floor.position.z) }));
+  // 닫는 점(처음과 같은 점)은 뺀다
+  if (out.length > 1 && out[0].x === out[out.length - 1].x && out[0].z === out[out.length - 1].z) out.pop();
+  return out;
 }
 
 /** 사람 뷰의 눈: 실제 카메라의 위치와 바라보는 방향에서 읽는다. */

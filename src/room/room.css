@@ -29,3 +29,41 @@
   line-height: 1.45;
   color: var(--ink);
 }
+
+/* 방 모양(2026-11-19 QA 5-4) */
+.room-panel__shape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+
+.room-panel__shape-label {
+  min-width: 64px;
+  font-size: 14px;
+}
+
+.room-panel__shape .chip[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+
+.room-panel__select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.room-panel__select select {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  font: inherit;
+}

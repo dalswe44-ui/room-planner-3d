@@ -44,6 +44,8 @@ export interface SceneProbeSnapshot {
    * 3D·사람 뷰에서는 그리지 않으므로 null이다.
    */
   underlay?: { width: Mm; depth: Mm; opacity: number } | null;
+  /** 그려진 바닥 다각형의 꼭짓점(mm, 그린 순서). 직사각형이면 4개, ㄱ자 방이면 6개(2026-11-19 QA 5-4) */
+  floorCorners?: { x: Mm; z: Mm }[];
 }
 
 export interface SceneProbe {

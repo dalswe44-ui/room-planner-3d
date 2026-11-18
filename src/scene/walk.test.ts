@@ -59,6 +59,20 @@ describe('walkStart (2026-11-19 QA 4-3)', () => {
     const s = walkStart(rectCorners(5000, 4000), [], [{ minX: 0, maxX: 1200, minZ: 3000, maxZ: 4000 }]);
     expect({ x: s.x, z: s.z }).toEqual({ x: 600, z: 600 });
   });
+  it('ㄱ자 방은 넓은 쪽 안의 무게중심을 본다(빠진 모서리 꼭짓점이 아니라)', () => {
+    const L = [
+      { x: 0, z: 0 },
+      { x: 3600, z: 0 },
+      { x: 3600, z: 1500 },
+      { x: 1800, z: 1500 },
+      { x: 1800, z: 3000 },
+      { x: 0, z: 3000 },
+    ];
+    const s = walkStart(L);
+    expect({ x: s.x, z: s.z }).toEqual({ x: 600, z: 2400 });
+    // (600, 2400)에서 (1500, 1250)을 보는 방향
+    expect(s.headingDeg).toBe(headingDegOf(900, -1150));
+  });
   it('설 곳이 없으면 방 가운데에서 긴 쪽을 본다', () => {
     const all = [{ minX: 0, maxX: 5000, minZ: 0, maxZ: 4000 }];
     expect(walkStart(rectCorners(5000, 4000), [], all)).toEqual({ x: 2500, z: 2000, headingDeg: 270, pitchDeg: -12 });

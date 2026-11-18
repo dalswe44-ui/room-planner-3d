@@ -20,8 +20,8 @@ import {
   narrowSides,
   nextRotation,
   ROTATE_STEP_DEG,
+  obstacleRects,
   WALKWAY_MIN_MM,
-  wallRects,
 } from './placement';
 import { useItemStatuses } from './useItemStatuses';
 import { useSelectedWallDistances } from './useSelectedWallDistances';
@@ -50,7 +50,7 @@ function freeSpotFor(size: Pick<FurnitureItem, 'w' | 'd'>, from?: PointMm) {
     roomBounds(project.room),
     project.items.map((it) => footprint(it)),
     from,
-    [...wallRects(project.room), ...doorRects(project.room)],
+    [...obstacleRects(project.room), ...doorRects(project.room)],
   );
 }
 
@@ -360,7 +360,7 @@ function WalkwayNote({ item, unit }: { item: FurnitureItem; unit: DisplayUnit })
   const preview = useProjectStore((s) => s.dragPreview);
   const narrow = useMemo(() => {
     const others = items.filter((it) => it.id !== item.id).map((it) => currentFootprint(it, preview));
-    return narrowSides(clearances(currentFootprint(item, preview), roomBounds(room), wallRects(room), others));
+    return narrowSides(clearances(currentFootprint(item, preview), roomBounds(room), obstacleRects(room), others));
   }, [item, items, room, preview]);
   if (narrow.length === 0) return null;
   return (

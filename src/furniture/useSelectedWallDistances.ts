@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { roomBounds } from '../contracts/room';
 import type { Mm } from '../contracts/types';
 import { useProjectStore } from '../store/projectStore';
-import { currentFootprint, wallDistances, wallRects } from './placement';
+import { currentFootprint, obstacleRects, wallDistances } from './placement';
 
 export function useSelectedWallDistances(): readonly [Mm, Mm, Mm, Mm] | null {
   const items = useProjectStore((s) => s.project.items);
@@ -14,6 +14,6 @@ export function useSelectedWallDistances(): readonly [Mm, Mm, Mm, Mm] | null {
   const preview = useProjectStore((s) => s.dragPreview);
   return useMemo(() => {
     const item = draft ?? items.find((it) => it.id === selectedItemId);
-    return item ? wallDistances(currentFootprint(item, preview), roomBounds({ corners }), wallRects({ walls })) : null;
+    return item ? wallDistances(currentFootprint(item, preview), roomBounds({ corners }), obstacleRects({ walls, corners })) : null;
   }, [items, selectedItemId, draft, corners, walls, preview]);
 }
