@@ -23,3 +23,5 @@
 | X-1 | 2026-11-18 | SPEC 4절 X-1 | 공개 URL을 로그인 없는 새 창에서 엶 | 로그인 없이 `scene-canvas`와 `room-width`가 보임 | 공개 URL이 없음. 배포본은 비공개 아티팩트뿐 | 중간(배포 미완) | 사용자·헤드 (DEPLOY.md) | `x01-artifact-no-login.png` | 열림 |
 
 관찰(2026-11-18, 결함 아님): SPEC W-1의 "B를 두 번 추가(둘 다 방 가운데) → 둘 다 warning true"는 4-2절의 빈 자리 배치와 맞지 않는다(둘째 B는 (1800, 500)에 놓이고 경고 없음). e2e는 끌어서 겹치게 만들어 확인한다. SPEC 문구 정정은 spec-report 몫.
+
+2026-11-19 갱신(헤드, 사용자 직접 요청): D-1118-01 ~ D-1118-04는 e2e로도 확인한다(tests/e2e/fixes-1118.spec.ts의 S-4 깨진 파일, RF-1, RF-2, DR-W4, WK-5, 데스크톱·모바일 10개 통과). 위 관찰의 SPEC W-1 문구와 QA 보고서의 DOC-01 ~ DOC-04는 docs/SPEC.md·docs/CONTRACT.md에서 고쳤다.

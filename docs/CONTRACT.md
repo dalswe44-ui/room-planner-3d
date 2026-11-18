@@ -26,16 +26,16 @@
 
 ## 4. 상태 저장소 (`src/store/projectStore.ts`)
 
-`useProjectStore`의 값: `project`, `selectedItemId`, `viewMode`(`'2d' | '3d'`), `dragPreview`.
+`useProjectStore`의 값: `project`, `selectedItemId`, `viewMode`(`'2d' | '3d' | 'walk'`. 'walk'는 사람 뷰로 2026-11-17에 더했다. 아래 "사람 뷰" 절), `dragPreview`.
 
 액션:
 
 | 액션 | 하는 일 |
 |---|---|
 | `setDisplayUnit(unit)` | 표시 단위만 바꾼다. 저장된 mm는 그대로다 |
-| `setRoomSize({ width, depth, ceilingHeight })` | 직사각형 방의 크기를 정하고 `corners`를 다시 만든다 |
-| `addItem({ name, w, d, h, ... })` | 가구를 추가하고 id를 돌려준다. 위치가 없으면 방 가운데. 추가한 가구를 선택한다 |
-| `updateItem(id, patch)` | 길이는 정수 mm로, 회전은 0 이상 360 미만 정수로 맞춰 저장한다 |
+| `setRoomSize({ width, depth, ceilingHeight })` | 직사각형 방의 크기를 정하고 `corners`를 다시 만든다. 칸막이 벽을 새 방 안으로 자르고, 방 밖으로 나가거나 100 mm보다 짧아진 칸막이와 그 개구부를 지우며, 남은 개구부는 벽 안으로 옮기거나 벽 길이로 좁힌다(D-1118-02). 되돌리기 한 단계 |
+| `addItem({ name, w, d, h, ... })` | 가구를 추가하고 id를 돌려준다. 위치가 없으면 방 가운데(화면의 추가 버튼은 빈 자리를 찾아 위치를 넘긴다). 추가한 가구를 선택한다 |
+| `updateItem(id, patch, opts?: { merge?: boolean })` | 길이는 정수 mm로, 회전은 0 이상 360 미만 정수로 맞춰 저장한다. `merge`의 기본값은 true: patch가 x·z뿐이고 같은 가구에 1초 안에 이어지면 되돌리기 한 단계로 묶는다(방향키 반복 이동). 끌기 확정(usePlacement)은 `merge: false`라 끌기 한 번이 한 단계다(D-1118-05, 2026-11-18 추가) |
 | `removeItem(id)` | 선택과 끌기 상태도 함께 지운다 |
 | `selectItem(id \| null)` | |
 | `setViewMode(mode)` | |
