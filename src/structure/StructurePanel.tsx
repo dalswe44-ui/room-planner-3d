@@ -28,13 +28,45 @@ function startEndName(room: Room, ref: WallRef): string {
   return s.dir.z >= 0 ? '위쪽' : '아래쪽';
 }
 
-/** 벽 가운데에 기본 폭으로(벽이 짧으면 폭을 줄여) 문·창문을 넣는다. 넣은 개구부는 store가 선택한다. */
-function addOpeningTo(ref: WallRef, type: 'door' | 'window') {
+/**
+ * 벽 위 빈 구간 중 벽 가운데에 가장 가까운 곳에 문·창문을 넣을 offset. 이미 있는 개구부와 겹치지 않는다.
+ * 빈 구간이 폭보다 모두 좁으면 null.
+ */
+export function freeOpeningOffset(room: Room, ref: WallRef, width: number): number | null {
+  const seg = wallSegment(room, ref);
+  if (!seg) return null;
+  const length = Math.round(seg.length);
+  const taken = room.openings
+    .filter((o) => o.wall === ref)
+    .map((o) => [o.offset, o.offset + o.width] as const)
+    .sort((a, b) => a[0] - b[0]);
+  const gaps: [number, number][] = [];
+  let from = 0;
+  for (const [a, b] of taken) {
+    if (a > from) gaps.push([from, a]);
+    from = Math.max(from, b);
+  }
+  if (from < length) gaps.push([from, length]);
+  const center = (length - width) / 2;
+  let best: number | null = null;
+  for (const [a, b] of gaps) {
+    if (b - a < width) continue;
+    const offset = Math.round(Math.max(a, Math.min(b - width, center)));
+    if (best === null || Math.abs(offset - center) < Math.abs(best - center)) best = offset;
+  }
+  return best;
+}
+
+/** 벽의 빈 구간에 기본 폭으로(벽이 짧으면 폭을 줄여) 문·창문을 넣는다. 넣은 개구부는 store가 선택한다. 빈자리가 없으면 false. */
+function addOpeningTo(ref: WallRef, type: 'door' | 'window'): boolean {
   const s = useProjectStore.getState();
   const seg = wallSegment(s.project.room, ref);
-  if (!seg) return;
+  if (!seg) return false;
   const width = Math.min(type === 'door' ? DEFAULT_DOOR.width : DEFAULT_WINDOW.width, Math.round(seg.length));
-  s.addOpening({ type, wall: ref, width, offset: Math.round((seg.length - width) / 2) });
+  const offset = freeOpeningOffset(s.project.room, ref, width);
+  if (offset === null) return false;
+  s.addOpening({ type, wall: ref, width, offset });
+  return true;
 }
 
 export function StructurePanel() {
@@ -106,17 +138,26 @@ export function StructurePanel() {
 }
 
 function AddOpeningButtons({ wall }: { wall: WallRef }) {
+  const [full, setFull] = useState(false);
+  const add = (type: 'door' | 'window') => setFull(!addOpeningTo(wall, type));
   return (
-    <div className="structure-actions">
-      <button type="button" className="btn" data-testid="wall-add-door" onClick={() => addOpeningTo(wall, 'door')}>
-        <IconPlus size={18} />
-        문 추가
-      </button>
-      <button type="button" className="btn" data-testid="wall-add-window" onClick={() => addOpeningTo(wall, 'window')}>
-        <IconPlus size={18} />
-        창문 추가
-      </button>
-    </div>
+    <>
+      <div className="structure-actions">
+        <button type="button" className="btn" data-testid="wall-add-door" onClick={() => add('door')}>
+          <IconPlus size={18} />
+          문 추가
+        </button>
+        <button type="button" className="btn" data-testid="wall-add-window" onClick={() => add('window')}>
+          <IconPlus size={18} />
+          창문 추가
+        </button>
+      </div>
+      {full && (
+        <p className="structure-card__warning" role="alert" data-testid="wall-opening-full">
+          이 벽에는 빈자리가 없습니다. 있는 문·창문을 옮기거나 좁힌 뒤 다시 넣으세요.
+        </p>
+      )}
+    </>
   );
 }
 

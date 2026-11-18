@@ -1,6 +1,7 @@
 // 앱 전체가 함께 쓰는 상태. 모듈은 이 store의 값과 액션만으로 서로 연결된다. 이 파일은 헤드만 고친다.
 import { create } from 'zustand';
 import { rectCorners, roomBounds } from '../contracts/room';
+import { wallSegment } from '../contracts/structure';
 import type {
   AreaLabel,
   DisplayUnit,
@@ -54,7 +55,8 @@ export interface ProjectState {
   setRoomSize(size: RoomSizeInput): void;
   /** 가구를 추가하고 새 id를 돌려준다. 위치를 주지 않으면 방 가운데에 놓는다. */
   addItem(input: NewFurnitureInput): string;
-  updateItem(id: string, patch: FurniturePatch): void;
+  /** 위치만 바꾸는 연속 변경(방향키 반복)은 1초 안이면 한 단계로 묶는다. 끌기처럼 따로 기록할 변경은 merge: false. */
+  updateItem(id: string, patch: FurniturePatch, opts?: { merge?: boolean }): void;
   removeItem(id: string): void;
   /**
    * 여러 가구의 자리와 방향을 한 번에 바꾼다(AI 추천 배치). 되돌리기 한 번으로 전부 돌아온다.
@@ -107,6 +109,41 @@ export interface ProjectState {
   future: Project[];
   undo(): void;
   redo(): void;
+}
+
+/** 방 크기를 바꿀 때 칸막이 벽이 남는 최소 길이(구조 편집에서 그릴 수 있는 최소 길이와 같다) */
+const WALL_MIN_LENGTH: Mm = 100;
+
+/**
+ * 방을 줄였을 때 칸막이 벽을 새 방 안으로 자른다. 방 밖으로 완전히 나가거나 너무 짧아진 벽은 없앤다(D-1118-02).
+ * 벽은 가로·세로만 있다.
+ */
+function fitWallsToRoom(walls: InteriorWall[], width: Mm, depth: Mm): InteriorWall[] {
+  const clamp = (v: Mm, max: Mm) => Math.max(0, Math.min(max, v));
+  const out: InteriorWall[] = [];
+  for (const w of walls) {
+    const vertical = w.a.x === w.b.x;
+    if (vertical ? w.a.x <= 0 || w.a.x >= width : w.a.z <= 0 || w.a.z >= depth) continue;
+    const a = vertical ? { x: w.a.x, z: clamp(w.a.z, depth) } : { x: clamp(w.a.x, width), z: w.a.z };
+    const b = vertical ? { x: w.b.x, z: clamp(w.b.z, depth) } : { x: clamp(w.b.x, width), z: w.b.z };
+    if (Math.abs(b.x - a.x) + Math.abs(b.z - a.z) < WALL_MIN_LENGTH) continue;
+    out.push(a.x === w.a.x && a.z === w.a.z && b.x === w.b.x && b.z === w.b.z ? w : { ...w, a, b });
+  }
+  return out;
+}
+
+/** 벽이 짧아지면 문·창문을 벽 안으로 옮기고, 벽보다 넓으면 벽 길이로 줄인다. 벽이 없어진 개구부는 없앤다. */
+function fitOpeningsToRoom(room: Project['room']): Opening[] {
+  const out: Opening[] = [];
+  for (const o of room.openings) {
+    const seg = wallSegment(room, o.wall);
+    if (!seg) continue;
+    const length = Math.round(seg.length);
+    const width = Math.min(o.width, length);
+    const offset = Math.max(0, Math.min(o.offset, length - width));
+    out.push(width === o.width && offset === o.offset ? o : { ...o, width, offset });
+  }
+  return out;
 }
 
 /** 되돌리기 기록의 최대 개수 */
@@ -185,16 +222,13 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   setDisplayUnit: (unit) => set((s) => ({ project: { ...s.project, displayUnit: unit } })),
 
   setRoomSize: ({ width, depth, ceilingHeight }) =>
-    set((s) =>
-      commit(s, {
-        ...s.project,
-        room: {
-          ...s.project.room,
-          ceilingHeight: toMm(ceilingHeight),
-          corners: rectCorners(toMm(width), toMm(depth)),
-        },
-      }),
-    ),
+    set((s) => {
+      const w = toMm(width);
+      const d = toMm(depth);
+      const walls = fitWallsToRoom(s.project.room.walls, w, d);
+      const room = { ...s.project.room, ceilingHeight: toMm(ceilingHeight), corners: rectCorners(w, d), walls };
+      return commit(s, { ...s.project, room: { ...room, openings: fitOpeningsToRoom(room) } });
+    }),
 
   addItem: (input) => {
     const id = newId();
@@ -220,9 +254,9 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
     return id;
   },
 
-  updateItem: (id, patch) =>
+  updateItem: (id, patch, opts) =>
     set((s) => {
-      const moveOnly = Object.keys(patch).every((k) => k === 'x' || k === 'z');
+      const moveOnly = (opts?.merge ?? true) && Object.keys(patch).every((k) => k === 'x' || k === 'z');
       return commit(
         s,
         { ...s.project, items: s.project.items.map((it) => (it.id === id ? normalizeItem({ ...it, ...patch, id }) : it)) },

@@ -1,0 +1,6 @@
+### npm run typecheck  (2026-11-18 19:44:42)
+
+> room-planner-3d@0.1.0 typecheck
+> tsc --noEmit
+
+### exit 0

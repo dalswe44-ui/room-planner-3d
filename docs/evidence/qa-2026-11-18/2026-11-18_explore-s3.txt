@@ -1,0 +1,40 @@
+### node docs/evidence/qa-2026-11-18/scripts/s3.cjs  (vite preview --outDir dist --port 4541, 2026-11-18 19:58:24)
+draft {"w":1100,"h":450,"d":2000} scene-hint null
+draft card text 위치를 정한 뒤 추가를 누르세요
+
+1100 × 2000 × 450 mm
+
+이름
+폭
+mm
+깊이
+mm
+높이
+mm
+추가
+취소
+items [{"c":[1800,1500],"s":[1100,2000,450],"r":0,"sel":false,"warn":false},{"c":[600,1500],"s":[1200,600,720],"r":0,"sel":true,"warn":false}]
+item-name in viewport [200,800]
+overlap [{"c":[1800,1500],"s":[1100,2000,450],"r":0,"sel":false,"warn":true},{"c":[2000,1600],"s":[1200,600,720],"r":0,"sel":true,"warn":true}] status 겹침: 다른 가구와 겹칩니다.
+outside {"c":[-900,1500],"s":[1200,600,720],"r":0,"sel":true,"warn":true} status 방 밖: 방 경계를 벗어났습니다. dists ["1200","3900","1200","-1500"]
+dragged to panel {"c":[-2580,1070],"s":[1200,600,720],"r":0,"sel":true,"warn":true}
+client of lost item {"x":5.275000000000034,"y":400.83750000000015} canvas {"x":340,"y":128,"width":940,"height":672}
+2d wheel zoom: width px 679.5 -> 715.2631578947368
+2d left-drag empty: origin {"x":475.52631578947364,"y":184.9210526315791} -> {"x":325.52631578947364,"y":104.92105263157922}
+2d right-drag: origin -> {"x":175.5263157894737,"y":24.921052631579045}
+after toggle 2d: width px 679.5 origin {"x":492.25,"y":198.8750000000001} (initial {"x":492.25,"y":198.87500000000097} )
+buttons in scene ["평면 뷰","3D 뷰","사람 뷰"]
+3d hint null
+3d orbit {"x":753.9560846009781,"y":434.42506726300496} -> {"x":562.65057752085,"y":630.1121375098473}
+3d zoom -> {"x":546.9471237690303,"y":640.6580860018906}
+3d right-drag pan -> {"x":667.5722775672857,"y":520.0329322036354}
+3d drag item [1800,1500] -> [2300,2000]
+walk eye {"x":1800,"z":1500,"height":1500,"headingDeg":270} hint 끌면 둘러봐요. 바닥을 누르면 그 자리로 가요.
+walk eye after drag {"x":1800,"z":1500,"height":1500,"headingDeg":301}
+walk key ArrowUp {"x":1800,"z":1500,"height":1500,"headingDeg":301}
+walk key w {"x":1800,"z":1500,"height":1500,"headingDeg":301}
+walk key ArrowLeft {"x":1800,"z":1500,"height":1500,"headingDeg":301}
+walk wheel {"x":1800,"z":1500,"height":1500,"headingDeg":301}
+walk + preset: view walk draft true items 1
+LOGS []
+### exit 0

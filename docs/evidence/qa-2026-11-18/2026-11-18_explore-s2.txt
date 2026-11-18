@@ -1,0 +1,89 @@
+### node docs/evidence/qa-2026-11-18/scripts/s2.cjs  (vite preview --outDir dist --port 4541, 2026-11-18 19:58:17)
+add w  err 읽을 수 없는 값입니다. 허용 범위: 10 ~ 10000 mm addDisabled true rows 0
+add w 0 err 범위를 벗어났습니다. 허용 범위: 10 ~ 10000 mm addDisabled true rows 0
+add w -5 err 읽을 수 없는 값입니다. 허용 범위: 10 ~ 10000 mm addDisabled true rows 0
+add w abc err 읽을 수 없는 값입니다. 허용 범위: 10 ~ 10000 mm addDisabled true rows 0
+add w 9 err 범위를 벗어났습니다. 허용 범위: 10 ~ 10000 mm addDisabled true rows 0
+add w 10001 err 범위를 벗어났습니다. 허용 범위: 10 ~ 10000 mm addDisabled true rows 0
+add w 60,0 err 읽을 수 없는 값입니다. 허용 범위: 10 ~ 10000 mm addDisabled true rows 0
+add w 0.6 err 범위를 벗어났습니다. 허용 범위: 10 ~ 10000 mm addDisabled true rows 0
+enter invalid rows 0
+after Enter add [{"c":[1800,1500],"s":[1200,600,720],"r":0,"sel":true,"warn":false}]
+PANEL: 방·가구
+벽·문
+사진
+AI 추천
+방 치수
+
+벽 안쪽에서 잰 길이입니다. 360cm, 3.6m처럼 단위를 붙여 넣어도 됩니다.
+
+폭
+mm
+깊이
+mm
+천장 높이
+mm
+가구 추가
+침대
+책상
+의자
+옷장
+책장
+소파
+식탁
+직접 입력
+이름
+폭
+mm
+깊이
+mm
+높이
+mm
+추가
+책상
+1200 × 600 × 720 mm
+책상
+
+1200 × 600 × 720 mm
+
+이름
+종류
+상자
+침대
+책상
+의자
+옷장
+책장
+소파
+식탁
+폭
+mm
+깊이
+mm
+높이
+mm
+색
+벽까지 거리
+위쪽 벽까지
+1200 mm
+오른쪽 벽까지
+1200 mm
+아래쪽 벽까지
+1200 mm
+왼쪽 벽까지
+1200 mm
+
+방향키로 1 cm, Shift+방향키로 1 mm 이동
+names ["책상\n1200 × 600 × 720 mm/22","가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가/140","<img src=x onerror=alert(1)>\n1200 × 600 /48","가구\n1200 × 600 × 720 mm/22"] [[[1800,1500],false],[[1800,900],false],[[1800,2100],false],[[1800,300],false]]
+hscroll panel [339,339] body [1280,1280]
+tall item [{"c":[600,1500],"s":[1200,600,3000],"r":0,"sel":true,"warn":false}] status null
+after bg tap sel 0
+tap selects 1
+Delete key -> 5 of 5
+Backspace key -> 5
+Escape -> sel 1
+deleted all; confirm dialog? rows 0
+undo steps to empty 10 0
+redo steps 10 0
+LOGS []
+### exit 0

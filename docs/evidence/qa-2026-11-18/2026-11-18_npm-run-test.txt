@@ -1,0 +1,19 @@
+### npm run test  (2026-11-18 19:44:47)
+
+> room-planner-3d@0.1.0 test
+> vitest run
+
+
+ RUN  v5.1.0 ~/room-planner-3d
+
+
+ Test Files  45 passed (45)
+      Tests  649 passed (649)
+   Start at  19:44:48
+   Duration  7.05s (environment 56%, tests 33%, import 9%, transform 2%, worker 1%)
+
+Environment  jsdom was created 45 times · 22.98s total, 56% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+### exit 0

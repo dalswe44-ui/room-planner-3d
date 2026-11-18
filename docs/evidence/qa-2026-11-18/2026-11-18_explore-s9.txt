@@ -1,0 +1,9 @@
+### node docs/evidence/qa-2026-11-18/scripts/s9.cjs  (vite preview --outDir dist --port 4541, 2026-11-18 20:00:00)
+two B [{"c":[1800,1500],"s":[1000,1000,500],"r":0,"sel":false,"warn":false},{"c":[1800,500],"s":[1000,1000,500],"r":0,"sel":true,"warn":false}] status null
+color input ["INPUT","color","#cdb693"]
+probe color ["#e8e1d5","#ff0000"]
+wall1 card 1
+eye after vertical drag {"x":1800,"z":1500,"height":1500,"headingDeg":270}
+goal after example 공부에 집중하기 좋게
+prompt text head no prompt text el
+### exit 0

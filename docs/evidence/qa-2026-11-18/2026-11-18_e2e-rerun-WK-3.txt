@@ -1,0 +1,188 @@
+### E2E_PORT=4535 npx playwright test tests/e2e/walk.spec.ts -g WK-3 --repeat-each=3  (2026-11-18 19:54:30)
+[WebServer] [plugin builtin:vite-reporter] 
+[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:
+[WebServer] - Using dynamic import() to code-split the application
+[WebServer] - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+Running 12 tests using 1 worker
+
+  ✘   1 tests/e2e/walk.spec.ts:83:5 › [desktop] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 (4.4s)
+  ✓   2 tests/e2e/walk.spec.ts:120:5 › [desktop] 사람 뷰 › WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜) (6.8s)
+  ✘   3 tests/e2e/walk.spec.ts:83:5 › [mobile] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 (2.9s)
+  ✓   4 tests/e2e/walk.spec.ts:120:5 › [mobile] 사람 뷰 › WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜) (5.6s)
+  ✘   5 tests/e2e/walk.spec.ts:83:5 › [desktop] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 (4.3s)
+  ✓   6 tests/e2e/walk.spec.ts:120:5 › [desktop] 사람 뷰 › WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜) (7.1s)
+  ✘   7 tests/e2e/walk.spec.ts:83:5 › [mobile] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 (2.7s)
+  ✓   8 tests/e2e/walk.spec.ts:120:5 › [mobile] 사람 뷰 › WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜) (5.7s)
+  ✘   9 tests/e2e/walk.spec.ts:83:5 › [desktop] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 (4.3s)
+  ✓  10 tests/e2e/walk.spec.ts:120:5 › [desktop] 사람 뷰 › WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜) (6.2s)
+  ✘  11 tests/e2e/walk.spec.ts:83:5 › [mobile] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 (2.6s)
+  ✓  12 tests/e2e/walk.spec.ts:120:5 › [mobile] 사람 뷰 › WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜) (5.5s)
+
+
+  1) tests/e2e/walk.spec.ts:83:5 › [desktop] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 5450
+    Received:    5330
+
+      115 |       const e = (await eyeOf(page))!;
+      116 |       expect(e.x).toBeLessThanOrEqual(5600 + 5);
+    > 117 |       expect(e.x).toBeGreaterThanOrEqual(5600 - 150);
+          |                   ^
+      118 |     });
+      119 |
+      120 |     test('WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜)', async ({ page }) => {
+        at ~/room-planner-3d/tests/e2e/walk.spec.ts:117:19
+
+    Error Context: test-results/walk--desktop-사람-뷰-WK-3-바닥-32e48--옮기고-가구-위를-끌어도-가구는-움직이지-않는다/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/walk--desktop-사람-뷰-WK-3-바닥-32e48--옮기고-가구-위를-끌어도-가구는-움직이지-않는다/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/walk--desktop-사람-뷰-WK-3-바닥-32e48--옮기고-가구-위를-끌어도-가구는-움직이지-않는다/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) tests/e2e/walk.spec.ts:83:5 › [mobile] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 5450
+    Received:    5446
+
+      115 |       const e = (await eyeOf(page))!;
+      116 |       expect(e.x).toBeLessThanOrEqual(5600 + 5);
+    > 117 |       expect(e.x).toBeGreaterThanOrEqual(5600 - 150);
+          |                   ^
+      118 |     });
+      119 |
+      120 |     test('WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜)', async ({ page }) => {
+        at ~/room-planner-3d/tests/e2e/walk.spec.ts:117:19
+
+    Error Context: test-results/walk--mobile-사람-뷰-WK-3-바닥--02d32--옮기고-가구-위를-끌어도-가구는-움직이지-않는다/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/walk--mobile-사람-뷰-WK-3-바닥--02d32--옮기고-가구-위를-끌어도-가구는-움직이지-않는다/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/walk--mobile-사람-뷰-WK-3-바닥--02d32--옮기고-가구-위를-끌어도-가구는-움직이지-않는다/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) tests/e2e/walk.spec.ts:83:5 › [desktop] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 5450
+    Received:    5315
+
+      115 |       const e = (await eyeOf(page))!;
+      116 |       expect(e.x).toBeLessThanOrEqual(5600 + 5);
+    > 117 |       expect(e.x).toBeGreaterThanOrEqual(5600 - 150);
+          |                   ^
+      118 |     });
+      119 |
+      120 |     test('WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜)', async ({ page }) => {
+        at ~/room-planner-3d/tests/e2e/walk.spec.ts:117:19
+
+    Error Context: test-results/walk--desktop-사람-뷰-WK-3-바닥-32e48--옮기고-가구-위를-끌어도-가구는-움직이지-않는다-repeat1/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/walk--desktop-사람-뷰-WK-3-바닥-32e48--옮기고-가구-위를-끌어도-가구는-움직이지-않는다-repeat1/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/walk--desktop-사람-뷰-WK-3-바닥-32e48--옮기고-가구-위를-끌어도-가구는-움직이지-않는다-repeat1/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) tests/e2e/walk.spec.ts:83:5 › [mobile] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 5450
+    Received:    5447
+
+      115 |       const e = (await eyeOf(page))!;
+      116 |       expect(e.x).toBeLessThanOrEqual(5600 + 5);
+    > 117 |       expect(e.x).toBeGreaterThanOrEqual(5600 - 150);
+          |                   ^
+      118 |     });
+      119 |
+      120 |     test('WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜)', async ({ page }) => {
+        at ~/room-planner-3d/tests/e2e/walk.spec.ts:117:19
+
+    Error Context: test-results/walk--mobile-사람-뷰-WK-3-바닥--02d32--옮기고-가구-위를-끌어도-가구는-움직이지-않는다-repeat1/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/walk--mobile-사람-뷰-WK-3-바닥--02d32--옮기고-가구-위를-끌어도-가구는-움직이지-않는다-repeat1/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/walk--mobile-사람-뷰-WK-3-바닥--02d32--옮기고-가구-위를-끌어도-가구는-움직이지-않는다-repeat1/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) tests/e2e/walk.spec.ts:83:5 › [desktop] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 5450
+    Received:    5432
+
+      115 |       const e = (await eyeOf(page))!;
+      116 |       expect(e.x).toBeLessThanOrEqual(5600 + 5);
+    > 117 |       expect(e.x).toBeGreaterThanOrEqual(5600 - 150);
+          |                   ^
+      118 |     });
+      119 |
+      120 |     test('WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜)', async ({ page }) => {
+        at ~/room-planner-3d/tests/e2e/walk.spec.ts:117:19
+
+    Error Context: test-results/walk--desktop-사람-뷰-WK-3-바닥-32e48--옮기고-가구-위를-끌어도-가구는-움직이지-않는다-repeat2/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/walk--desktop-사람-뷰-WK-3-바닥-32e48--옮기고-가구-위를-끌어도-가구는-움직이지-않는다-repeat2/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/walk--desktop-사람-뷰-WK-3-바닥-32e48--옮기고-가구-위를-끌어도-가구는-움직이지-않는다-repeat2/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) tests/e2e/walk.spec.ts:83:5 › [mobile] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 5450
+    Received:    5442
+
+      115 |       const e = (await eyeOf(page))!;
+      116 |       expect(e.x).toBeLessThanOrEqual(5600 + 5);
+    > 117 |       expect(e.x).toBeGreaterThanOrEqual(5600 - 150);
+          |                   ^
+      118 |     });
+      119 |
+      120 |     test('WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜)', async ({ page }) => {
+        at ~/room-planner-3d/tests/e2e/walk.spec.ts:117:19
+
+    Error Context: test-results/walk--mobile-사람-뷰-WK-3-바닥--02d32--옮기고-가구-위를-끌어도-가구는-움직이지-않는다-repeat2/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/walk--mobile-사람-뷰-WK-3-바닥--02d32--옮기고-가구-위를-끌어도-가구는-움직이지-않는다-repeat2/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/walk--mobile-사람-뷰-WK-3-바닥--02d32--옮기고-가구-위를-끌어도-가구는-움직이지-않는다-repeat2/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6 failed
+    tests/e2e/walk.spec.ts:83:5 › [desktop] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+    tests/e2e/walk.spec.ts:83:5 › [mobile] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+    tests/e2e/walk.spec.ts:83:5 › [desktop] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+    tests/e2e/walk.spec.ts:83:5 › [mobile] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+    tests/e2e/walk.spec.ts:83:5 › [desktop] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+    tests/e2e/walk.spec.ts:83:5 › [mobile] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+  6 passed (1.2m)
+### exit 1

@@ -1,0 +1,2 @@
+{"width":1280,"height":800} eye0 {"x":3000,"z":2000,"height":1500,"headingDeg":270} x samples every 150ms 3840,5187,5600,5600,5600,5600,5600,5600 final {"x":5600,"z":2000,"height":1500,"headingDeg":270}
+{"width":360,"height":740} eye0 {"x":3000,"z":2000,"height":1500,"headingDeg":270} x samples every 150ms 3949,5171,5600,5600,5600,5600,5600,5600 final {"x":5600,"z":2000,"height":1500,"headingDeg":270}

@@ -28,6 +28,22 @@ describe('projectStore', () => {
     expect(room.ceilingHeight).toBe(2300);
   });
 
+  it('방을 줄이면 칸막이 벽은 방 안으로 자르거나 지우고, 문은 벽 안으로 옮긴다 (D-1118-02)', () => {
+    const out = store().addWall({ a: { x: 1800, z: 0 }, b: { x: 1800, z: 2000 } })!;
+    const cut = store().addWall({ a: { x: 0, z: 1500 }, b: { x: 3600, z: 1500 } })!;
+    const door = store().addOpening({ type: 'door', wall: 0, offset: 1350, width: 900 });
+    const onOut = store().addOpening({ type: 'door', wall: out, offset: 100, width: 800 });
+    store().setRoomSize({ width: 1000, depth: 3000, ceilingHeight: 2400 });
+    const { room } = store().project;
+    expect(room.walls.map((w) => w.id)).toEqual([cut]);
+    expect(room.walls[0].b).toEqual({ x: 1000, z: 1500 });
+    expect(room.openings.find((o) => o.id === onOut)).toBeUndefined();
+    expect(room.openings.find((o) => o.id === door)).toMatchObject({ offset: 100, width: 900 });
+    store().undo();
+    expect(store().project.room.walls).toHaveLength(2);
+    expect(store().project.room.openings).toHaveLength(2);
+  });
+
   it('단위 전환은 저장된 mm 값을 바꾸지 않는다', () => {
     const before = JSON.stringify(store().project.room);
     store().setDisplayUnit('m');
@@ -101,6 +117,16 @@ describe('되돌리기', () => {
     expect(st().project.items[0].x).toBe(1850);
     st().undo();
     expect(st().project.items[0].x).toBe(1800);
+  });
+
+  it('끌기(merge: false)는 1초 안에 이어 해도 한 번씩 되돌린다 (D-1118-05)', () => {
+    const id = st().addItem({ name: 'A', w: 1000, d: 600, h: 700 });
+    st().updateItem(id, { x: 1000, z: 1000 }, { merge: false });
+    st().updateItem(id, { x: 2500, z: 2000 }, { merge: false });
+    st().undo();
+    expect(st().project.items[0]).toMatchObject({ x: 1000, z: 1000 });
+    st().undo();
+    expect(st().project.items[0]).toMatchObject({ x: 1800, z: 1500 });
   });
 
   it('새 변경을 하면 다시 실행 목록이 비고, 되돌린 상태에 없는 가구의 선택은 풀린다', () => {

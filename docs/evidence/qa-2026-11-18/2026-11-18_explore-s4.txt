@@ -1,0 +1,83 @@
+### node docs/evidence/qa-2026-11-18/scripts/s4.cjs  (vite preview --outDir dist --port 4541, 2026-11-18 19:58:42)
+after 2 drags (0.5s apart) [2500,2200]
+undo1 -> [[1800,1500]]
+2 drags 1.6s apart, undo1 -> [[1000,1000]]
+reload: room {"width":4200,"depth":3000,"ceilingHeight":2400} {"width":4200,"depth":3000,"ceilingHeight":2400} items same true view 2d unit cm pressed true undo disabled true
+localStorage keys [["room-planner-3d/project",420]]
+PHOTO PANEL:
+방·가구
+벽·문
+사진
+AI 추천
+배치도 사진
+
+배치도 사진을 올리면 적힌 치수를 읽어 방과 가구를 만들어요. 확인한 뒤 적용하세요.
+
+사진은 이 기기에서만 보이고 밖으로 보내지 않습니다. 긴 변 2048px 이하로 줄여 이 브라우저에 보관하므로 새로고침해도 남습니다.
+
+이 화면에서는 사진을 바로 읽을 수 없어요. 아래 방법으로 읽어 주세요.
+
+배치도 사진과 아래 문구를 다른 AI 도구에 보내고, 돌려받은 JSON을 붙여 넣으세요.
+
+AI에게 줄 문구 복사
+AI가 준 JSON
+또는 .json 파일
+이 배치로 바꾸기
+reqs so far ["GET http://localhost:4541/","GET http://localhost:4541/api/read-layout"]
+file input {"accept":"image/*","multiple":false,"visible":true,"label":"배치도 사진 고르기"}
+upload notimage.txt preview 1 status 이 화면에서는 사진을 바로 읽을 수 없어요. 아래 방법으로 읽어 주세요. storage-failed 0 panel err text ["이 화면에서는 사진을 바로 읽을 수 없어요. 아래 방법으로 읽어 주세요."]
+upload fake.png preview 1 status 이 화면에서는 사진을 바로 읽을 수 없어요. 아래 방법으로 읽어 주세요. storage-failed 0 panel err text ["이 화면에서는 사진을 바로 읽을 수 없어요. 아래 방법으로 읽어 주세요."]
+upload small.png preview 1 status 이 화면에서는 사진을 바로 읽을 수 없어요. 아래 방법으로 읽어 주세요. storage-failed 0 panel err text ["이 화면에서는 사진을 바로 읽을 수 없어요. 아래 방법으로 읽어 주세요."]
+upload big.png preview 1 status 이 화면에서는 사진을 바로 읽을 수 없어요. 아래 방법으로 읽어 주세요. storage-failed 0 panel err text ["이 화면에서는 사진을 바로 읽을 수 없어요. 아래 방법으로 읽어 주세요."]
+photo after reload 1 tab persisted? (had to click again)
+broken json err 적용할 수 없습니다.
+
+JSON을 찾을 수 없습니다. { 로 시작해 } 로 끝나야 합니다.
+sample -> preview 1 err null
+preview text 방 3400 × 2800 × 2400 mm
+
+침대 (침대) 1000 × 2000 × 450 mm
+왼쪽 벽에서 1200 mm, 위쪽 벽에서 400 mm
+
+경고
+
+천장 높이가 없어 현재 값을 유지합니다.
+1번 가구(침대): 높이가 없어 침대 기본 높이 450 mm로 둠
+1번 가구(침대): 위치가 없어 가운데에 둠
+confirm text ["왼쪽 벽에서 1200 mm, 위쪽 벽에서 400 mm","","경고","","천장 높이가 없어 현재 값을 유지합니다.","1번 가구(침대): 높이가 없어 침대 기본 높이 450 mm로 둠","1번 가구(침대): 위치가 없어 가운데에 둠","","지금의 방과 가구가 모두 바뀝니다","","바꾸기","취소"]
+applied {"width":3400,"depth":2800,"ceilingHeight":2400} 1 undo enabled true
+undo apply -> {"width":4200,"depth":3000,"ceilingHeight":2400} 1
+after remove 0
+SUGGEST PANEL:
+방·가구
+벽·문
+사진
+AI 추천
+AI 추천 배치
+
+어떤 방으로 쓰고 싶은지 적으면 AI가 지금 있는 가구를 옮기고 돌려서 배치를 추천해요. 가구를 더하거나 빼지는 않아요.
+
+방 크기와 벽·문·창문 위치, 가구의 이름과 크기·자리만 Claude에 보내요. 사진은 보내지 않아요.
+
+원하는 배치
+공부에 집중하기 좋게
+넓어 보이게
+편하게 쉬기 좋게
+손님이 와도 좋게
+
+목적을 적어 주세요.
+
+이 화면에서는 AI를 바로 부를 수 없어요. 아래 방법으로 추천을 받아 적용해 주세요.
+
+아래 문구를 다른 AI 도구에 보내고, 돌려받은 답을 붙여 넣어 적용하세요.
+
+AI에게 줄 문구 복사
+AI가 준 답
+적용
+run no run btn manual 1 blocker null
+paste garbage -> AI의 답이 형식에 맞지 않아 적용하지 않았어요. 다시 추천받아 보세요.
+
+답에서 JSON을 찾을 수 없어요.
+all non-asset reqs ["GET http://localhost:4541/","GET http://localhost:4541/api/read-layout","GET blob:http://localhost:4541/64a66d38-fbc7-4c66-b904-48941ba41e25","GET blob:http://localhost:4541/66559348-7441-4cff-8e92-4621ef75e926","GET blob:http://localhost:4541/6ee28863-6a1c-48fe-afac-2f866d88e66a","GET blob:http://localhost:4541/c31119ab-6f44-41ec-b3bb-d7171d581a2b","GET http://localhost:4541/","GET http://localhost:4541/api/read-layout","GET blob:http://localhost:4541/f0b1efe9-eab4-4811-988f-09abafae51b6","GET http://localhost:4541/api/suggest-layout"]
+LOGS []
+### exit 0

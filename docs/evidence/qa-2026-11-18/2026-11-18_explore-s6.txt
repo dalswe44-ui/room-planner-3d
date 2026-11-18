@@ -1,0 +1,52 @@
+### node docs/evidence/qa-2026-11-18/scripts/s6.cjs  (vite preview --outDir dist --port 4541, 2026-11-18 19:59:20)
+tab order ["unit-mm","unit-cm","unit-m","tab-main","tab-structure","tab-photo","tab-suggest","room-width(!nofocusring)","room-depth(!nofocusring)","room-height(!nofocusring)","preset-bed","preset-desk","preset-chair","preset-wardrobe","preset-shelf","preset-sofa","preset-table","furniture-name","furniture-w(!nofocusring)","furniture-d(!nofocusring)","furniture-h(!nofocusring)","furniture-add","view-2d","view-3d","view-walk","BODY(!nofocusring)","unit-mm","unit-cm"]
+kbd preset Enter -> draft true
+items [{"c":[1800,1500],"s":[1200,600,720],"r":0,"sel":true,"warn":false}] active preset-desk
+item-row tag/role ["BUTTON",null,0,"false",null,null]
+row Enter selects true
+arrow with focus on row -> [1820,1500]
+arrow after blur -> [1830,1500]
+tab arrow -> tab-main tabpanel role count 0 aria-controls null
+canvas attrs {"role":null,"label":null,"tabindex":-1,"wrapLabel":null}
+live regions []
+error a11y {"invalid":"true","desc":"_r_0_-error"} {"id":"_r_0_-error","role":"alert","live":null,"color":"rgb(217, 72, 43)","fs":"13px"}
+contrast [[".app-sub","rgb(91, 104, 117)","rgb(255, 255, 255)","5.70"],[".app-tab[aria-selected=false]","rgb(91, 104, 117)","rgb(255, 255, 255)","5.70"],["[data-testid=item-nudge-hint]","rgb(91, 104, 117)","rgb(255, 255, 255)","5.70"],[".room-hint, .photo-hint, p","rgb(91, 104, 117)","rgb(255, 255, 255)","5.70"],["[data-testid=furniture-add]","rgb(28, 43, 57)","rgb(242, 185, 15)","8.06"],["button:disabled","rgb(91, 104, 117)","rgb(255, 255, 255)","5.70"]]
+badge 벽·문 편집 중 hint 평면 뷰에서 빈 곳을 끌면 벽이 생겨요. 벽을 고르면 문이나 창문을 넣을 수 있어요.
+walls [{"id":"22c58b78-931c-44f4-a2a5-91c575582cec","a":{"x":1800,"z":0},"b":{"x":1800,"z":2000},"thickness":100,"selected":true}]
+diagonal -> [{"id":"5d667269-ba6f-4a93-adf7-12923dbdf6d5","a":{"x":300,"z":300},"b":{"x":1200,"z":300},"thickness":100,"selected":true}]
+tiny -> 2
+STRUCT PANEL:
+방·가구
+벽·문
+사진
+AI 추천
+
+평면 뷰에서 빈 곳을 끌면 벽이 생겨요. 벽을 고르면 문이나 창문을 넣을 수 있어요.
+
+구역 이름 추가
+칸막이 벽
+세로 벽 1
+2000 mm
+가로 벽 2
+900 mm
+outer wall card 1
+openings [{"id":"56213728-076e-4a08-914d-647446dd59aa","type":"door","from":{"x":1350,"z":0},"to":{"x":2250,"z":0},"selected":true}]
+opening card:
+문
+종류
+문
+창문
+뚫린 문틈
+폭
+mm
+왼쪽 끝에서
+mm
+높이
+mm
+경첩 위치 바꾸기
+여는 방향 바꾸기
+삭제
+doors after 6 adds [[null,null,null],[null,null,null],[null,null,null],[null,null,null],[null,null,null],[null,null,null]] fit-warning null
+room 1000: walls [[{"x":1800,"z":0},{"x":1800,"z":2000}],[{"x":300,"z":300},{"x":1200,"z":300}]] openings [[null,null,null],[null,null,null],[null,null,null],[null,null,null],[null,null,null],[null,null,null]]
+LOGS []
+### exit 0

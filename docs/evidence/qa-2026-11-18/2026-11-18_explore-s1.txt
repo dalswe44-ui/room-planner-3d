@@ -1,0 +1,83 @@
+### node docs/evidence/qa-2026-11-18/scripts/s1.cjs  (vite preview --outDir dist --port 4541, 2026-11-18 19:58:11)
+load ms 3157
+PANEL TEXT:
+방·가구
+벽·문
+사진
+AI 추천
+방 치수
+
+벽 안쪽에서 잰 길이입니다. 360cm, 3.6m처럼 단위를 붙여 넣어도 됩니다.
+
+폭
+mm
+깊이
+mm
+천장 높이
+mm
+가구 추가
+침대
+책상
+의자
+옷장
+책장
+소파
+식탁
+직접 입력
+이름
+폭
+mm
+깊이
+mm
+높이
+mm
+추가
+
+아직 가구가 없습니다.
+SCENE TEXT:
+평면 뷰
+3D 뷰
+사람 뷰
+3600 mm
+3000 mm
+focus on load: BODY
+"" -> probe 3600 | field "" | err 읽을 수 없는 값입니다. 허용 범위: 500 ~ 20000 mm | warn null
+"0" -> probe 3600 | field "0" | err 범위를 벗어났습니다. 허용 범위: 500 ~ 20000 mm | warn null
+"-100" -> probe 3600 | field "-100" | err 읽을 수 없는 값입니다. 허용 범위: 500 ~ 20000 mm | warn null
+"abc" -> probe 3600 | field "abc" | err 읽을 수 없는 값입니다. 허용 범위: 500 ~ 20000 mm | warn null
+"1m20cm" -> probe 3600 | field "1m20cm" | err 읽을 수 없는 값입니다. 허용 범위: 500 ~ 20000 mm | warn null
+"3.5" -> probe 3600 | field "3.5" | err 범위를 벗어났습니다. 허용 범위: 500 ~ 20000 mm | warn null
+"99999999" -> probe 3600 | field "99999999" | err 범위를 벗어났습니다. 허용 범위: 500 ~ 20000 mm | warn null
+"1e3" -> probe 3600 | field "1e3" | err 읽을 수 없는 값입니다. 허용 범위: 500 ~ 20000 mm | warn null
+"３６００" -> probe 3600 | field "３６００" | err 읽을 수 없는 값입니다. 허용 범위: 500 ~ 20000 mm | warn null
+"3,600" -> probe 3600 | field "3,600" | err 읽을 수 없는 값입니다. 허용 범위: 500 ~ 20000 mm | warn null
+"3600mm" -> probe 3600 | field "3600" | err null | warn null
+"360 cm" -> probe 3600 | field "3600" | err null | warn null
+"12ft" -> probe 3600 | field "12ft" | err 읽을 수 없는 값입니다. 허용 범위: 500 ~ 20000 mm | warn null
+"3600.4" -> probe 3600 | field "3600" | err null | warn null
+"3600.5" -> probe 3601 | field "3601" | err null | warn null
+" 4.6 M " -> probe 4600 | field "4600" | err null | warn null
+"4000" -> probe 4000 | field "4000" | err null | warn null
+warn800: 단위를 확인하세요. 폭이나 깊이가 1000 mm보다 작거나 15000 mm보다 큽니다. 맞는 값이면 그대로 두어도 됩니다.
+after blur invalid: field abc err 읽을 수 없는 값입니다. 허용 범위: 500 ~ 20000 mm
+cm 360.0 300.0 180.0 360.0 cm
+m 3.600 3.000 1.800 3.600 m
+mm 3600 3000 1800 3600 mm
+m 3600 err: 범위를 벗어났습니다. 허용 범위: 0.500 ~ 20.000 m
+m 4 -> 4000
+input attrs {
+  type: 'text',
+  inputmode: 'decimal',
+  label: '폭',
+  ariaInvalid: 'false',
+  describedby: null,
+  ph: ''
+}
+LOGS [
+  '[console.warning] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.',
+  '[console.warning] [.WebGL-0x11400c17800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels',
+  '[console.warning] [.WebGL-0x11400c17800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels',
+  '[console.warning] [.WebGL-0x11400c17800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels',
+  '[console.warning] [.WebGL-0x11400c17800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)'
+]
+### exit 0

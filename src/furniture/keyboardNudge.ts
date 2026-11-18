@@ -59,6 +59,7 @@ function handleDraftKey(e: KeyboardEvent): boolean {
 
 /** keydown을 처리한다. 이동했으면 true. */
 export function handleNudgeKey(e: KeyboardEvent): boolean {
+  if (useProjectStore.getState().viewMode === 'walk') return false; // 사람 뷰는 둘러보기 전용(D-1118-04)
   if (e.ctrlKey || e.metaKey || e.altKey) return false;
   if (handleDraftKey(e)) return true;
   const delta = nudgeDelta(e.key, e.shiftKey);

@@ -58,7 +58,7 @@ export function createPlacementHandlers(getState: () => ProjectState): Placement
       if (item && preview && preview.itemId === itemId && (preview.x !== item.x || preview.z !== item.z)) {
         const at = settleCenter(item, raw ?? preview, roomBounds(s.project.room), othersOf(s, itemId), snapMm, wallRects(s.project.room));
         if (s.draft?.id === itemId) s.updateDraft(at);
-        else s.updateItem(itemId, at);
+        else s.updateItem(itemId, at, { merge: false }); // 끌기는 한 번이 되돌리기 한 단계(D-1118-05)
       }
       if (preview) s.setDragPreview(null);
     },

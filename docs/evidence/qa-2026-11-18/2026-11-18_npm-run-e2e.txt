@@ -1,0 +1,247 @@
+### E2E_PORT=4533 npm run e2e  (2026-11-18 19:44:59)
+
+> room-planner-3d@0.1.0 e2e
+> playwright test
+
+[WebServer] [plugin builtin:vite-reporter] 
+[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:
+[WebServer] - Using dynamic import() to code-split the application
+[WebServer] - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+Running 201 tests using 1 worker
+
+  ✓    1 tests/e2e/checklist.spec.ts:50:5 › [desktop] › R-1 기본 상태 (2.8s)
+  ✓    2 tests/e2e/checklist.spec.ts:60:5 › [desktop] › R-2 빈 값·0·음수·글자 거부 후 4000 반영 (742ms)
+  ✓    3 tests/e2e/checklist.spec.ts:70:5 › [desktop] › R-3 경계값 (810ms)
+  ✓    4 tests/e2e/checklist.spec.ts:96:5 › [desktop] › R-4 mm 칸에 m로 쓴 3.5 거부, 문구에 500과 20000 (790ms)
+  ✓    5 tests/e2e/checklist.spec.ts:104:5 › [desktop] › R-5 단위 확인 경고 (920ms)
+  ✓    6 tests/e2e/checklist.spec.ts:117:5 › [desktop] › U-1 단위 전환은 표시만 바꾼다 (922ms)
+  ✓    7 tests/e2e/checklist.spec.ts:135:5 › [desktop] › U-2 단위 왕복에서 저장값 불변 (2.8s)
+  ✓    8 tests/e2e/checklist.spec.ts:155:5 › [desktop] › U-3 단위 붙여 입력 (1.4s)
+  ✓    9 tests/e2e/checklist.spec.ts:169:5 › [desktop] › U-4 m 칸에 mm로 쓴 3600 거부 (656ms)
+  ✓   10 tests/e2e/checklist.spec.ts:176:5 › [desktop] › F-1 책상 추가 (1.1s)
+  ✓   11 tests/e2e/checklist.spec.ts:187:5 › [desktop] › F-2 가구 치수 거부와 경계값 (3.9s)
+  ✓   12 tests/e2e/checklist.spec.ts:217:5 › [desktop] › F-3 mm 칸의 0.6 거부, cm로 추가 (1.7s)
+  ✓   13 tests/e2e/checklist.spec.ts:229:5 › [desktop] › F-4 선택한 가구 치수 수정과 거부 (1.9s)
+  ✓   14 tests/e2e/checklist.spec.ts:243:5 › [desktop] › F-5 이름·색 수정, 빈 이름은 "가구" (1.8s)
+  ✓   15 tests/e2e/checklist.spec.ts:259:5 › [desktop] › F-6 선택, 빈 곳 탭으로 해제, 삭제 (1.8s)
+  ✓   16 tests/e2e/checklist.spec.ts:273:5 › [desktop] › P-1 끌어 놓기, 카메라 고정 (1.8s)
+  ✓   17 tests/e2e/checklist.spec.ts:288:5 › [desktop] › P-2 놓을 때 10 mm 격자(변 기준) (3.8s)
+  ✓   18 tests/e2e/checklist.spec.ts:305:5 › [desktop] › P-3 가장자리를 잡아 끌어도 잡은 지점이 따라감 (1.7s)
+  ✓   19 tests/e2e/checklist.spec.ts:311:5 › [desktop] › P-4 움직이지 않고 떼면 그대로, 회전 순환 (2.0s)
+  ✓   20 tests/e2e/checklist.spec.ts:329:5 › [desktop] › W-1 겹침 경고 (2.1s)
+  ✓   21 tests/e2e/checklist.spec.ts:335:5 › [desktop] › W-2 떼어 놓으면 해제, 다시 겹쳐도 막지 않음 (3.5s)
+  ✓   22 tests/e2e/checklist.spec.ts:349:5 › [desktop] › W-3 맞닿음은 겹침 아님, 1 mm 겹치면 경고 (1.9s)
+  ✓   23 tests/e2e/checklist.spec.ts:361:5 › [desktop] › W-4 벽에 붙은 것은 이탈 아님, 방보다 큰 가구 (2.2s)
+  ✓   24 tests/e2e/checklist.spec.ts:372:5 › [desktop] › W-5 방 줄이기 (1.5s)
+  ✓   25 tests/e2e/checklist.spec.ts:382:5 › [desktop] › W-6 방 밖으로 끌어 놓기 (1.9s)
+  ✓   26 tests/e2e/checklist.spec.ts:391:5 › [desktop] › W-7 겹침과 방 밖 동시 표시 (2.4s)
+  ✓   27 tests/e2e/checklist.spec.ts:399:5 › [desktop] › D-1 벽까지 거리 단위 표시와 회전 (1.7s)
+  ✓   28 tests/e2e/checklist.spec.ts:411:5 › [desktop] › D-2 끈 뒤 거리가 probe 값과 같다 (1.9s)
+  ✓   29 tests/e2e/checklist.spec.ts:424:5 › [desktop] › D-3 벽에 붙음 0, 밖은 음수, 선택 해제 시 없음 (1.6s)
+  ✓   30 tests/e2e/checklist.spec.ts:436:5 › [desktop] › V-1 뷰 전환 (774ms)
+  ✓   31 tests/e2e/checklist.spec.ts:445:5 › [desktop] › V-2 두 뷰가 같은 데이터를 그린다 (2.0s)
+  ✓   32 tests/e2e/checklist.spec.ts:462:5 › [desktop] › V-3 평면 뷰 방향과 방 전체가 캔버스 안 (2.8s)
+  ✓   33 tests/e2e/checklist.spec.ts:485:5 › [desktop] › V-3 보조(SPEC 2절 "처음에 방 전체가 보인다") 뷰 전환 버튼이 평면 뷰의 방 바닥을 가리지 않는다 (808ms)
+  ✓   34 tests/e2e/checklist.spec.ts:502:5 › [desktop] › T003-4 평면 뷰에서 가구 이름이 상자 위에 글자로 보인다 (SPEC 체크리스트 밖) (1.9s)
+  ✓   35 tests/e2e/checklist.spec.ts:50:5 › [mobile] › R-1 기본 상태 (1.1s)
+  ✓   36 tests/e2e/checklist.spec.ts:60:5 › [mobile] › R-2 빈 값·0·음수·글자 거부 후 4000 반영 (900ms)
+  ✓   37 tests/e2e/checklist.spec.ts:70:5 › [mobile] › R-3 경계값 (782ms)
+  ✓   38 tests/e2e/checklist.spec.ts:96:5 › [mobile] › R-4 mm 칸에 m로 쓴 3.5 거부, 문구에 500과 20000 (556ms)
+  ✓   39 tests/e2e/checklist.spec.ts:104:5 › [mobile] › R-5 단위 확인 경고 (753ms)
+  ✓   40 tests/e2e/checklist.spec.ts:117:5 › [mobile] › U-1 단위 전환은 표시만 바꾼다 (738ms)
+  ✓   41 tests/e2e/checklist.spec.ts:135:5 › [mobile] › U-2 단위 왕복에서 저장값 불변 (1.3s)
+  ✓   42 tests/e2e/checklist.spec.ts:155:5 › [mobile] › U-3 단위 붙여 입력 (757ms)
+  ✓   43 tests/e2e/checklist.spec.ts:169:5 › [mobile] › U-4 m 칸에 mm로 쓴 3600 거부 (630ms)
+  ✓   44 tests/e2e/checklist.spec.ts:176:5 › [mobile] › F-1 책상 추가 (912ms)
+  ✓   45 tests/e2e/checklist.spec.ts:187:5 › [mobile] › F-2 가구 치수 거부와 경계값 (2.9s)
+  ✓   46 tests/e2e/checklist.spec.ts:217:5 › [mobile] › F-3 mm 칸의 0.6 거부, cm로 추가 (993ms)
+  ✓   47 tests/e2e/checklist.spec.ts:229:5 › [mobile] › F-4 선택한 가구 치수 수정과 거부 (1.9s)
+  ✓   48 tests/e2e/checklist.spec.ts:243:5 › [mobile] › F-5 이름·색 수정, 빈 이름은 "가구" (1.4s)
+  ✓   49 tests/e2e/checklist.spec.ts:259:5 › [mobile] › F-6 선택, 빈 곳 탭으로 해제, 삭제 (1.5s)
+  ✓   50 tests/e2e/checklist.spec.ts:273:5 › [mobile] › P-1 끌어 놓기, 카메라 고정 (1.4s)
+  ✓   51 tests/e2e/checklist.spec.ts:288:5 › [mobile] › P-2 놓을 때 10 mm 격자(변 기준) (2.2s)
+  ✓   52 tests/e2e/checklist.spec.ts:305:5 › [mobile] › P-3 가장자리를 잡아 끌어도 잡은 지점이 따라감 (1.3s)
+  ✓   53 tests/e2e/checklist.spec.ts:311:5 › [mobile] › P-4 움직이지 않고 떼면 그대로, 회전 순환 (1.4s)
+  ✓   54 tests/e2e/checklist.spec.ts:329:5 › [mobile] › W-1 겹침 경고 (1.9s)
+  ✓   55 tests/e2e/checklist.spec.ts:335:5 › [mobile] › W-2 떼어 놓으면 해제, 다시 겹쳐도 막지 않음 (2.3s)
+  ✓   56 tests/e2e/checklist.spec.ts:349:5 › [mobile] › W-3 맞닿음은 겹침 아님, 1 mm 겹치면 경고 (1.5s)
+  ✓   57 tests/e2e/checklist.spec.ts:361:5 › [mobile] › W-4 벽에 붙은 것은 이탈 아님, 방보다 큰 가구 (1.7s)
+  ✓   58 tests/e2e/checklist.spec.ts:372:5 › [mobile] › W-5 방 줄이기 (967ms)
+  ✓   59 tests/e2e/checklist.spec.ts:382:5 › [mobile] › W-6 방 밖으로 끌어 놓기 (1.6s)
+  ✓   60 tests/e2e/checklist.spec.ts:391:5 › [mobile] › W-7 겹침과 방 밖 동시 표시 (1.5s)
+  ✓   61 tests/e2e/checklist.spec.ts:399:5 › [mobile] › D-1 벽까지 거리 단위 표시와 회전 (1.3s)
+  ✓   62 tests/e2e/checklist.spec.ts:411:5 › [mobile] › D-2 끈 뒤 거리가 probe 값과 같다 (1.9s)
+  ✓   63 tests/e2e/checklist.spec.ts:424:5 › [mobile] › D-3 벽에 붙음 0, 밖은 음수, 선택 해제 시 없음 (1.6s)
+  ✓   64 tests/e2e/checklist.spec.ts:436:5 › [mobile] › V-1 뷰 전환 (1.1s)
+  ✓   65 tests/e2e/checklist.spec.ts:445:5 › [mobile] › V-2 두 뷰가 같은 데이터를 그린다 (1.9s)
+  ✓   66 tests/e2e/checklist.spec.ts:462:5 › [mobile] › V-3 평면 뷰 방향과 방 전체가 캔버스 안 (1.8s)
+  ✓   67 tests/e2e/checklist.spec.ts:485:5 › [mobile] › V-3 보조(SPEC 2절 "처음에 방 전체가 보인다") 뷰 전환 버튼이 평면 뷰의 방 바닥을 가리지 않는다 (1.0s)
+  ✓   68 tests/e2e/checklist.spec.ts:502:5 › [mobile] › T003-4 평면 뷰에서 가구 이름이 상자 위에 글자로 보인다 (SPEC 체크리스트 밖) (1.1s)
+  ✓   69 tests/e2e/draft-photo.spec.ts:37:5 › [desktop] 미리보기 가구 › DR-1 칩은 미리보기만 만들고, 다른 칩은 종류를 바꾼다 (1.7s)
+  ✓   70 tests/e2e/draft-photo.spec.ts:55:5 › [desktop] 미리보기 가구 › DR-2 미리보기를 끌어 확정하면 끈 위치에 추가·선택되고, 되돌리기 한 번에 사라진다 (2.2s)
+  ✓   71 tests/e2e/draft-photo.spec.ts:81:5 › [desktop] 미리보기 가구 › DR-3 취소, Escape, Enter(칸·버튼에 포커스가 없을 때) (2.0s)
+  ✓   72 tests/e2e/draft-photo.spec.ts:105:5 › [desktop] 미리보기 가구 › DR-3b 칩을 누른 직후(포커스가 칩에 있는 그대로) Escape로 취소, Enter로 확정 (1.9s)
+  ✓   73 tests/e2e/draft-photo.spec.ts:117:5 › [desktop] 미리보기 가구 › DR-4 확정 가구를 누르면 미리보기가 버려지고 그 가구가 선택된다, 빈 곳 탭은 유지 (2.7s)
+  ✓   74 tests/e2e/draft-photo.spec.ts:148:5 › [desktop] 미리보기 가구 › DR-5 미리보기 카드에서 폭을 바꾸고 카드의 추가 버튼을 누르면 확정 가구에 반영된다 (1.5s)
+  ✓   75 tests/e2e/draft-photo.spec.ts:37:5 › [mobile] 미리보기 가구 › DR-1 칩은 미리보기만 만들고, 다른 칩은 종류를 바꾼다 (1.1s)
+  ✓   76 tests/e2e/draft-photo.spec.ts:55:5 › [mobile] 미리보기 가구 › DR-2 미리보기를 끌어 확정하면 끈 위치에 추가·선택되고, 되돌리기 한 번에 사라진다 (1.4s)
+  ✓   77 tests/e2e/draft-photo.spec.ts:81:5 › [mobile] 미리보기 가구 › DR-3 취소, Escape, Enter(칸·버튼에 포커스가 없을 때) (1.9s)
+  ✓   78 tests/e2e/draft-photo.spec.ts:105:5 › [mobile] 미리보기 가구 › DR-3b 칩을 누른 직후(포커스가 칩에 있는 그대로) Escape로 취소, Enter로 확정 (1.4s)
+  ✓   79 tests/e2e/draft-photo.spec.ts:117:5 › [mobile] 미리보기 가구 › DR-4 확정 가구를 누르면 미리보기가 버려지고 그 가구가 선택된다, 빈 곳 탭은 유지 (2.0s)
+  ✓   80 tests/e2e/draft-photo.spec.ts:148:5 › [mobile] 미리보기 가구 › DR-5 미리보기 카드에서 폭을 바꾸고 카드의 추가 버튼을 누르면 확정 가구에 반영된다 (1.2s)
+  ✓   81 tests/e2e/draft-photo.spec.ts:209:5 › [desktop] 사진 자동 읽기 › AR-1 사진을 고르면 바로 읽고, 미리보기 → 적용하면 방 3400×2800·가구 3개 (2.5s)
+  ✓   82 tests/e2e/draft-photo.spec.ts:238:5 › [desktop] 사진 자동 읽기 › AR-2 rate_limited는 안내와 다시 읽기를 보이고, 자동 재시도 없이 누르면 다시 읽는다 (7.4s)
+  ✓   83 tests/e2e/draft-photo.spec.ts:260:5 › [desktop] 사진 자동 읽기 › AR-3 window.claude가 없으면 이유 한 줄과 복사·붙여넣기 화면(layout-json)이 바로 보인다 (2.0s)
+  ✓   84 tests/e2e/draft-photo.spec.ts:274:5 › [desktop] 사진 자동 읽기 › AR-4 not_granted면 대체 경로(복사·붙여넣기)로 바뀐다 (2.9s)
+  ✓   85 tests/e2e/draft-photo.spec.ts:209:5 › [mobile] 사진 자동 읽기 › AR-1 사진을 고르면 바로 읽고, 미리보기 → 적용하면 방 3400×2800·가구 3개 (3.3s)
+  ✓   86 tests/e2e/draft-photo.spec.ts:238:5 › [mobile] 사진 자동 읽기 › AR-2 rate_limited는 안내와 다시 읽기를 보이고, 자동 재시도 없이 누르면 다시 읽는다 (7.5s)
+  ✓   87 tests/e2e/draft-photo.spec.ts:260:5 › [mobile] 사진 자동 읽기 › AR-3 window.claude가 없으면 이유 한 줄과 복사·붙여넣기 화면(layout-json)이 바로 보인다 (1.7s)
+  ✓   88 tests/e2e/draft-photo.spec.ts:274:5 › [mobile] 사진 자동 읽기 › AR-4 not_granted면 대체 경로(복사·붙여넣기)로 바뀐다 (2.1s)
+  -   89 tests/e2e/evidence.spec.ts:30:5 › [desktop] 증빙 › R-1 기본 상태 화면
+  -   90 tests/e2e/evidence.spec.ts:34:5 › [desktop] 증빙 › R-4 거부 문구 화면
+  -   91 tests/e2e/evidence.spec.ts:40:5 › [desktop] 증빙 › F-1 가구 추가 평면 뷰(이름 표시 확인용)
+  -   92 tests/e2e/evidence.spec.ts:45:5 › [desktop] 증빙 › W-1 겹침 경고 평면 뷰
+  -   93 tests/e2e/evidence.spec.ts:51:5 › [desktop] 증빙 › V-4 겹침 상태의 3D 뷰
+  -   94 tests/e2e/evidence.spec.ts:58:5 › [desktop] 증빙 › D-1 벽까지 거리 화면
+  -   95 tests/e2e/evidence.spec.ts:30:5 › [mobile] 증빙 › R-1 기본 상태 화면
+  -   96 tests/e2e/evidence.spec.ts:34:5 › [mobile] 증빙 › R-4 거부 문구 화면
+  -   97 tests/e2e/evidence.spec.ts:40:5 › [mobile] 증빙 › F-1 가구 추가 평면 뷰(이름 표시 확인용)
+  -   98 tests/e2e/evidence.spec.ts:45:5 › [mobile] 증빙 › W-1 겹침 경고 평면 뷰
+  -   99 tests/e2e/evidence.spec.ts:51:5 › [mobile] 증빙 › V-4 겹침 상태의 3D 뷰
+  -  100 tests/e2e/evidence.spec.ts:58:5 › [mobile] 증빙 › D-1 벽까지 거리 화면
+  ✓  101 tests/e2e/features.spec.ts:48:5 › [desktop] 추가 기능 › M-1 벽에서 자석 거리의 절반 앞에 놓으면 벽에 붙는다(옛 기준 20 mm보다 먼 거리) (2.3s)
+  ✓  102 tests/e2e/features.spec.ts:60:5 › [desktop] 추가 기능 › M-2 다른 가구 옆 자석 거리의 절반에서 놓으면 맞닿고 둘 다 경고 없음 (4.3s)
+  ✓  103 tests/e2e/features.spec.ts:75:5 › [desktop] 추가 기능 › M-3 자석 거리의 두 배 간격이면 붙지 않는다 (4.4s)
+  ✓  104 tests/e2e/features.spec.ts:91:5 › [desktop] 추가 기능 › K-1 방향키 10 mm, Shift 1 mm, 입력 칸에서는 무시 (3.6s)
+  ✓  105 tests/e2e/features.spec.ts:110:5 › [desktop] 추가 기능 › B-1 책상 칩 → 확정하면 추가되고 선택된다 (2.7s)
+  ✓  106 tests/e2e/features.spec.ts:121:5 › [desktop] 추가 기능 › B-2 방 6000×3000에서 기본 가구 7개가 겹치지 않는다 (11.7s)
+  ✓  107 tests/e2e/features.spec.ts:136:5 › [desktop] 추가 기능 › L-1 배치도 JSON 적용 (3.0s)
+  ✓  108 tests/e2e/features.spec.ts:158:5 › [desktop] 추가 기능 › L-2 깨진 JSON은 오류를 보이고 적용 버튼이 꺼진다 (754ms)
+  ✓  109 tests/e2e/features.spec.ts:169:7 › [desktop] 추가 기능 › H-1 추가·이동·삭제 후 되돌리기 3번, 다시 실행 2번 (버튼) (4.1s)
+  ✓  110 tests/e2e/features.spec.ts:169:7 › [desktop] 추가 기능 › H-1 추가·이동·삭제 후 되돌리기 3번, 다시 실행 2번 (Ctrl+Z) (4.9s)
+  ✓  111 tests/e2e/features.spec.ts:196:5 › [desktop] 추가 기능 › H-2 이름 칸에 포커스가 있으면 Ctrl+Z가 가구 상태를 바꾸지 않는다 (4.2s)
+  ✓  112 tests/e2e/features.spec.ts:207:5 › [desktop] 추가 기능 › S-1 새로 고침 뒤에도 방·가구·단위가 유지된다 (4.1s)
+  ✓  113 tests/e2e/features.spec.ts:232:5 › [desktop] 추가 기능 › S-1 깨진 저장값이면 기본 방으로 시작하고 페이지 오류가 없다 (4.2s)
+  ✓  114 tests/e2e/features.spec.ts:263:5 › [desktop] 추가 기능 › TB-1 도구 막대 복제: 복제본 선택, 값 동일, 경고 없음, 되돌리기 한 번에 사라짐 (5.1s)
+  ✓  115 tests/e2e/features.spec.ts:291:5 › [desktop] 추가 기능 › TB-2 도구 막대 회전: 왼쪽 90, 오른쪽 두 번 270, 크기·중심 그대로 (2.5s)
+  ✓  116 tests/e2e/features.spec.ts:304:5 › [desktop] 추가 기능 › TB-3 도구 막대 삭제, 빈 바닥을 짧게 누르면 막대가 사라진다 (1.7s)
+  ✓  117 tests/e2e/features.spec.ts:318:5 › [desktop] 추가 기능 › TB-4 도구 막대 버튼을 눌러도 선택이 유지되고 중심이 움직이지 않는다 (2.4s)
+  ✓  118 tests/e2e/features.spec.ts:334:5 › [desktop] 추가 기능 › TB-5 끄는 동안 도구 막대가 사라졌다가 놓으면 다시 보인다 (2.2s)
+  ✓  119 tests/e2e/features.spec.ts:351:5 › [desktop] 추가 기능 › DM-1 평면 뷰의 방 치수 글자: 단위 따라 바뀌고 3D에서는 없다 (875ms)
+  ✓  120 tests/e2e/features.spec.ts:368:5 › [desktop] 추가 기능 › DM-2 선택한 가구의 도면 거리 글자가 패널 거리와 같고 선택을 풀면 없다 (2.5s)
+  ✓  121 tests/e2e/features.spec.ts:396:5 › [desktop] 추가 기능 › C-1 겹치면 평면 뷰의 실제 픽셀이 경고 빨강, 떼면 원래 색 (5.2s)
+  ✓  122 tests/e2e/features.spec.ts:48:5 › [mobile] 추가 기능 › M-1 벽에서 자석 거리의 절반 앞에 놓으면 벽에 붙는다(옛 기준 20 mm보다 먼 거리) (2.2s)
+  ✓  123 tests/e2e/features.spec.ts:60:5 › [mobile] 추가 기능 › M-2 다른 가구 옆 자석 거리의 절반에서 놓으면 맞닿고 둘 다 경고 없음 (1.9s)
+  ✓  124 tests/e2e/features.spec.ts:75:5 › [mobile] 추가 기능 › M-3 자석 거리의 두 배 간격이면 붙지 않는다 (2.1s)
+  ✓  125 tests/e2e/features.spec.ts:91:5 › [mobile] 추가 기능 › K-1 방향키 10 mm, Shift 1 mm, 입력 칸에서는 무시 (2.0s)
+  ✓  126 tests/e2e/features.spec.ts:110:5 › [mobile] 추가 기능 › B-1 책상 칩 → 확정하면 추가되고 선택된다 (1.1s)
+  ✓  127 tests/e2e/features.spec.ts:121:5 › [mobile] 추가 기능 › B-2 방 6000×3000에서 기본 가구 7개가 겹치지 않는다 (4.7s)
+  ✓  128 tests/e2e/features.spec.ts:136:5 › [mobile] 추가 기능 › L-1 배치도 JSON 적용 (1.3s)
+  ✓  129 tests/e2e/features.spec.ts:158:5 › [mobile] 추가 기능 › L-2 깨진 JSON은 오류를 보이고 적용 버튼이 꺼진다 (931ms)
+  ✓  130 tests/e2e/features.spec.ts:169:7 › [mobile] 추가 기능 › H-1 추가·이동·삭제 후 되돌리기 3번, 다시 실행 2번 (버튼) (2.0s)
+  ✓  131 tests/e2e/features.spec.ts:169:7 › [mobile] 추가 기능 › H-1 추가·이동·삭제 후 되돌리기 3번, 다시 실행 2번 (Ctrl+Z) (2.0s)
+  ✓  132 tests/e2e/features.spec.ts:196:5 › [mobile] 추가 기능 › H-2 이름 칸에 포커스가 있으면 Ctrl+Z가 가구 상태를 바꾸지 않는다 (1.7s)
+  ✓  133 tests/e2e/features.spec.ts:207:5 › [mobile] 추가 기능 › S-1 새로 고침 뒤에도 방·가구·단위가 유지된다 (2.7s)
+  ✓  134 tests/e2e/features.spec.ts:232:5 › [mobile] 추가 기능 › S-1 깨진 저장값이면 기본 방으로 시작하고 페이지 오류가 없다 (3.8s)
+  ✓  135 tests/e2e/features.spec.ts:263:5 › [mobile] 추가 기능 › TB-1 도구 막대 복제: 복제본 선택, 값 동일, 경고 없음, 되돌리기 한 번에 사라짐 (2.1s)
+  ✓  136 tests/e2e/features.spec.ts:291:5 › [mobile] 추가 기능 › TB-2 도구 막대 회전: 왼쪽 90, 오른쪽 두 번 270, 크기·중심 그대로 (2.2s)
+  ✓  137 tests/e2e/features.spec.ts:304:5 › [mobile] 추가 기능 › TB-3 도구 막대 삭제, 빈 바닥을 짧게 누르면 막대가 사라진다 (2.5s)
+  ✓  138 tests/e2e/features.spec.ts:318:5 › [mobile] 추가 기능 › TB-4 도구 막대 버튼을 눌러도 선택이 유지되고 중심이 움직이지 않는다 (1.9s)
+  ✓  139 tests/e2e/features.spec.ts:334:5 › [mobile] 추가 기능 › TB-5 끄는 동안 도구 막대가 사라졌다가 놓으면 다시 보인다 (1.5s)
+  ✓  140 tests/e2e/features.spec.ts:351:5 › [mobile] 추가 기능 › DM-1 평면 뷰의 방 치수 글자: 단위 따라 바뀌고 3D에서는 없다 (1.4s)
+  ✓  141 tests/e2e/features.spec.ts:368:5 › [mobile] 추가 기능 › DM-2 선택한 가구의 도면 거리 글자가 패널 거리와 같고 선택을 풀면 없다 (3.4s)
+  ✓  142 tests/e2e/features.spec.ts:396:5 › [mobile] 추가 기능 › C-1 겹치면 평면 뷰의 실제 픽셀이 경고 빨강, 떼면 원래 색 (9.7s)
+  ✓  143 tests/e2e/features.spec.ts:458:3 › [touch] 터치 끌기 › T-1 손가락으로 평면 뷰 가구를 끌어 놓는다, 화면은 스크롤되지 않는다 (4.2s)
+  ✓  144 tests/e2e/features.spec.ts:496:3 › [desktop] 불러온 가구 이름표 › S-1/T-018 새로 고침으로 불러온 가구에도 이름표가 보인다 (3.6s)
+  ✓  145 tests/e2e/features.spec.ts:510:3 › [desktop] 첫 그림 전 치수 글자 › T-028 첫 그림 전에는 방 치수 글자가 숨겨져 있다가 제자리에서 나타난다 (6.5s)
+  ✓  146 tests/e2e/photo-server.spec.ts:37:5 › [desktop] 사진 읽기 서버 경로 › SV-1 서버가 있으면 읽고, 미리보기 → 확인 → 적용해야 방이 바뀐다 (3.8s)
+  ✓  147 tests/e2e/photo-server.spec.ts:62:5 › [desktop] 사진 읽기 서버 경로 › SV-2 POST가 503 no_key면 수동 붙여넣기로 내려가고 아무것도 반영되지 않는다 (3.8s)
+  ✓  148 tests/e2e/photo-server.spec.ts:79:5 › [desktop] 사진 읽기 서버 경로 › SV-3 GET이 available:false면 처음부터 수동 경로이고 사진을 올려도 POST가 없다 (2.1s)
+  ✓  149 tests/e2e/photo-server.spec.ts:37:5 › [mobile] 사진 읽기 서버 경로 › SV-1 서버가 있으면 읽고, 미리보기 → 확인 → 적용해야 방이 바뀐다 (1.8s)
+  ✓  150 tests/e2e/photo-server.spec.ts:62:5 › [mobile] 사진 읽기 서버 경로 › SV-2 POST가 503 no_key면 수동 붙여넣기로 내려가고 아무것도 반영되지 않는다 (2.4s)
+  ✓  151 tests/e2e/photo-server.spec.ts:79:5 › [mobile] 사진 읽기 서버 경로 › SV-3 GET이 available:false면 처음부터 수동 경로이고 사진을 올려도 POST가 없다 (1.6s)
+  ✓  152 tests/e2e/structure.spec.ts:50:5 › [desktop] 벽·문·구역 › WL-1b z=100(방 안쪽)에서 시작해도 칸막이가 생기고 되돌리기 한 번에 사라진다 (3.4s)
+  ✓  153 tests/e2e/structure.spec.ts:60:5 › [desktop] 벽·문·구역 › WL-1 끌어서 세로 칸막이 벽, 두께 100, 되돌리기 한 번에 사라짐 (4.9s)
+  ✓  154 tests/e2e/structure.spec.ts:70:5 › [desktop] 벽·문·구역 › WL-2 칸막이와 겹치면 경고(문구에 벽), 면에 맞닿으면 경고 없음 (6.3s)
+  ✓  155 tests/e2e/structure.spec.ts:89:5 › [desktop] 벽·문·구역 › WL-3 칸막이 면 가까이 끌면 붙는다 (5.8s)
+  ✓  156 tests/e2e/structure.spec.ts:100:5 › [desktop] 벽·문·구역 › WL-4 벽까지 거리는 그 방향의 가장 가까운 벽 면(칸막이 포함) (7.2s)
+  ✓  157 tests/e2e/structure.spec.ts:119:5 › [desktop] 벽·문·구역 › DR-W1 바깥 벽 0에 문 추가(폭 900), 끌면 offset이 바뀌고 벽 밖으로 나가지 않는다 (11.6s)
+  ✓  158 tests/e2e/structure.spec.ts:139:5 › [desktop] 벽·문·구역 › DR-W2 문 열리는 자리의 가구는 경고(문구에 문), 열리는 방향을 바꾸면 따라 바뀐다 (9.8s)
+  ✓  159 tests/e2e/structure.spec.ts:165:5 › [desktop] 벽·문·구역 › DR-W3 칸막이 벽에도 문, 벽을 지우면 문도 지워진다 (12.0s)
+  ✓  160 tests/e2e/structure.spec.ts:180:5 › [desktop] 벽·문·구역 › WN-1 창문(문턱 900, 높이 1200), 가구 경고를 만들지 않는다 (6.0s)
+  ✓  161 tests/e2e/structure.spec.ts:203:5 › [desktop] 벽·문·구역 › LB-1 거실 이름표가 평면에 보이고 끌어 옮길 수 있다 (3.2s)
+  ✓  162 tests/e2e/structure.spec.ts:218:5 › [desktop] 벽·문·구역 › ST-1 새로 고침 뒤에도 칸막이·문·창문·이름표가 그대로 (8.0s)
+  ✓  163 tests/e2e/structure.spec.ts:50:5 › [mobile] 벽·문·구역 › WL-1b z=100(방 안쪽)에서 시작해도 칸막이가 생기고 되돌리기 한 번에 사라진다 (3.4s)
+  ✓  164 tests/e2e/structure.spec.ts:60:5 › [mobile] 벽·문·구역 › WL-1 끌어서 세로 칸막이 벽, 두께 100, 되돌리기 한 번에 사라짐 (3.6s)
+  ✓  165 tests/e2e/structure.spec.ts:70:5 › [mobile] 벽·문·구역 › WL-2 칸막이와 겹치면 경고(문구에 벽), 면에 맞닿으면 경고 없음 (4.1s)
+  ✓  166 tests/e2e/structure.spec.ts:89:5 › [mobile] 벽·문·구역 › WL-3 칸막이 면 가까이 끌면 붙는다 (3.6s)
+  ✓  167 tests/e2e/structure.spec.ts:100:5 › [mobile] 벽·문·구역 › WL-4 벽까지 거리는 그 방향의 가장 가까운 벽 면(칸막이 포함) (5.2s)
+  ✓  168 tests/e2e/structure.spec.ts:119:5 › [mobile] 벽·문·구역 › DR-W1 바깥 벽 0에 문 추가(폭 900), 끌면 offset이 바뀌고 벽 밖으로 나가지 않는다 (8.6s)
+  ✓  169 tests/e2e/structure.spec.ts:139:5 › [mobile] 벽·문·구역 › DR-W2 문 열리는 자리의 가구는 경고(문구에 문), 열리는 방향을 바꾸면 따라 바뀐다 (7.5s)
+  ✓  170 tests/e2e/structure.spec.ts:165:5 › [mobile] 벽·문·구역 › DR-W3 칸막이 벽에도 문, 벽을 지우면 문도 지워진다 (4.9s)
+  ✓  171 tests/e2e/structure.spec.ts:180:5 › [mobile] 벽·문·구역 › WN-1 창문(문턱 900, 높이 1200), 가구 경고를 만들지 않는다 (4.3s)
+  ✓  172 tests/e2e/structure.spec.ts:203:5 › [mobile] 벽·문·구역 › LB-1 거실 이름표가 평면에 보이고 끌어 옮길 수 있다 (2.2s)
+  ✓  173 tests/e2e/structure.spec.ts:218:5 › [mobile] 벽·문·구역 › ST-1 새로 고침 뒤에도 칸막이·문·창문·이름표가 그대로 (5.4s)
+  ✓  174 tests/e2e/suggest.spec.ts:107:5 › [desktop] AI 추천 배치 › SG-1 추천받기 → 중심·회전이 답대로 바뀌고 이유가 보이며 수·이름·크기는 그대로 (3.5s)
+  ✓  175 tests/e2e/suggest.spec.ts:140:5 › [desktop] AI 추천 배치 › SG-2 원래대로와 되돌리기(undo) 모두 추천 전 자리·방향으로 돌아온다 (4.1s)
+  ✓  176 tests/e2e/suggest.spec.ts:167:5 › [desktop] AI 추천 배치 › SG-3 겹치는 첫 답은 문제를 적어 한 번만 다시 묻고(호출 2회) 고친 답을 적용한다 (4.0s)
+  ✓  177 tests/e2e/suggest.spec.ts:193:5 › [desktop] AI 추천 배치 › SG-3b 두 번째 답에도 겹침이 남으면 적용하고 경고 문구를 보인다(호출 2회) (9.3s)
+  ✓  178 tests/e2e/suggest.spec.ts:211:5 › [desktop] AI 추천 배치 › SG-3c 방 밖으로 나간 값은 방 안으로 당겨 넣고, 문제가 없으니 다시 묻지 않는다 (5.5s)
+  ✓  179 tests/e2e/suggest.spec.ts:237:5 › [desktop] AI 추천 배치 › SG-4 가구가 없거나 목적이 비면 추천받기가 눌리지 않고, 형식이 틀린 답은 적용하지 않고 오류를 보인다 (5.5s)
+  ✓  180 tests/e2e/suggest.spec.ts:276:5 › [desktop] AI 추천 배치 › SG-5 AI를 쓸 수 없으면 안내와 복사·붙여넣기 경로가 보이고 붙여 넣은 답도 같은 검사를 거쳐 적용된다 (4.5s)
+  ✓  181 tests/e2e/suggest.spec.ts:321:5 › [desktop] AI 추천 배치 › SG-6 서버 경로: GET {available:true} → POST {goal, room, items}로 묻고 {text}를 적용한다 (4.0s)
+  ✓  182 tests/e2e/suggest.spec.ts:358:5 › [desktop] AI 추천 배치 › SG-7 만드는 중에 그만을 누르면 아무것도 바뀌지 않는다 (6.6s)
+  ✓  183 tests/e2e/suggest.spec.ts:107:5 › [mobile] AI 추천 배치 › SG-1 추천받기 → 중심·회전이 답대로 바뀌고 이유가 보이며 수·이름·크기는 그대로 (1.8s)
+  ✓  184 tests/e2e/suggest.spec.ts:140:5 › [mobile] AI 추천 배치 › SG-2 원래대로와 되돌리기(undo) 모두 추천 전 자리·방향으로 돌아온다 (1.5s)
+  ✓  185 tests/e2e/suggest.spec.ts:167:5 › [mobile] AI 추천 배치 › SG-3 겹치는 첫 답은 문제를 적어 한 번만 다시 묻고(호출 2회) 고친 답을 적용한다 (1.9s)
+  ✓  186 tests/e2e/suggest.spec.ts:193:5 › [mobile] AI 추천 배치 › SG-3b 두 번째 답에도 겹침이 남으면 적용하고 경고 문구를 보인다(호출 2회) (1.4s)
+  ✓  187 tests/e2e/suggest.spec.ts:211:5 › [mobile] AI 추천 배치 › SG-3c 방 밖으로 나간 값은 방 안으로 당겨 넣고, 문제가 없으니 다시 묻지 않는다 (1.5s)
+  ✓  188 tests/e2e/suggest.spec.ts:237:5 › [mobile] AI 추천 배치 › SG-4 가구가 없거나 목적이 비면 추천받기가 눌리지 않고, 형식이 틀린 답은 적용하지 않고 오류를 보인다 (1.6s)
+  ✓  189 tests/e2e/suggest.spec.ts:276:5 › [mobile] AI 추천 배치 › SG-5 AI를 쓸 수 없으면 안내와 복사·붙여넣기 경로가 보이고 붙여 넣은 답도 같은 검사를 거쳐 적용된다 (1.5s)
+  ✓  190 tests/e2e/suggest.spec.ts:321:5 › [mobile] AI 추천 배치 › SG-6 서버 경로: GET {available:true} → POST {goal, room, items}로 묻고 {text}를 적용한다 (1.5s)
+  ✓  191 tests/e2e/suggest.spec.ts:358:5 › [mobile] AI 추천 배치 › SG-7 만드는 중에 그만을 누르면 아무것도 바뀌지 않는다 (4.6s)
+  ✓  192 tests/e2e/walk.spec.ts:40:5 › [desktop] 사람 뷰 › WK-1 사람 뷰: view walk, eye는 방 안 높이 1500, 평면·3D로 돌아오면 eye는 null (1.3s)
+  ✓  193 tests/e2e/walk.spec.ts:59:5 › [desktop] 사람 뷰 › WK-2 가로로 끌면 headingDeg만 바뀌고 eye의 x·z, 방, 가구는 그대로 (3.2s)
+  ✓  194 tests/e2e/walk.spec.ts:83:5 › [desktop] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 (2.3s)
+  ✓  195 tests/e2e/walk.spec.ts:120:5 › [desktop] 사람 뷰 › WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜) (3.5s)
+  ✓  196 tests/e2e/walk.spec.ts:154:5 › [desktop] 사람 뷰 › WK-4 사람 뷰에 들어가면 선택·미리보기가 풀리고 가구 도구 막대와 도면 치수가 보이지 않는다 (2.5s)
+  ✓  197 tests/e2e/walk.spec.ts:40:5 › [mobile] 사람 뷰 › WK-1 사람 뷰: view walk, eye는 방 안 높이 1500, 평면·3D로 돌아오면 eye는 null (1.1s)
+  ✓  198 tests/e2e/walk.spec.ts:59:5 › [mobile] 사람 뷰 › WK-2 가로로 끌면 headingDeg만 바뀌고 eye의 x·z, 방, 가구는 그대로 (2.1s)
+  ✘  199 tests/e2e/walk.spec.ts:83:5 › [mobile] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 (2.6s)
+  ✓  200 tests/e2e/walk.spec.ts:120:5 › [mobile] 사람 뷰 › WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜) (6.1s)
+  ✓  201 tests/e2e/walk.spec.ts:154:5 › [mobile] 사람 뷰 › WK-4 사람 뷰에 들어가면 선택·미리보기가 풀리고 가구 도구 막대와 도면 치수가 보이지 않는다 (2.9s)
+
+
+  1) tests/e2e/walk.spec.ts:83:5 › [mobile] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 5450
+    Received:    5446
+
+      115 |       const e = (await eyeOf(page))!;
+      116 |       expect(e.x).toBeLessThanOrEqual(5600 + 5);
+    > 117 |       expect(e.x).toBeGreaterThanOrEqual(5600 - 150);
+          |                   ^
+      118 |     });
+      119 |
+      120 |     test('WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜)', async ({ page }) => {
+        at ~/room-planner-3d/tests/e2e/walk.spec.ts:117:19
+
+    Error Context: test-results/walk--mobile-사람-뷰-WK-3-바닥--02d32--옮기고-가구-위를-끌어도-가구는-움직이지-않는다/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/walk--mobile-사람-뷰-WK-3-바닥--02d32--옮기고-가구-위를-끌어도-가구는-움직이지-않는다/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/walk--mobile-사람-뷰-WK-3-바닥--02d32--옮기고-가구-위를-끌어도-가구는-움직이지-않는다/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    tests/e2e/walk.spec.ts:83:5 › [mobile] 사람 뷰 › WK-3 바닥 탭은 eye를 그 자리(벽에서 띄움)로 옮기고, 가구 위를 끌어도 가구는 움직이지 않는다 
+  12 skipped
+  188 passed (9.2m)
+### exit 1

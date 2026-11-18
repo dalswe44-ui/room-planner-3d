@@ -111,10 +111,12 @@ for (const vp of VIEWPORTS) {
       const cn = await floorToClient(page, near);
       expect(inCanvas(cn), `벽 가까운 점 ${JSON.stringify(cn)}가 화면 안`).toBe(true);
       await page.mouse.click(cn.x, cn.y);
-      await expect.poll(async () => (await eyeOf(page))!.x, { timeout: 5000 }).toBeGreaterThan(5300);
+      // 이동 애니메이션(약 0.45초)이 끝나 멈춘 자리를 본다. 도중 값을 한 번 읽으면 5300~5450 사이가 나와 실패한다(T-1118-01).
+      await expect
+        .poll(async () => (await eyeOf(page))!.x, { timeout: 5000 })
+        .toBeGreaterThanOrEqual(5600 - 150);
       const e = (await eyeOf(page))!;
       expect(e.x).toBeLessThanOrEqual(5600 + 5);
-      expect(e.x).toBeGreaterThanOrEqual(5600 - 150);
     });
 
     test('WK-3b 가구 위를 끌거나 눌러도 가구의 center는 그대로이고 eye도 움직이지 않는다(끌면 방향만 바뀜)', async ({ page }) => {

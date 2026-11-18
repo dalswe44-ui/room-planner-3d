@@ -34,6 +34,8 @@ export function App() {
   const hasDraft = useProjectStore((s) => s.draft !== null);
   const structureHandlers = useStructureHandlers();
   const setEditMode = useProjectStore((s) => s.setEditMode);
+  // 사람 뷰는 둘러보기 전용이다(SPEC 4-7). 패널의 입력과 버튼을 막는다(D-1118-04).
+  const walking = useProjectStore((s) => s.viewMode === 'walk');
   const [tab, setTab] = useState<'main' | 'structure' | 'photo' | 'suggest'>('main');
   // 벽·문 탭에 있을 때만 구조 편집 모드. 탭을 떠나면 가구 모드로 돌아간다.
   useEffect(() => {
@@ -104,6 +106,12 @@ export function App() {
             AI 추천
           </button>
         </div>
+        {walking && (
+          <p className="app-walk-note" role="status" data-testid="walk-edit-locked">
+            사람 뷰에서는 둘러보기만 할 수 있어요. 편집하려면 위쪽의 평면이나 3D 뷰로 바꾸세요.
+          </p>
+        )}
+        <fieldset className="app-panel-body" disabled={walking} data-testid="panel-body">
         {tab === 'main' ? (
           <>
             <section className="app-section" aria-label="방">
@@ -126,6 +134,7 @@ export function App() {
             <PhotoPanel />
           </section>
         )}
+        </fieldset>
       </aside>
       <main className="app-scene" data-testid="scene">
         <ViewToggle />

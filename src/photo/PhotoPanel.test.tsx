@@ -80,6 +80,16 @@ describe('PhotoPanel', () => {
     expect(screen.queryByTestId('photo-preview')).toBeNull();
   });
 
+  it('그림으로 열 수 없는 파일은 보관하지 않고 오류를 보인다 (D-1118-01)', async () => {
+    render(<PhotoPanel />);
+    await userEvent.setup().upload(screen.getByTestId('photo-file'), new File(['not an image'], 'fake.png', { type: 'image/png' }));
+    fireEvent.error(await screen.findByTestId('photo-preview'));
+    expect(screen.queryByTestId('photo-preview')).toBeNull();
+    expect(screen.queryByTestId('photo-remove')).toBeNull();
+    expect(usePhotoStore.getState().url).toBeNull();
+    expect(screen.getByTestId('photo-file-error').textContent).toContain('사진으로 열 수 없습니다');
+  });
+
   it('복사 성공 시 문구를 클립보드에 쓴다', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });

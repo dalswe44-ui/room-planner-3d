@@ -107,6 +107,24 @@ describe('StructurePanel', () => {
     expect(store().project.room.openings[0]).toMatchObject({ wall: wid, width: 800, offset: 0 });
   });
 
+  it('같은 벽에 다시 넣으면 빈 구간에 놓고, 빈자리가 없으면 넣지 않고 알린다 (D-1118-03)', async () => {
+    const wid = store().addWall({ a: { x: 1000, z: 200 }, b: { x: 1000, z: 2900 } })!; // 2700 mm 벽, 문 900 mm 세 개까지
+    render(<StructurePanel />);
+    const addDoor = async () => {
+      act(() => store().selectStructure({ kind: 'wall', id: wid }));
+      await user().click(screen.getByTestId('wall-add-door'));
+    };
+    await addDoor();
+    await addDoor();
+    await addDoor();
+    const spans = store().project.room.openings.map((o) => [o.offset, o.offset + o.width]).sort((a, b) => a[0] - b[0]);
+    expect(spans).toEqual([[0, 900], [900, 1800], [1800, 2700]]); // 겹치지 않음
+    expect(screen.queryByTestId('wall-opening-full')).toBeNull();
+    await addDoor();
+    expect(store().project.room.openings).toHaveLength(3);
+    expect(screen.getByTestId('wall-opening-full').textContent).toContain('빈자리가 없습니다');
+  });
+
   it('창문 추가: 문턱 높이 칸이 있고 경첩 버튼은 없다', async () => {
     store().selectStructure({ kind: 'outerWall', index: 2 });
     render(<StructurePanel />);

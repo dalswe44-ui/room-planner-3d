@@ -1,0 +1,39 @@
+### node docs/evidence/qa-2026-11-18/scripts/s7.cjs  (vite preview --outDir dist --port 4541, 2026-11-18 19:59:33)
+after reselect wall: add-door present 1 outer card 1 opening card 0
+openings [["door",{"x":1350,"z":0},{"x":2250,"z":0}],["door",{"x":1350,"z":0},{"x":2250,"z":0}]]
+opening inputs ["opening-width","opening-offset","opening-height"]
+door width 5000 -> err null fit 벽 길이를 넘어요. 폭이나 위치를 줄여 주세요. [[{"x":1350,"z":0},{"x":2250,"z":0}],[{"x":1350,"z":0},{"x":3600,"z":0}]]
+door width 3600 -> null fit 벽 길이를 넘어요. 폭이나 위치를 줄여 주세요. [[{"x":1350,"z":0},{"x":2250,"z":0}],[{"x":1350,"z":0},{"x":3600,"z":0}]]
+offset -500 err 읽을 수 없는 값입니다. 허용 범위: 0 ~ 20000 mm [[{"x":1350,"z":0},{"x":2250,"z":0}],[{"x":1350,"z":0},{"x":3600,"z":0}]]
+label card 구역 이름표
+이름
+삭제 [{"id":"b2a85f30-1e2e-4af5-b9d9-2bf6a6187dd8","name":"구역","at":{"x":1800,"z":1500}}]
+empty label -> [{"id":"b2a85f30-1e2e-4af5-b9d9-2bf6a6187dd8","name":"구역","at":{"x":1800,"z":1500}}]
+room 1000 openings [[{"x":1000,"z":0},{"x":1000,"z":0}],[{"x":1000,"z":0},{"x":1000,"z":0}]]
+struct panel after shrink:
+방·가구
+벽·문
+사진
+AI 추천
+
+평면 뷰에서 빈 곳을 끌면 벽이 생겨요. 벽을 고르면 문이나 창문을 넣을 수 있어요.
+
+구역 이름 추가
+칸막이 벽
+아직 없어요.
+tall 3000 in 2400 ceiling: warn false status 0
+walk: draft true draft-toolbar visible 0 draft-card 1
+walk: confirm -> items 2 selected 1 item-toolbar 0 view walk
+walk arrow moves selected item [1105,900] -> [1115,900]
+40 adds ms 8140 count 42 warns 29
+rAF fps 2d (swiftshader) 61
+rAF fps 3d 62
+drag w/ 42 items ms 2090
+storage size 6945
+bad storage { -> {"width":3600,"depth":3000,"ceilingHeight":2400} new logs []
+bad storage null -> {"width":3600,"depth":3000,"ceilingHeight":2400} new logs []
+bad storage {"version":1} -> {"width":3600,"depth":3000,"ceilingHeight":2400} new logs []
+bad storage {"version":99,"project":{}} -> {"width":3600,"depth":3000,"ceilingHeight":2400} new logs []
+bad storage {"version":1,"displayUnit":"mm","room":{ -> {"width":3600,"depth":3000,"ceilingHeight":2400} new logs []
+LOGS []
+### exit 0

@@ -1,0 +1,28 @@
+### node docs/evidence/qa-2026-11-18/scripts/s5.cjs  (vite preview --outDir dist --port 4541, 2026-11-18 19:59:06)
+doc scroll {"sw":400,"iw":400,"sh":800,"ih":800}
+layout: header-sub visible false panel [0,432,400,368] scene [0,64,400,368] canvas [0,124,400,308]
+targets < 44px []
+draft toolbar [127,214,190,52] draft-card in view [1127,1596]
+items [{"c":[1800,1500],"s":[1200,600,720],"r":0,"sel":true,"warn":false}] toolbar [127,214,190,52]
+touch drag -> [1000,800] scroll before/after [0,1087] [0,1087]
+pinch: room px width 270 -> 846.0000000000008 visualViewport scale 1
+selected true item-name top 560 panel box [0,432,400,368] panel scrollTop/Height [1087,1825,367]
+room-width font-size 16px
+structure doc sw 400
+STRUCT PANEL:
+방·가구
+벽·문
+사진
+AI 추천
+
+평면 뷰에서 빈 곳을 끌면 벽이 생겨요. 벽을 고르면 문이나 창문을 넣을 수 있어요.
+
+구역 이름 추가
+칸막이 벽
+아직 없어요.
+photo doc sw 400
+suggest doc sw 400
+landscape canvas [340,128,460,272] panel [0,68,340,332]
+320: doc sw 320 canvas [0,124,320,201] tabs [69,69,69,69]
+LOGS []
+### exit 0

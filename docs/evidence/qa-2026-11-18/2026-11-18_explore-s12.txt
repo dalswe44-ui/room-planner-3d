@@ -1,0 +1,5 @@
+### node docs/evidence/qa-2026-11-18/scripts/s12.cjs  (vite preview --outDir dist --port 4541, 2026-11-18 20:00:22)
+probe-ready ms 825 {"dcl":458,"load":459,"p":[["first-paint",472],["first-contentful-paint",488]],"r":[["index-B8mSQM7y.js",300,1],["index-Chz84S3t.css",300,1]]}
+probe-ready ms 423 {"dcl":150,"load":150,"p":[["first-paint",208]],"r":[["index-Chz84S3t.css",300,1],["index-B8mSQM7y.js",300,2]]}
+probe-ready ms 452 {"dcl":181,"load":181,"p":[["first-paint",168],["first-contentful-paint",200]],"r":[["index-B8mSQM7y.js",300,4],["index-Chz84S3t.css",300,1]]}
+### exit 0

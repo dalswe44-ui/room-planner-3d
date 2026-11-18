@@ -20,6 +20,7 @@ export function PhotoPanel() {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'fallback'>('idle');
   const [applyState, setApplyState] = useState<'idle' | 'confirming' | 'applied'>('idle');
   const [fileError, setFileError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [auto, setAuto] = useState<'checking' | 'sample' | 'server' | 'unavailable'>('checking');
   const [read, setRead] = useState<{ kind: 'idle' | 'reading' | 'done' } | { kind: 'failed'; message: string }>({ kind: 'idle' });
   const abortRef = useRef<AbortController | null>(null);
@@ -113,6 +114,7 @@ export function PhotoPanel() {
   }
 
   async function pickPhoto(file: File) {
+    setPhotoError(null);
     try {
       await usePhotoStore.getState().setFile(file);
       setFileError(null);
@@ -223,9 +225,25 @@ export function PhotoPanel() {
             e.target.value = '';
           }}
         />
+        {photoError && (
+          <p className="photo-error" role="alert" data-testid="photo-file-error">
+            {photoError}
+          </p>
+        )}
         {hasPhoto && (
           <div className="photo-frame">
-            <img src={photoUrl} alt="첨부한 배치도 사진" className="photo-img" data-testid="photo-preview" />
+            <img
+              src={photoUrl}
+              alt="첨부한 배치도 사진"
+              className="photo-img"
+              data-testid="photo-preview"
+              onError={() => {
+                // 브라우저가 그림으로 그리지 못한 파일(깨진 파일, 이미지가 아닌 파일)은 보관하지 않는다.
+                stopRead();
+                usePhotoStore.getState().clear();
+                setPhotoError('이 파일은 사진으로 열 수 없습니다. JPG나 PNG 사진을 골라 주세요.');
+              }}
+            />
             <button
               type="button"
               className="btn"
