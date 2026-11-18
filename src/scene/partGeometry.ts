@@ -1,8 +1,9 @@
 // 가구 부품 하나의 geometry. 크기와 반지름은 mm로 받아 장면 단위(m)로 만든다. 원점은 부품 중심.
-import { BufferGeometry, ExtrudeGeometry, Shape } from 'three';
+import { BoxGeometry, BufferGeometry, ExtrudeGeometry, Float32BufferAttribute, Shape } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mmToWorld } from '../contracts/coords';
 import type { FurniturePart } from './furnitureParts';
+import { GRAIN_TILE_M } from './furnitureTexture';
 
 /** 모서리 분할 수(휴대폰 성능을 위해 낮게) */
 const ROUND_SEGMENTS = 2;
@@ -29,10 +30,43 @@ function slab(w: number, h: number, d: number, r: number): BufferGeometry {
   return g;
 }
 
-/** 각진 부품(radius·corner 없음)은 undefined를 돌려준다. 그리는 쪽이 boxGeometry로 그린다. */
+/**
+ * 무늬용 UV. 면의 방향(가장 큰 법선 축)에 따라 장면 좌표(m)를 무늬 한 장의 길이로 나눈 값을 UV로 쓴다.
+ * 부품 크기와 상관없이 무늬 크기가 같고, 위·옆·앞면 모두 같은 가로 결 방향(가구 폭 방향 우선)이 된다.
+ */
+function planarUv(g: BufferGeometry, tileM: number): void {
+  const pos = g.getAttribute('position');
+  const nor = g.getAttribute('normal');
+  const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    const nx = Math.abs(nor.getX(i));
+    const ny = Math.abs(nor.getY(i));
+    const nz = Math.abs(nor.getZ(i));
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    let u: number;
+    let v: number;
+    if (nx >= ny && nx >= nz) { u = z; v = y; } else if (ny >= nz) { u = x; v = z; } else { u = x; v = y; }
+    uv[i * 2] = u / tileM;
+    uv[i * 2 + 1] = v / tileM;
+  }
+  g.setAttribute('uv', new Float32BufferAttribute(uv, 2));
+}
+
+/** 같은 모양의 부품이 geometry를 나눠 쓰게 하는 열쇠 */
+export function partGeometryKey(part: FurniturePart): string {
+  return `${part.size.join('x')}|r${part.radius ?? 0}|c${part.corner ?? 0}|${part.grain ?? ''}`;
+}
+
+/** 각진 무늬 없는 부품(radius·corner·grain 없음)은 undefined를 돌려준다. 그리는 쪽이 boxGeometry로 그린다. */
 export function makePartGeometry(part: FurniturePart): BufferGeometry | undefined {
   const [w, h, d] = part.size.map(mmToWorld) as [number, number, number];
-  if (part.corner) return slab(w, h, d, Math.min(mmToWorld(part.corner), w / 2 - 1e-6, d / 2 - 1e-6));
-  if (part.radius) return new RoundedBoxGeometry(w, h, d, ROUND_SEGMENTS, mmToWorld(part.radius));
-  return undefined;
+  let g: BufferGeometry;
+  if (part.corner) g = slab(w, h, d, Math.min(mmToWorld(part.corner), w / 2 - 1e-6, d / 2 - 1e-6));
+  else if (part.radius) g = new RoundedBoxGeometry(w, h, d, ROUND_SEGMENTS, mmToWorld(part.radius));
+  else if (part.grain) g = new BoxGeometry(w, h, d);
+  else return undefined;
+  if (part.grain) planarUv(g, GRAIN_TILE_M[part.grain]);
+  return g;
 }

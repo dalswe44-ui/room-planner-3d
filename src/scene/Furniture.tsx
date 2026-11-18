@@ -1,13 +1,14 @@
 // 가구 하나를 그린다. 상자 메시는 항상 w×d×h 히트 박스(레이캐스트·검증 조회용)이고, 종류가 있으면 그 안에 단순 도형 부품을 그린다. 위치와 크기 계산은 geometry.ts의 furnitureTransform만 쓴다.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BoxGeometry, Color, EdgesGeometry, LineBasicMaterial, type BufferGeometry } from 'three';
+import { BoxGeometry, Color, EdgesGeometry, LineBasicMaterial, MeshStandardMaterial, type BufferGeometry } from 'three';
 import { Html, Line } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { mmToWorld } from '../contracts/coords';
 import type { DragPreview, FurnitureItem } from '../contracts/types';
 import { partsForKind, type FurniturePart, type PartTone } from './furnitureParts';
-import { toneHexes } from './furnitureTones';
-import { makePartGeometry } from './partGeometry';
+import { materialSpec, toneHexes } from './furnitureTones';
+import { getGrainTexture } from './furnitureTexture';
+import { makePartGeometry, partGeometryKey } from './partGeometry';
 import {
   INK_COLOR,
   SELECTED_EDGE_COLOR,
@@ -49,7 +50,7 @@ export function FurnitureBox({ item, preview, warning, selected, draft = false, 
     selected,
     draft,
   };
-  const kindParts = useMemo(() => partsForKind(item.kind, item.w, item.d, item.h), [item.kind, item.w, item.d, item.h]);
+  const kindParts = useMemo(() => partsForKind(item.kind, item.w, item.d, item.h, item.id), [item.kind, item.id, item.w, item.d, item.h]);
   // 종류 없는 상자는 둥근 모서리의 덩어리 하나로 그린다.
   const parts = useMemo<FurniturePart[]>(
     () =>
@@ -65,15 +66,49 @@ export function FurnitureBox({ item, preview, warning, selected, draft = false, 
     for (const k of Object.keys(hex) as PartTone[]) out[k] = new Color(hex[k]);
     return out;
   }, [item.color, warning]);
+  // 같은 모양의 부품은 geometry 하나를, 같은 톤·무늬의 부품은 재질 하나를 나눠 쓴다. 쓰고 나면 해제한다.
+  const geometries = useMemo(() => {
+    const byKey = new Map<string, BufferGeometry | undefined>();
+    const list = parts.map((p) => {
+      const key = partGeometryKey(p);
+      if (!byKey.has(key)) byKey.set(key, makePartGeometry(p));
+      return byKey.get(key);
+    });
+    return { list, unique: [...byKey.values()].filter((g): g is BufferGeometry => g !== undefined) };
+  }, [parts]);
+  useEffect(() => () => geometries.unique.forEach((g) => g.dispose()), [geometries]);
   // 미리보기는 반투명. 깊이를 쓰지 않아 부품끼리 겹쳐도 한 겹으로 보인다.
-  const ghost = draft ? { transparent: true, opacity: DRAFT_OPACITY, depthWrite: false } : {};
+  // 경고 상태에서는 무늬를 빼 경고색이 평면 뷰에서 그대로 보이게 한다.
+  const materials = useMemo(() => {
+    const byKey = new Map<string, MeshStandardMaterial>();
+    const list = parts.map((p) => {
+      const key = `${p.tone}|${p.grain ?? ''}`;
+      let m = byKey.get(key);
+      if (!m) {
+        m = new MeshStandardMaterial({
+          color: tones[p.tone],
+          ...materialSpec(p.tone, p.grain),
+          ...(p.grain && !warning ? { map: getGrainTexture(p.grain) } : {}),
+          ...(draft ? { transparent: true, opacity: DRAFT_OPACITY, depthWrite: false } : {}),
+          polygonOffset: true,
+          polygonOffsetFactor: 1,
+          polygonOffsetUnits: 1,
+        });
+        byKey.set(key, m);
+      }
+      return m;
+    });
+    return { list, unique: [...byKey.values()] };
+  }, [parts, tones, warning, draft]);
+  // 공유 텍스처는 재질이 사라져도 dispose하지 않는다(재질의 dispose는 텍스처를 해제하지 않는다).
+  useEffect(() => () => materials.unique.forEach((m) => m.dispose()), [materials]);
   return (
     <mesh position={t.position} rotation={[0, t.rotationY, 0]} userData={userData}>
       <boxGeometry args={t.size} />
       {/* 바깥 상자는 보이지 않는 히트 박스다. 그려지지 않지만 레이캐스트에는 맞는다. */}
       <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
       {parts.map((p, i) => (
-        <PartMesh key={i} part={p} height={item.h} color={tones[p.tone]} ghost={ghost} draft={draft} />
+        <PartMesh key={i} part={p} height={item.h} geometry={geometries.list[i]} material={materials.list[i]!} draft={draft} />
       ))}
       {plan && !draft && <FootprintOutline size={t.size} />}
       {draft && <DraftOutline size={t.size} plan={plan} />}
@@ -148,26 +183,26 @@ interface PartMeshProps {
   part: FurniturePart;
   /** 가구 높이(mm) */
   height: number;
-  color: Color;
-  ghost: { transparent?: boolean; opacity?: number; depthWrite?: boolean };
+  /** 둥근·무늬 부품의 geometry. 각진 민무늬 부품은 undefined(상자로 그린다). 해제는 가구 쪽이 한다. */
+  geometry: BufferGeometry | undefined;
+  material: MeshStandardMaterial;
   draft: boolean;
 }
 
 /** 부품 하나. 위치는 바닥면 기준 높이(mm)이고, 상자 중심(= 높이의 절반)에서 잰 값으로 바꾸는 보정은 여기 한 곳이다. */
-function PartMesh({ part, height, color, ghost, draft }: PartMeshProps) {
-  const geometry = useMemo<BufferGeometry | undefined>(() => makePartGeometry(part), [part]);
-  useEffect(() => () => geometry?.dispose(), [geometry]);
+function PartMesh({ part, height, geometry, material, draft }: PartMeshProps) {
   const size: [number, number, number] = [mmToWorld(part.size[0]), mmToWorld(part.size[1]), mmToWorld(part.size[2])];
-  const sharp = !part.radius && !part.corner;
+  const sharp = !geometry;
   return (
     <mesh
       castShadow={!draft}
       receiveShadow={!draft}
       position={[mmToWorld(part.position[0]), mmToWorld(part.position[1] - height / 2), mmToWorld(part.position[2])]}
+      material={material}
+      dispose={null}
       {...(geometry ? { geometry } : {})}
     >
       {sharp && <boxGeometry args={size} />}
-      <meshStandardMaterial color={color} roughness={0.75} {...ghost} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
       {sharp && <lineSegments geometry={UNIT_BOX_EDGES} material={PART_EDGE_MATERIAL} scale={size} dispose={null} />}
     </mesh>
   );
