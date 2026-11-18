@@ -1,0 +1,18 @@
+
+> room-planner-3d@0.1.0 test
+> vitest run
+
+
+ RUN  v5.1.0 ~/room-planner-3d
+
+
+ Test Files  50 passed (50)
+      Tests  704 passed (704)
+   Start at  02:51:48
+   Duration  6.95s (environment 54%, tests 34%, import 9%, transform 2%, worker 1%)
+
+Environment  jsdom was created 50 times · 21.38s total, 54% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+exit 0
