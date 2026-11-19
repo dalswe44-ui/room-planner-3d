@@ -14,9 +14,9 @@ import {
   SUGGEST_ITEMS_MAX,
   type SuggestItem,
   type SuggestRoom,
-} from '../src/contracts/layoutSuggest';
-import type { FurnitureKind, InteriorWall, Opening, PointMm } from '../src/contracts/types';
-import { askClaude, fail, precheck, type Env } from './read-layout';
+} from '../src/contracts/layoutSuggest.js';
+import type { FurnitureKind, InteriorWall, Opening, PointMm } from '../src/contracts/types.js';
+import { askClaude, fail, precheck, type Env } from './read-layout.js';
 
 const MAX_BYTES = 64 * 1024;
 const NAME_MAX = 40;

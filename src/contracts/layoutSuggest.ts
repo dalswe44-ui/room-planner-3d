@@ -1,9 +1,9 @@
 // AI 추천 배치 계약 (2026-11-17 사용자 요청 16:32: "공부하는 환경처럼 배치하고 싶어" 같은 목적을 적으면 AI가 배치를 추천).
 // 앱(아티팩트의 sample)과 서버 함수(api/suggest-layout.ts)가 같은 지시문을 쓰도록 여기서 만든다.
 // AI는 지금 있는 가구를 옮기고 돌리기만 한다. 가구를 더하거나 빼거나 크기를 바꾸지 않는다.
-import { roomNotches } from './room';
-import { doorSwingRect, interiorWallRect, openingSpan } from './structure';
-import type { FurnitureItem, Mm, Room } from './types';
+import { roomNotches } from './room.js';
+import { doorSwingRect, interiorWallRect, openingSpan } from './structure.js';
+import type { FurnitureItem, Mm, Room } from './types.js';
 
 /** 가구의 뒤(등받이·머리판·벽에 붙는 쪽)가 향하는 벽. 평면 뷰 기준: top은 z=0, left는 x=0. */
 export type BackSide = 'top' | 'left' | 'bottom' | 'right';

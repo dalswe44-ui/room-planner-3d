@@ -5,7 +5,7 @@
 // GET  → { available: boolean }  (키가 설정되어 있는지만 알려 준다)
 // POST → 몸체는 사진 그대로(image/jpeg | image/png | image/webp), 응답은 { text } (AI가 돌려준 원문. 앱이 검사한다)
 // 실패 응답은 { error: 코드, message } 와 상태 코드: 503 no_key, 413 too_large, 415 bad_type, 429 rate_limited, 403 bad_origin, 502 upstream
-import { LAYOUT_READER_PROMPT } from '../src/contracts/layoutImport';
+import { LAYOUT_READER_PROMPT } from '../src/contracts/layoutImport.js';
 
 const MAX_BYTES = 4 * 1024 * 1024; // 서버 함수의 요청 몸체 한도(4.5 MB)보다 작게. 앱은 긴 변 2048 px JPEG를 보낸다.
 const MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
