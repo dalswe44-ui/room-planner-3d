@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { rectCorners } from '../src/contracts/room';
-import { handle, parseBody } from './suggest-layout';
+import { rectCorners } from '../../src/contracts/room';
+import { handle, parseBody } from '../../api/suggest-layout';
 
 const env = { ANTHROPIC_API_KEY: 'sk-test-key', READ_LIMIT_PER_HOUR: '1000' };
 const body = (over: Record<string, unknown> = {}) => ({

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { LAYOUT_READER_PROMPT } from '../src/contracts/layoutImport';
-import { handle, rateLimited } from './read-layout';
+import { LAYOUT_READER_PROMPT } from '../../src/contracts/layoutImport';
+import { handle, rateLimited } from '../../api/read-layout';
 
 const URL_ = 'https://app.example/api/read-layout';
 const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
